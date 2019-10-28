@@ -1,0 +1,1 @@
+thrift -r --out ./internal/thriftgen/ --gen go:package_prefix=github.com/fpawel/atool/internal/thriftgen/  api.thrift
