@@ -7,58 +7,47 @@ CREATE TABLE IF NOT EXISTS party
     created_at TIMESTAMP           NOT NULL DEFAULT (datetime('now')) UNIQUE
 );
 
-CREATE TABLE IF NOT EXISTS device
-(
-    device_name TEXT NOT NULL PRIMARY KEY
-);
-
-INSERT OR IGNORE INTO device(device_name)
-VALUES ('DEFAULT');
-
 CREATE TABLE IF NOT EXISTS device_var
 (
-    device_name TEXT     NOT NULL,
-    var_addr    SMALLINT NOT NULL,
-    name        TEXT     NOT NULL,
-    param_type  TEXT     NOT NULL CHECK (param_type IN
-                                          ('bcd', 'float', 'uint16_little_endian', 'uint16_big_endian')),
-    PRIMARY KEY (device_name, var_addr),
-    FOREIGN KEY (device_name) REFERENCES device (device_name) ON DELETE CASCADE
+    device   TEXT     NOT NULL,
+    var_addr SMALLINT NOT NULL,
+    name     TEXT     NOT NULL,
+    format   TEXT     NOT NULL CHECK (format IN
+                                      ('bcd', 'float', 'uint16_little_endian', 'uint16_big_endian')),
+    PRIMARY KEY (device, var_addr)
 );
 
-INSERT OR IGNORE INTO device_var(device_name, var_addr, name, param_type)
+INSERT OR IGNORE INTO device_var(name, var_addr, name, format)
 VALUES ('DEFAULT', 0, 'Концентрация', 'bcd');
 
 CREATE TABLE IF NOT EXISTS interrogate
 (
-    device_name TEXT     NOT NULL,
-    var_addr    SMALLINT NOT NULL,
-    count       SMALLINT NOT NULL,
-    checked     BOOLEAN  NOT NULL DEFAULT 1 CHECK ( checked IN (0, 1) ),
-    PRIMARY KEY (device_name, var_addr),
-    FOREIGN KEY (device_name) REFERENCES device (device_name) ON DELETE CASCADE
+    device   TEXT     NOT NULL,
+    var_addr SMALLINT NOT NULL,
+    count    SMALLINT NOT NULL,
+    checked  BOOLEAN  NOT NULL DEFAULT 1 CHECK ( checked IN (0, 1) ),
+    PRIMARY KEY (device, var_addr)
 );
 
-INSERT OR IGNORE INTO interrogate(device_name, var_addr, count)
+INSERT OR IGNORE INTO interrogate(device, var_addr, count)
 VALUES ('DEFAULT', 0, 2);
+
+CREATE INDEX IF NOT EXISTS index_product_serial ON product (serial);
 
 CREATE TABLE IF NOT EXISTS product
 (
-    product_id  INTEGER PRIMARY KEY NOT NULL,
-    party_id    INTEGER             NOT NULL,
-    created_at  TIMESTAMP           NOT NULL DEFAULT (datetime('now')) UNIQUE,
-    device_name TEXT                NOT NULL DEFAULT 'DEFAULT',
-    serial      INTEGER             NOT NULL CHECK (serial > 0 ),
-    port        INTEGER             NOT NULL DEFAULT 1 CHECK (port >= 0 ),
-    addr        INTEGER             NOT NULL DEFAULT 1 CHECK (addr >= 1 ),
-    checked     BOOLEAN             NOT NULL DEFAULT 1 CHECK ( checked IN (0, 1) ),
-    UNIQUE (party_id, port, addr),
-    UNIQUE (party_id, device_name, serial),
-    FOREIGN KEY (party_id) REFERENCES party (party_id) ON DELETE CASCADE,
-    FOREIGN KEY (device_name) REFERENCES device (device_name) ON DELETE CASCADE
+    product_id INTEGER PRIMARY KEY NOT NULL,
+    party_id   INTEGER             NOT NULL,
+    created_at TIMESTAMP           NOT NULL DEFAULT (datetime('now')) UNIQUE,
+    device     TEXT                NOT NULL DEFAULT 'DEFAULT',
+    serial     INTEGER             NOT NULL CHECK (serial > 0 ),
+    port       INTEGER             NOT NULL DEFAULT 1 CHECK (port >= 0 ),
+    addr       INTEGER             NOT NULL DEFAULT 1 CHECK (addr >= 1 ),
+    checked    BOOLEAN             NOT NULL DEFAULT 1 CHECK ( checked IN (0, 1) ),
+    UNIQUE (party_id, device, port, addr),
+    UNIQUE (party_id, device, serial),
+    FOREIGN KEY (party_id) REFERENCES party (party_id) ON DELETE CASCADE
 );
-
-CREATE INDEX IF NOT EXISTS index_product_serial ON product (serial);
 
 DROP VIEW IF EXISTS last_party;
 CREATE VIEW IF NOT EXISTS last_party AS

@@ -18,7 +18,7 @@ import (
 	"syscall"
 )
 
-func Main(){
+func Main() {
 
 	// общий контекст приложения с прерыванием
 	ctx, interrupt := context.WithCancel(context.Background())
@@ -29,11 +29,11 @@ func Main(){
 	// соединение с базой данных
 	dbFilename := filepath.Join(filepath.Dir(os.Args[0]), "atool.sqlite")
 	log.Debug("open database: " + dbFilename)
-	db,err := data.Open(dbFilename)
+	db, err := data.Open(dbFilename)
 	must.PanicIf(err)
 
 	// старт сервера
-	stopServer := runServer(db,)
+	stopServer := runServer(db)
 
 	// старт ожидания сигнала прерывания ОС
 	go func() {
@@ -63,12 +63,14 @@ func runServer(db *sqlx.DB) context.CancelFunc {
 
 	port, errPort := strconv.Atoi(os.Getenv(EnvVarProductsPort))
 	if errPort != nil {
+		log.Debug("finding free port to serve api")
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
 			panic(err)
 		}
 		port = ln.Addr().(*net.TCPAddr).Port
-		must.PanicIf( os.Setenv(EnvVarProductsPort, strconv.Itoa(port)) )
+		must.PanicIf(os.Setenv(EnvVarProductsPort, strconv.Itoa(port)))
+		must.PanicIf(ln.Close())
 	}
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	log.Debug("serve api: " + addr)
@@ -92,6 +94,7 @@ func runServer(db *sqlx.DB) context.CancelFunc {
 var (
 	log = structlog.New()
 )
+
 const (
 	EnvVarProductsPort = "ATOOL_API_PORT"
 )

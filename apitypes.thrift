@@ -9,13 +9,28 @@ struct Product {
   4: i8 addr
   5: i32 serial
   6: bool checked
-  7: string deviceName
+  7: string device
 }
 
 struct Party {
     1: i64 partyID
     2: TimeUnixMillis createdAt
     3: list<Product> products
+}
+
+struct DeviceVar {
+    1:string device
+    2:string name
+    3:i16 addr
+    4:string format
+    5:bool checked
+}
+
+struct Interrogate {
+    1:string device
+    2:i16 addr
+    3:i16 count
+    4:bool checked
 }
 
 struct YearMonth{

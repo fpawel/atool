@@ -44,7 +44,7 @@ func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*
 			Checked:   p.Checked,
 		})
 	}
-	return party,nil
+	return party, nil
 }
 
 func (h *productsServiceHandler) AddNewProduct(ctx context.Context) error {
@@ -56,11 +56,10 @@ func (h *productsServiceHandler) DeleteProduct(ctx context.Context, productID in
 	return err
 }
 
-
 func (h *productsServiceHandler) SetProduct(ctx context.Context, p *apitypes.Product) error {
 	_, err := h.db.Exec(`
 UPDATE product 
-	SET serial=?, addr=?, port=?, checked=?
+	SET serial=?, product_addr=?, port=?, checked=?
 WHERE product_id = ?`, p.Serial, p.Addr, p.Port, p.Checked, p.ProductID)
 	return err
 }
@@ -82,7 +81,6 @@ ORDER BY year DESC, month DESC`); err != nil {
 	}
 	return xs, nil
 }
-
 
 const timeLayout = "2006-01-02 15:04:05.000"
 
