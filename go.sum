@@ -9,6 +9,10 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/fpawel/comm v0.0.0-20191015112010-2ad58570365a h1:f4AiVxcuwymlY67exSk71iuTRGIwcNqs8x/FuDYWUNI=
 github.com/fpawel/comm v0.0.0-20191015112010-2ad58570365a/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
+github.com/fpawel/comm v0.0.0-20191031071443-f929bcfcf8f1 h1:zOCKo0zbvvsAyJu17qBveztdxgrfa6SFvi/cLd4izBA=
+github.com/fpawel/comm v0.0.0-20191031071443-f929bcfcf8f1/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
+github.com/fpawel/comm v0.0.0-20191031105307-5532c4520f13 h1:h06+w6z2D0yo5BfVUHT2UHJXJPompMgdZ3PSgPSuFAk=
+github.com/fpawel/comm v0.0.0-20191031105307-5532c4520f13/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
 github.com/fpawel/gotools v0.0.0-20191021181518-e44cd9665770 h1:XoUSCU0OV1V0c3iBUQ39/iN6mBp7e8dSp6BsHzCzgt8=
 github.com/fpawel/gotools v0.0.0-20191021181518-e44cd9665770/go.mod h1:2sZwXlV+tJpLskgyq89dUp35uGHbU74yFO2diqI3Fk8=
 github.com/go-sql-driver/mysql v1.4.0/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
@@ -51,6 +55,8 @@ github.com/powerman/check v1.1.0 h1:B0RbMFR+M9hE0DYfSHBK2shQEHd+9p0Tg6qiOlsag20=
 github.com/powerman/check v1.1.0/go.mod h1:nX1qs/UsVgnQrkebazvKUJzMrtOItv4O0+Y79nhVi3Y=
 github.com/powerman/structlog v0.5.0 h1:xzcR83A9MxxczvbnhWIYObBKuW2CnsvZxG3OATXlLXQ=
 github.com/powerman/structlog v0.5.0/go.mod h1:LLPzzfEtyBct3MTn0UnJdtLxu64fMpSYYQr1Bt3DdAI=
+github.com/powerman/structlog v0.6.0 h1:qb4G+qayVCP3Zetm9azScftX6gZq7yLYQGuSrWMq7wc=
+github.com/powerman/structlog v0.6.0/go.mod h1:IwNWsowhFIX5dHjLJ6Q22LT3nowH4UBJjdlOTvfv6b8=
 github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d/go.mod h1:OnSkiWE9lh6wB0YB77sQom3nweQdgAjqCqsofrRNTgc=
 github.com/smartystreets/assertions v0.0.0-20190401211740-f487f9de1cd3/go.mod h1:OnSkiWE9lh6wB0YB77sQom3nweQdgAjqCqsofrRNTgc=
 github.com/smartystreets/assertions v1.0.1 h1:voD4ITNjPL5jjBfgR/r8fPIIBrliWrWHeiJApdr3r4w=
@@ -89,3 +95,5 @@ gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15/go.mod h1:Co6ibVJAznAaIkqp8
 gopkg.in/yaml.v2 v2.2.2/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
 gopkg.in/yaml.v2 v2.2.4 h1:/eiJrUcujPVeJ3xlSWaiNi3uSVmDGBK1pDHUHAnao1I=
 gopkg.in/yaml.v2 v2.2.4/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
+gopkg.in/yaml.v3 v3.0.0-20191026110619-0b21df46bc1d h1:LCPbGQ34PMrwad11aMZ+dbz5SAsq/0ySjRwQ8I9Qwd8=
+gopkg.in/yaml.v3 v3.0.0-20191026110619-0b21df46bc1d/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=

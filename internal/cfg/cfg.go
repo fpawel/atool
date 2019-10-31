@@ -1,97 +1,124 @@
 package cfg
 
 import (
-	"github.com/BurntSushi/toml"
+	"fmt"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/comm"
-	"github.com/powerman/structlog"
+	"github.com/fpawel/comm/modbus"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 type Config struct {
-	LogComm  bool        `toml:"log_comm" comment:"выводить посылки приёмопередачи в консоль"`
-	Comports []Comport   `toml:"comports" comment:"СОМ порты"`
+	LogComm  bool      `yaml:"log_comm"` // выводить посылки приёмопередачи в консоль
+	Comports []Comport `yaml:"comports"` // СОМ порты
+	Hardware []Device
 }
 
 type Comport struct {
-	Name                  string `toml:"name" comment:"имя СОМ порта"`
-	Baud                  int    `toml:"baud" comment:"скорость приёмопередачи СОМ порта"`
-	ReadTimeoutMillis     int    `toml:"read_timeout" comment:"таймаут получения ответа, мс"`
-	ReadByteTimeoutMillis int    `toml:"read_byte_timeout" comment:"таймаут окончания ответа, мс"`
-	MaxAttemptsRead       int    `toml:"max_attempts_read" comment:"число попыток получения ответа"`
-	PauseMillis           int    `toml:"pause" comment:"пауза перед опросом, мс"`
+	Name               string        `yaml:"name"` // COM port name
+	Baud               int           `yaml:"baud"` // baud rate
+	TimeoutGetResponse time.Duration `yaml:"timeout_get_response"`
+	TimeoutEndResponse time.Duration `yaml:"timeout_end_response"`
+	MaxAttemptsRead    int           `yaml:"max_attempts_read"`
+	Pause              time.Duration `yaml:"pause"`
 }
 
-func Open(log *structlog.Logger) {
-	defer func() {
-		comm.SetEnableLog(config.LogComm)
-	}()
-
-	fileName := fileName()
-
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		save()
-	}
-	data, err := ioutil.ReadFile(fileName)
-	must.PanicIf(err)
-	if err = toml.Unmarshal(data, &config); err != nil {
-		log.PrintErr(err, "file", fileName)
-		save()
-	}
+type Device struct {
+	Params       []DeviceParam `yaml:"params"`
+	Interrogates []Interrogate `yaml:"interrogates"`
 }
 
-func SetToml(strToml string) error {
-	mu.Lock()
-	defer mu.Unlock()
-	if err := toml.Unmarshal([]byte(strToml), &config); err != nil {
+type DeviceParam struct {
+	Name string     `yaml:"name"`
+	Var  modbus.Var `yaml:"var"`
+}
+
+type Interrogate struct {
+	Var   modbus.Var `yaml:"var"`
+	Count int        `yaml:"count"`
+}
+
+func SetYaml(strYaml string) error {
+	if err := yaml.Unmarshal([]byte(strYaml), &config); err != nil {
 		return err
 	}
+	mu.Lock()
+	defer mu.Unlock()
 	comm.SetEnableLog(config.LogComm)
-	write([]byte(strToml))
+	mustWrite([]byte(strYaml))
 	return nil
+}
+
+func GetYaml() string {
+	mu.Lock()
+	defer mu.Unlock()
+	return string(must.MarshalYaml(&config))
 }
 
 func Set(v Config) {
 	mu.Lock()
 	defer mu.Unlock()
-	must.UnmarshalJSON(must.MarshalJSON(&v), &config)
+	data := must.MarshalYaml(&v)
+	must.UnmarshalYaml(data, &config)
 	comm.SetEnableLog(config.LogComm)
-	save()
+	mustWrite(data)
 	return
 }
 
 func Get() (result Config) {
 	mu.Lock()
 	defer mu.Unlock()
-	must.UnmarshalJSON(must.MarshalJSON(&config), &result)
+	must.UnmarshalYaml(must.MarshalYaml(&config), &result)
 	return
 }
 
-func fileName() string {
+func mustWrite(b []byte) {
+	must.WriteFile(filename(), b, 0666)
+}
+
+func filename() string {
 	return filepath.Join(filepath.Dir(os.Args[0]), "config.toml")
-}
-func save() {
-	write(must.MarshalToml(&config))
-}
-func write(data []byte) {
-	must.WriteFile(fileName(), data, 0666)
 }
 
 var (
 	mu     sync.Mutex
-	config = Config{
-		LogComm: false,
-		Comports: []Comport{
-			{
-				Baud:                  9600,
-				Name:                  "COM1",
-				ReadByteTimeoutMillis: 50,
-				ReadTimeoutMillis:     700,
-				MaxAttemptsRead:       3,
+	config = func() Config {
+		x := Config{
+			LogComm: false,
+			Comports: []Comport{
+				{
+					Baud:               9600,
+					Name:               "COM1",
+					TimeoutEndResponse: 50 * time.Millisecond,
+					TimeoutGetResponse: time.Second,
+					MaxAttemptsRead:    3,
+				},
 			},
-		},
-	}
+		}
+		filename := filename()
+
+		mustWrite := func() {
+			mustWrite(must.MarshalYaml(&x))
+		}
+
+		if _, err := os.Stat(filename); os.IsNotExist(err) {
+			mustWrite()
+		}
+
+		data, err := ioutil.ReadFile(filename)
+		must.PanicIf(err)
+
+		if err = yaml.Unmarshal(data, &x); err != nil {
+			fmt.Println(err, "file:", filename)
+			mustWrite()
+		}
+
+		comm.SetEnableLog(x.LogComm)
+		return x
+	}()
 )

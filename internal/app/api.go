@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"github.com/fpawel/atool/internal/cfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
@@ -38,7 +39,7 @@ func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*
 		party.Products = append(party.Products, &apitypes.Product{
 			ProductID: p.ProductID,
 			PartyID:   p.PartyID,
-			Port:      int32(p.Port),
+			Comport:   int32(p.Comport),
 			Addr:      int8(p.Addr),
 			Serial:    int32(p.Serial),
 			Checked:   p.Checked,
@@ -59,9 +60,30 @@ func (h *productsServiceHandler) DeleteProduct(ctx context.Context, productID in
 func (h *productsServiceHandler) SetProduct(ctx context.Context, p *apitypes.Product) error {
 	_, err := h.db.Exec(`
 UPDATE product 
-	SET serial=?, product_addr=?, port=?, checked=?
-WHERE product_id = ?`, p.Serial, p.Addr, p.Port, p.Checked, p.ProductID)
+	SET serial=?, addr=?, comport=?, checked=?, device=?
+WHERE product_id = ?`, p.Serial, p.Addr, p.Comport, p.Checked, p.Device, p.ProductID)
 	return err
+}
+
+func (h *productsServiceHandler) GetComports(ctx context.Context) (r []string, _ error) {
+	for _, x := range cfg.Get().Comports {
+		r = append(r, x.Name)
+	}
+	return
+}
+
+func (h *productsServiceHandler) SetComports(ctx context.Context, comports []string) (err error) {
+	c := cfg.Get()
+
+}
+func (h *productsServiceHandler) GetAppConfig(ctx context.Context) (r string, err error) {
+
+}
+
+// Parameters:
+//  - AppConfig
+func (h *productsServiceHandler) SetAppConfig(ctx context.Context, appConfig string) (err error) {
+
 }
 
 func (h *productsServiceHandler) ListYearMonths(ctx context.Context) ([]*apitypes.YearMonth, error) {

@@ -41,14 +41,14 @@ type Party struct {
 }
 
 type Product struct {
-	CreatedAt  time.Time   `db:"created_at"`
-	ProductID  int64       `db:"product_id"`
-	PartyID    int64       `db:"party_id"`
-	Serial     int         `db:"serial"`
-	Port       int         `db:"port"`
-	Addr       modbus.Addr `db:"addr"`
-	Checked    bool        `db:"checked"`
-	DeviceName string      `db:"device_name"`
+	CreatedAt time.Time   `db:"created_at"`
+	ProductID int64       `db:"product_id"`
+	PartyID   int64       `db:"party_id"`
+	Serial    int         `db:"serial"`
+	Comport   int         `db:"comport"`
+	Addr      modbus.Addr `db:"addr"`
+	Checked   bool        `db:"checked"`
+	Device    string      `db:"device"`
 }
 
 func GetLastParty(ctx context.Context, db *sqlx.DB) (party Party, err error) {

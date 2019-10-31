@@ -8,5 +8,11 @@ service ProductsService {
    void deleteProduct(1:i64 productID)
    void setProduct(1:apitypes.Product product)
 
+   list<string> getComports()
+   void setComports(1:list<string> comports)
+
+   string getAppConfig()
+   void setAppConfig(1:string appConfig)
+
    list<apitypes.YearMonth> listYearMonths()
 }

@@ -2,10 +2,9 @@ package must
 
 import (
 	"database/sql"
-	"encoding/json"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/jmoiron/sqlx"
-	"github.com/pelletier/go-toml"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 )
@@ -33,22 +32,15 @@ func WriteFile(name string, buf []byte, perm os.FileMode) {
 	PanicIf(err)
 }
 
-// UnmarshalJSON is a wrapper for json.Unmarshal.
-func UnmarshalJSON(data []byte, v interface{}) {
-	err := json.Unmarshal(data, v)
+// UnmarshalYAML is a wrapper for json.Unmarshal.
+func UnmarshalYaml(data []byte, v interface{}) {
+	err := yaml.Unmarshal(data, v)
 	PanicIf(err)
 }
 
-// MarshalToml is a wrapper for toml.Marshal.
-func MarshalToml(v interface{}) []byte {
-	data, err := toml.Marshal(v)
-	PanicIf(err)
-	return data
-}
-
-// MarshalJSON is a wrapper for json.Marshal.
-func MarshalJSON(v interface{}) []byte {
-	data, err := json.Marshal(v)
+// MarshalYaml is a wrapper for toml.Marshal.
+func MarshalYaml(v interface{}) []byte {
+	data, err := yaml.Marshal(v)
 	PanicIf(err)
 	return data
 }

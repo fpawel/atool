@@ -7,32 +7,14 @@ CREATE TABLE IF NOT EXISTS party
     created_at TIMESTAMP           NOT NULL DEFAULT (datetime('now')) UNIQUE
 );
 
-CREATE TABLE IF NOT EXISTS device_var
+CREATE TABLE IF NOT EXISTS hardware
 (
-    device   TEXT     NOT NULL,
-    var_addr SMALLINT NOT NULL,
-    name     TEXT     NOT NULL,
-    format   TEXT     NOT NULL CHECK (format IN
-                                      ('bcd', 'float', 'uint16_little_endian', 'uint16_big_endian')),
-    PRIMARY KEY (device, var_addr)
+    device TEXT NOT NULL DEFAULT 'DEFAULT_DEVICE',
+    baud INTEGER NOT NULL DEFAULT 9600,
+    timeout_get_response INTEGER NOT NULL DEFAULT 1000000000, -- в наносекундах = 1 секунда
+    timeout_end_response INTEGER NOT NULL DEFAULT 50000000, -- в наносекундах = 50 миллисекунд
+    pause INTEGER NOT NULL DEFAULT 0
 );
-
-INSERT OR IGNORE INTO device_var(name, var_addr, name, format)
-VALUES ('DEFAULT', 0, 'Концентрация', 'bcd');
-
-CREATE TABLE IF NOT EXISTS interrogate
-(
-    device   TEXT     NOT NULL,
-    var_addr SMALLINT NOT NULL,
-    count    SMALLINT NOT NULL,
-    checked  BOOLEAN  NOT NULL DEFAULT 1 CHECK ( checked IN (0, 1) ),
-    PRIMARY KEY (device, var_addr)
-);
-
-INSERT OR IGNORE INTO interrogate(device, var_addr, count)
-VALUES ('DEFAULT', 0, 2);
-
-CREATE INDEX IF NOT EXISTS index_product_serial ON product (serial);
 
 CREATE TABLE IF NOT EXISTS product
 (
@@ -41,13 +23,15 @@ CREATE TABLE IF NOT EXISTS product
     created_at TIMESTAMP           NOT NULL DEFAULT (datetime('now')) UNIQUE,
     device     TEXT                NOT NULL DEFAULT 'DEFAULT',
     serial     INTEGER             NOT NULL CHECK (serial > 0 ),
-    port       INTEGER             NOT NULL DEFAULT 1 CHECK (port >= 0 ),
+    comport    TEXT             NOT NULL DEFAULT 'COM1' CHECK (comport >= 1 ),
     addr       INTEGER             NOT NULL DEFAULT 1 CHECK (addr >= 1 ),
-    checked    BOOLEAN             NOT NULL DEFAULT 1 CHECK ( checked IN (0, 1) ),
-    UNIQUE (party_id, device, port, addr),
+    checked    BOOLEAN             NOT NULL DEFAULT 1 CHECK (checked IN (0, 1) ),
+    UNIQUE (party_id, comport, addr),
     UNIQUE (party_id, device, serial),
-    FOREIGN KEY (party_id) REFERENCES party (party_id) ON DELETE CASCADE
+    FOREIGN KEY (party_id) REFERENCES party (party_id) ON DELETE CASCADE,
+    FOREIGN KEY (device) REFERENCES hardware (device) ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS index_product_serial ON product (serial);
 
 DROP VIEW IF EXISTS last_party;
 CREATE VIEW IF NOT EXISTS last_party AS
@@ -82,11 +66,10 @@ CREATE TABLE IF NOT EXISTS measurement
 (
     tm         REAL     NOT NULL,
     product_id INTEGER  NOT NULL,
-    var_addr   SMALLINT NOT NULL,
+    var        SMALLINT NOT NULL,
     value      REAL     NOT NULL,
-    PRIMARY KEY (tm, product_id, var_addr),
-    FOREIGN KEY (product_id) REFERENCES product (product_id) ON DELETE CASCADE,
-    FOREIGN KEY (var_addr) REFERENCES device_var (var_addr) ON DELETE CASCADE
+    PRIMARY KEY (tm, product_id, var),
+    FOREIGN KEY (product_id) REFERENCES product (product_id) ON DELETE CASCADE
 );
 
 CREATE TRIGGER IF NOT EXISTS trigger_bucket_insert
