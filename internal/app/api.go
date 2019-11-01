@@ -20,29 +20,36 @@ func (h *productsServiceHandler) CreateNewParty(ctx context.Context) error {
 	return data.CreateNewParty(ctx, h.db)
 }
 
-func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*apitypes.Party, error) {
-	var p data.Party
-	if err := h.db.GetContext(ctx, &p, `SELECT * FROM party WHERE party_id=?`, partyID); err == nil {
-		return nil, err
-	}
-	party := &apitypes.Party{
-		PartyID:   p.PartyID,
-		CreatedAt: timeUnixMillis(p.CreatedAt),
-	}
-
-	xs, err := data.ListProducts(ctx, h.db, p.PartyID)
+func (h *productsServiceHandler) GetLastParty(ctx context.Context) (r *apitypes.Party, err error) {
+	partyID, err := data.GetLastPartyID(ctx, h.db)
 	if err != nil {
 		return nil, err
 	}
+	return h.GetParty(ctx, partyID)
+}
 
-	for _, p := range xs {
+func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*apitypes.Party, error) {
+	dataParty, err := data.GetParty(ctx, h.db, partyID)
+	if err != nil {
+		return nil, err
+	}
+	party := &apitypes.Party{
+		PartyID:   dataParty.PartyID,
+		CreatedAt: timeUnixMillis(dataParty.CreatedAt),
+		Products:  []*apitypes.Product{},
+	}
+
+	for _, p := range dataParty.Products {
 		party.Products = append(party.Products, &apitypes.Product{
-			ProductID: p.ProductID,
-			PartyID:   p.PartyID,
-			Comport:   int32(p.Comport),
-			Addr:      int8(p.Addr),
-			Serial:    int32(p.Serial),
-			Checked:   p.Checked,
+			ProductID:      p.ProductID,
+			PartyID:        p.PartyID,
+			CreatedAt:      timeUnixMillis(p.CreatedAt),
+			PartyCreatedAt: timeUnixMillis(p.PartyCreatedAt),
+			Port:           int32(p.Port),
+			Addr:           int8(p.Addr),
+			Serial:         int32(p.Serial),
+			Checked:        p.Checked,
+			Device:         p.Device,
 		})
 	}
 	return party, nil
@@ -60,30 +67,17 @@ func (h *productsServiceHandler) DeleteProduct(ctx context.Context, productID in
 func (h *productsServiceHandler) SetProduct(ctx context.Context, p *apitypes.Product) error {
 	_, err := h.db.Exec(`
 UPDATE product 
-	SET serial=?, addr=?, comport=?, checked=?, device=?
-WHERE product_id = ?`, p.Serial, p.Addr, p.Comport, p.Checked, p.Device, p.ProductID)
+	SET serial=?, addr=?, port=?, checked=?, device=?
+WHERE product_id = ?`, p.Serial, p.Addr, p.Port, p.Checked, p.Device, p.ProductID)
 	return err
 }
 
-func (h *productsServiceHandler) GetComports(ctx context.Context) (r []string, _ error) {
-	for _, x := range cfg.Get().Comports {
-		r = append(r, x.Name)
-	}
-	return
+func (h *productsServiceHandler) GetAppConfig(ctx context.Context) (string, error) {
+	return cfg.GetYaml(), nil
 }
 
-func (h *productsServiceHandler) SetComports(ctx context.Context, comports []string) (err error) {
-	c := cfg.Get()
-
-}
-func (h *productsServiceHandler) GetAppConfig(ctx context.Context) (r string, err error) {
-
-}
-
-// Parameters:
-//  - AppConfig
-func (h *productsServiceHandler) SetAppConfig(ctx context.Context, appConfig string) (err error) {
-
+func (h *productsServiceHandler) SetAppConfig(ctx context.Context, appConfig string) error {
+	return cfg.SetYaml(appConfig)
 }
 
 func (h *productsServiceHandler) ListYearMonths(ctx context.Context) ([]*apitypes.YearMonth, error) {

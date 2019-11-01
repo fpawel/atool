@@ -5,11 +5,13 @@ typedef i64 TimeUnixMillis
 struct Product {
   1: i64 productID
   2: i64 partyID
-  3: i32 comport
-  4: i8 addr
-  5: i32 serial
-  6: bool checked
-  7: string device
+  3: TimeUnixMillis createdAt
+  4: TimeUnixMillis partyCreatedAt
+  5: i32 port
+  6: i8 addr
+  7: i32 serial
+  8: bool checked
+  9: string device
 }
 
 struct Party {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/apache/thrift/lib/go/thrift"
-	"github.com/fpawel/atool/internal/cfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/thriftgen/api"
@@ -22,9 +21,6 @@ func Main() {
 
 	// общий контекст приложения с прерыванием
 	ctx, interrupt := context.WithCancel(context.Background())
-
-	// открыть конфиг
-	cfg.Open(log)
 
 	// соединение с базой данных
 	dbFilename := filepath.Join(filepath.Dir(os.Args[0]), "atool.sqlite")

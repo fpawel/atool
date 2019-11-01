@@ -4,43 +4,16 @@ import (
 	"fmt"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/comm"
-	"github.com/fpawel/comm/modbus"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 )
 
 type Config struct {
-	LogComm  bool      `yaml:"log_comm"` // выводить посылки приёмопередачи в консоль
-	Comports []Comport `yaml:"comports"` // СОМ порты
-	Hardware []Device
-}
-
-type Comport struct {
-	Name               string        `yaml:"name"` // COM port name
-	Baud               int           `yaml:"baud"` // baud rate
-	TimeoutGetResponse time.Duration `yaml:"timeout_get_response"`
-	TimeoutEndResponse time.Duration `yaml:"timeout_end_response"`
-	MaxAttemptsRead    int           `yaml:"max_attempts_read"`
-	Pause              time.Duration `yaml:"pause"`
-}
-
-type Device struct {
-	Params       []DeviceParam `yaml:"params"`
-	Interrogates []Interrogate `yaml:"interrogates"`
-}
-
-type DeviceParam struct {
-	Name string     `yaml:"name"`
-	Var  modbus.Var `yaml:"var"`
-}
-
-type Interrogate struct {
-	Var   modbus.Var `yaml:"var"`
-	Count int        `yaml:"count"`
+	LogComm  bool     `yaml:"log_comm"` // выводить посылки приёмопередачи в консоль
+	Comports []string `yaml:"comports"` // СОМ порты
 }
 
 func SetYaml(strYaml string) error {
@@ -89,16 +62,8 @@ var (
 	mu     sync.Mutex
 	config = func() Config {
 		x := Config{
-			LogComm: false,
-			Comports: []Comport{
-				{
-					Baud:               9600,
-					Name:               "COM1",
-					TimeoutEndResponse: 50 * time.Millisecond,
-					TimeoutGetResponse: time.Second,
-					MaxAttemptsRead:    3,
-				},
-			},
+			LogComm:  false,
+			Comports: []string{"COM1"},
 		}
 		filename := filename()
 

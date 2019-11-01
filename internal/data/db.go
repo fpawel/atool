@@ -38,31 +38,57 @@ func Open(filename string) (*sqlx.DB, error) {
 type Party struct {
 	PartyID   int64     `db:"party_id"`
 	CreatedAt time.Time `db:"created_at"`
+	Products  []Product `db:"-"`
 }
 
 type Product struct {
-	CreatedAt time.Time   `db:"created_at"`
-	ProductID int64       `db:"product_id"`
-	PartyID   int64       `db:"party_id"`
-	Serial    int         `db:"serial"`
-	Comport   int         `db:"comport"`
-	Addr      modbus.Addr `db:"addr"`
-	Checked   bool        `db:"checked"`
-	Device    string      `db:"device"`
+	ProductID      int64       `db:"product_id"`
+	PartyID        int64       `db:"party_id"`
+	CreatedAt      time.Time   `db:"created_at"`
+	PartyCreatedAt time.Time   `db:"created_at"`
+	Serial         int         `db:"serial"`
+	Port           int         `db:"port"`
+	Addr           modbus.Addr `db:"addr"`
+	Checked        bool        `db:"checked"`
+	Device         string      `db:"device"`
 }
 
-func GetLastParty(ctx context.Context, db *sqlx.DB) (party Party, err error) {
-	if err = db.GetContext(ctx, &party, `SELECT * FROM last_party`); err == nil {
-		return
+func GetLastPartyID(ctx context.Context, db *sqlx.DB) (int64, error) {
+	var partyID int64
+	err := db.GetContext(ctx, &partyID, `SELECT party_id FROM last_party`)
+	if err == nil {
+		return partyID, nil
 	}
 	if err != sql.ErrNoRows {
-		return
+		return 0, err
 	}
 	if err := CreateNewParty(ctx, db); err != nil {
+		return 0, err
+	}
+	if err := db.GetContext(ctx, &partyID, `SELECT party_id FROM last_party`); err != nil {
+		return 0, err
+	}
+	return partyID, nil
+}
+
+func GetLastParty(ctx context.Context, db *sqlx.DB) (Party, error) {
+	partyID, err := GetLastPartyID(ctx, db)
+	if err != nil {
 		return Party{}, err
 	}
-	err = db.GetContext(ctx, &party, `SELECT * FROM last_party`)
-	return
+	return GetParty(ctx, db, partyID)
+}
+
+func GetParty(ctx context.Context, db *sqlx.DB, partyID int64) (Party, error) {
+	var party Party
+	err := db.GetContext(ctx, &party, `SELECT * FROM party WHERE party_id=?`, partyID)
+	if err != nil {
+		return Party{}, err
+	}
+	if party.Products, err = ListProducts(ctx, db, party.PartyID); err != nil {
+		return Party{}, err
+	}
+	return party, err
 }
 
 func CreateNewParty(ctx context.Context, db *sqlx.DB) error {
@@ -90,27 +116,19 @@ func CreateNewParty(ctx context.Context, db *sqlx.DB) error {
 	return nil
 }
 
-func ListLastPartyProducts(ctx context.Context, db *sqlx.DB) ([]Product, error) {
-	p, err := GetLastParty(ctx, db)
-	if err != nil {
-		return nil, err
-	}
-	return ListProducts(ctx, db, p.PartyID)
-}
-
 func ListProducts(ctx context.Context, db *sqlx.DB, partyID int64) (products []Product, err error) {
 	err = db.SelectContext(ctx, &products, `SELECT * FROM product WHERE party_id=? ORDER BY created_at`, partyID)
 	return
 }
 
 func AddNewProduct(ctx context.Context, db *sqlx.DB) error {
-	xs, err := ListLastPartyProducts(ctx, db)
+	party, err := GetLastParty(ctx, db)
 	if err != nil {
 		return err
 	}
 	addresses := make(map[modbus.Addr]struct{})
 	serials := make(map[int]struct{})
-	for _, x := range xs {
+	for _, x := range party.Products {
 		addresses[x.Addr] = struct{}{}
 		serials[x.Serial] = struct{}{}
 	}
@@ -126,8 +144,8 @@ func AddNewProduct(ctx context.Context, db *sqlx.DB) error {
 		}
 	}
 	r, err := db.ExecContext(ctx,
-		`INSERT INTO product( party_id, serial, addr) VALUES ( (SELECT party_id FROM last_party),?,?)`,
-		serial, addr)
+		`INSERT INTO product( party_id, serial, addr) VALUES ( ?,?,?)`,
+		party.PartyID, serial, addr)
 	if err != nil {
 		return err
 	}
