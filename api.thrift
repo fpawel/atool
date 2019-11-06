@@ -2,12 +2,16 @@
 include "apitypes.thrift"
 
 service ProductsService {
-   oneway void createNewParty()
+   void createNewParty(1:i8 productsCount)
    apitypes.Party getParty(1:i64 partyID)
    apitypes.Party getLastParty()
-   void addNewProduct()
-   void deleteProduct(1:i64 productID)
+   void addNewProducts(1:i8 productsCount)
+   void deleteProducts(1:list<i64> productIDs)
+   void setProductsComport(1:list<i64> productIDs, 2:string comport)
+   void setProductsDevice(1:list<i64> productIDs, 2:string device)
    void setProduct(1:apitypes.Product product)
+
+   list<string> listDevices()
 
    string getAppConfig()
    void setAppConfig(1:string appConfig)

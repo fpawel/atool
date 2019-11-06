@@ -29,7 +29,6 @@ CREATE TABLE IF NOT EXISTS param
     var    INTEGER NOT NULL,
     count  INTEGER NOT NULL,
     format TEXT    NOT NULL,
-    name   TEXT    NOT NULL,
     FOREIGN KEY (device) REFERENCES hardware (device) ON DELETE CASCADE,
     PRIMARY KEY (device, var),
     CHECK (var >= 0 ),
@@ -37,8 +36,8 @@ CREATE TABLE IF NOT EXISTS param
     CHECK (format IN ('bcd', 'float', 'int'))
 );
 
-INSERT OR IGNORE INTO param(device, var, count, format, name)
-VALUES ('DEFAULT', 0, 2, 'bcd', 'концентрация');
+INSERT OR IGNORE INTO param(device, var, count, format)
+VALUES ('DEFAULT', 0, 2, 'bcd');
 
 CREATE TABLE IF NOT EXISTS product
 (
@@ -46,20 +45,16 @@ CREATE TABLE IF NOT EXISTS product
     party_id   INTEGER   NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')) UNIQUE,
     device     TEXT      NOT NULL DEFAULT 'DEFAULT',
-    serial     INTEGER   NOT NULL CHECK (serial > 0 ),
-    port       INTEGER   NOT NULL DEFAULT 1,
+    comport    TEXT   NOT NULL DEFAULT '',
     addr       INTEGER   NOT NULL DEFAULT 1,
     checked    BOOLEAN   NOT NULL DEFAULT 1,
     PRIMARY KEY (product_id),
-    UNIQUE (party_id, port, addr),
-    UNIQUE (party_id, device, serial),
+    UNIQUE (party_id, comport, addr),
     FOREIGN KEY (party_id) REFERENCES party (party_id) ON DELETE CASCADE,
     FOREIGN KEY (device) REFERENCES hardware (device) ON DELETE CASCADE,
-    CHECK (port >= 0 ),
     CHECK (addr >= 1 ),
     CHECK (checked IN (0, 1) )
 );
-CREATE INDEX IF NOT EXISTS index_product_serial ON product (serial);
 
 DROP VIEW IF EXISTS last_party;
 CREATE VIEW IF NOT EXISTS last_party AS
@@ -142,3 +137,12 @@ SELECT bucket.*,
 FROM bucket
          INNER JOIN party USING (party_id)
 ORDER BY bucket.created_at;
+
+CREATE TABLE IF NOT EXISTS app_config
+(
+    id INTEGER PRIMARY KEY NOT NULL,
+    log_comport BOOLEAN NOT NULL DEFAULT 0
+);
+
+INSERT OR IGNORE INTO app_config (id) VALUES (1);
+

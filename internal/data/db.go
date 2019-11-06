@@ -46,8 +46,7 @@ type Product struct {
 	PartyID        int64       `db:"party_id"`
 	CreatedAt      time.Time   `db:"created_at"`
 	PartyCreatedAt time.Time   `db:"created_at"`
-	Serial         int         `db:"serial"`
-	Port           int         `db:"port"`
+	Comport        string      `db:"comport"`
 	Addr           modbus.Addr `db:"addr"`
 	Checked        bool        `db:"checked"`
 	Device         string      `db:"device"`
@@ -62,7 +61,7 @@ func GetLastPartyID(ctx context.Context, db *sqlx.DB) (int64, error) {
 	if err != sql.ErrNoRows {
 		return 0, err
 	}
-	if err := CreateNewParty(ctx, db); err != nil {
+	if err := CreateNewParty(ctx, db, 1); err != nil {
 		return 0, err
 	}
 	if err := db.GetContext(ctx, &partyID, `SELECT party_id FROM last_party`); err != nil {
@@ -91,7 +90,7 @@ func GetParty(ctx context.Context, db *sqlx.DB, partyID int64) (Party, error) {
 	return party, err
 }
 
-func CreateNewParty(ctx context.Context, db *sqlx.DB) error {
+func CreateNewParty(ctx context.Context, db *sqlx.DB, productsCount int) error {
 	r, err := db.ExecContext(ctx, `INSERT INTO party DEFAULT VALUES`)
 	if err != nil {
 		return err
@@ -107,11 +106,15 @@ func CreateNewParty(ctx context.Context, db *sqlx.DB) error {
 	if err != nil {
 		return err
 	}
-	if r, err = db.ExecContext(ctx, `INSERT INTO product(party_id, serial) VALUES (?, 1);`, newPartyID); err != nil {
-		return err
-	}
-	if _, err = getNewInsertedID(r); err != nil {
-		return err
+	for i := 0; i < productsCount; i++ {
+		if r, err = db.ExecContext(ctx,
+			`INSERT INTO product(party_id, addr, created_at) VALUES (?, ?, ?);`,
+			newPartyID, i+1, i+1, time.Now()); err != nil {
+			return err
+		}
+		if _, err = getNewInsertedID(r); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -127,25 +130,18 @@ func AddNewProduct(ctx context.Context, db *sqlx.DB) error {
 		return err
 	}
 	addresses := make(map[modbus.Addr]struct{})
-	serials := make(map[int]struct{})
 	for _, x := range party.Products {
 		addresses[x.Addr] = struct{}{}
-		serials[x.Serial] = struct{}{}
 	}
-	serial, addr := 1, modbus.Addr(1)
+	addr := modbus.Addr(1)
 	for ; addr <= modbus.Addr(255); addr++ {
 		if _, f := addresses[addr]; !f {
 			break
 		}
 	}
-	for serial = 1; serial < 100500; serial++ {
-		if _, f := serials[serial]; !f {
-			break
-		}
-	}
 	r, err := db.ExecContext(ctx,
-		`INSERT INTO product( party_id, serial, addr) VALUES ( ?,?,?)`,
-		party.PartyID, serial, addr)
+		`INSERT INTO product( party_id, addr, created_at) VALUES (?,?,?)`,
+		party.PartyID, addr, time.Now())
 	if err != nil {
 		return err
 	}

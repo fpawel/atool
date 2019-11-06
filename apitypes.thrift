@@ -7,17 +7,22 @@ struct Product {
   2: i64 partyID
   3: TimeUnixMillis createdAt
   4: TimeUnixMillis partyCreatedAt
-  5: i32 port
+  5: string comport
   6: i8 addr
-  7: i32 serial
-  8: bool checked
-  9: string device
+  7: bool checked
+  8: string device
+}
+
+struct Param {
+    1:i16 TheVar
+    2:string Format
 }
 
 struct Party {
     1: i64 partyID
     2: TimeUnixMillis createdAt
     3: list<Product> products
+    4: list<Param> params
 }
 
 struct YearMonth{
