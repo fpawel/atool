@@ -4,7 +4,8 @@ PRAGMA encoding = 'UTF-8';
 CREATE TABLE IF NOT EXISTS party
 (
     party_id   INTEGER PRIMARY KEY NOT NULL,
-    created_at TIMESTAMP           NOT NULL DEFAULT (datetime('now')) UNIQUE
+    created_at TIMESTAMP           NOT NULL DEFAULT (datetime('now')) UNIQUE,
+    note       TEXT                NOT NULL DEFAULT '(без примечания)'
 );
 
 CREATE TABLE IF NOT EXISTS hardware
@@ -14,10 +15,12 @@ CREATE TABLE IF NOT EXISTS hardware
     timeout_get_responses INTEGER NOT NULL DEFAULT 1000000000, -- в наносекундах = 1 секунда
     timeout_end_response  INTEGER NOT NULL DEFAULT 50000000,   -- в наносекундах = 50 миллисекунд
     pause                 INTEGER NOT NULL DEFAULT 0,          -- в наносекундах
+    max_attempts_read     INTEGER NOT NULL DEFAULT 0,
     CHECK ( timeout_get_responses >= 0 ),
     CHECK ( timeout_end_response >= 0 ),
     CHECK ( pause >= 0 ),
-    CHECK ( baud >= 0 )
+    CHECK ( baud >= 0 ),
+    CHECK ( max_attempts_read >= 0 )
 );
 
 INSERT OR IGNORE INTO hardware(device)
@@ -43,9 +46,8 @@ CREATE TABLE IF NOT EXISTS product
 (
     product_id INTEGER   NOT NULL,
     party_id   INTEGER   NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')) UNIQUE,
     device     TEXT      NOT NULL DEFAULT 'DEFAULT',
-    comport    TEXT   NOT NULL DEFAULT '',
+    comport    TEXT      NOT NULL DEFAULT 'COM1',
     addr       INTEGER   NOT NULL DEFAULT 1,
     checked    BOOLEAN   NOT NULL DEFAULT 1,
     PRIMARY KEY (product_id),
@@ -56,19 +58,22 @@ CREATE TABLE IF NOT EXISTS product
     CHECK (checked IN (0, 1) )
 );
 
-DROP VIEW IF EXISTS last_party;
-CREATE VIEW IF NOT EXISTS last_party AS
-SELECT *
-FROM party
-ORDER BY created_at DESC
-LIMIT 1;
+CREATE TABLE IF NOT EXISTS chart
+(
+    product_id INTEGER NOT NULL,
+    var        INTEGER NOT NULL,
+    chart_id   INTEGER NOT NULL DEFAULT 1,
+    checked    BOOLEAN NOT NULL DEFAULT 1,
+    left_axis  BOOLEAN NOT NULL DEFAULT 1,
+    color      TEXT    NOT NULL DEFAULT '',
+    UNIQUE (product_id, var),
+    FOREIGN KEY (product_id) REFERENCES product (product_id) ON DELETE CASCADE,
+    CHECK (chart_id >= 1 ),
+    CHECK (checked IN (0, 1)),
+    CHECK (left_axis IN (0, 1))
+);
 
-DROP VIEW IF EXISTS last_party_products;
-CREATE VIEW IF NOT EXISTS last_party_products AS
-SELECT *
-FROM product
-WHERE party_id = (SELECT party_id FROM last_party)
-ORDER BY created_at;
+
 
 CREATE TABLE IF NOT EXISTS bucket
 (
@@ -103,11 +108,11 @@ CREATE TRIGGER IF NOT EXISTS trigger_bucket_insert
          (new.tm - julianday((SELECT updated_at
                               FROM last_bucket))) * 86400. / 60. > 5
         OR (SELECT party_id
-            FROM last_party) != (SELECT party_id
+            FROM app_config) != (SELECT party_id
                                  FROM last_bucket)
 BEGIN
     INSERT INTO bucket (created_at, updated_at, party_id)
-    VALUES (datetime(new.tm), datetime(new.tm), (SELECT party_id FROM last_party));
+    VALUES (datetime(new.tm), datetime(new.tm), (SELECT party_id FROM app_config));
 END;
 
 CREATE TRIGGER IF NOT EXISTS trigger_bucket_update
@@ -140,9 +145,19 @@ ORDER BY bucket.created_at;
 
 CREATE TABLE IF NOT EXISTS app_config
 (
-    id INTEGER PRIMARY KEY NOT NULL,
-    log_comport BOOLEAN NOT NULL DEFAULT 0
+    id          INTEGER PRIMARY KEY NOT NULL,
+    party_id    INTEGER             NOT NULL,
+    log_comport BOOLEAN             NOT NULL DEFAULT 0,
+    FOREIGN KEY (party_id) REFERENCES party (party_id)
 );
 
-INSERT OR IGNORE INTO app_config (id) VALUES (1);
+INSERT INTO party (party_id)
+SELECT 1
+WHERE NOT EXISTS(SELECT * FROM party);
 
+INSERT INTO product (product_id, party_id)
+SELECT 1, 1
+WHERE NOT EXISTS(SELECT * FROM product);
+
+INSERT OR IGNORE INTO app_config (id, party_id)
+VALUES (1, 1);

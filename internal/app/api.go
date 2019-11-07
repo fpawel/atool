@@ -2,11 +2,12 @@ package app
 
 import (
 	"context"
-	"github.com/fpawel/atool/internal/cfg"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/jmoiron/sqlx"
+	"gopkg.in/yaml.v3"
 	"strconv"
 	"strings"
 	"time"
@@ -18,16 +19,41 @@ type productsServiceHandler struct {
 
 var _ api.ProductsService = new(productsServiceHandler)
 
-func (h *productsServiceHandler) CreateNewParty(ctx context.Context, productsCount int8) error {
-	return data.CreateNewParty(ctx, h.db, int(productsCount))
+func (h *productsServiceHandler) SetCurrentParty(ctx context.Context, partyID int64) error {
+	_, err := h.db.ExecContext(ctx, `UPDATE app_config SET party_id=? WHERE id=1`, partyID)
+	return err
 }
 
-func (h *productsServiceHandler) GetLastParty(ctx context.Context) (r *apitypes.Party, err error) {
-	partyID, err := data.GetLastPartyID(ctx, h.db)
+func (h *productsServiceHandler) CreateNewParty(ctx context.Context, productsCount int8, note string) error {
+	return data.CreateNewParty(ctx, h.db, int(productsCount), note)
+}
+
+func (h *productsServiceHandler) SetPartyNote(ctx context.Context, partyID int64, note string) error {
+	_, err := h.db.ExecContext(ctx, `UPDATE party SET note=? WHERE party_id=?`, note, partyID)
+	return err
+}
+
+func (h *productsServiceHandler) GetCurrentParty(ctx context.Context) (r *apitypes.Party, err error) {
+	partyID, err := data.GetCurrentPartyID(ctx, h.db)
 	if err != nil {
 		return nil, err
 	}
 	return h.GetParty(ctx, partyID)
+}
+
+func (h *productsServiceHandler) ListParties(ctx context.Context) (parties []*apitypes.PartyInfo, err error) {
+	var xs []data.PartyInfo
+	if err = h.db.SelectContext(ctx, &xs, `SELECT * FROM party ORDER BY created_at`); err != nil {
+		return
+	}
+	for _, x := range xs {
+		parties = append(parties, &apitypes.PartyInfo{
+			PartyID:   x.PartyID,
+			CreatedAt: timeUnixMillis(x.CreatedAt),
+			Note:      x.Note,
+		})
+	}
+	return
 }
 
 func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*apitypes.Party, error) {
@@ -38,35 +64,36 @@ func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*
 	party := &apitypes.Party{
 		PartyID:   dataParty.PartyID,
 		CreatedAt: timeUnixMillis(dataParty.CreatedAt),
+		Note:      dataParty.Note,
 		Products:  []*apitypes.Product{},
+		Params:    []int16{},
+		Charts:    []int32{},
 	}
 
-	for _, p := range dataParty.Products {
-		party.Products = append(party.Products, &apitypes.Product{
-			ProductID:      p.ProductID,
-			PartyID:        p.PartyID,
-			CreatedAt:      timeUnixMillis(p.CreatedAt),
-			PartyCreatedAt: timeUnixMillis(p.PartyCreatedAt),
-			Comport:        p.Comport,
-			Addr:           int8(p.Addr),
-			Checked:        p.Checked,
-			Device:         p.Device,
-		})
+	for _, dataProduct := range dataParty.Products {
+		p := &apitypes.Product{
+			ProductID:      dataProduct.ProductID,
+			PartyID:        dataProduct.PartyID,
+			PartyCreatedAt: timeUnixMillis(dataProduct.PartyCreatedAt),
+			Comport:        dataProduct.Comport,
+			Addr:           int8(dataProduct.Addr),
+			Checked:        dataProduct.Checked,
+			Device:         dataProduct.Device,
+		}
+		for _, x := range dataProduct.Series {
+			p.Series = append(p.Series, &apitypes.Series{
+				TheVar:  int16(x.Var),
+				ChartID: int32(x.ChartID),
+				Color:   x.Color,
+			})
+		}
+		party.Products = append(party.Products, p)
 	}
-	var params []struct {
-		Var    int    `db:"var"`
-		Format string `db:"format"`
+	for _, p := range dataParty.Params {
+		party.Params = append(party.Params, int16(p))
 	}
-	if err := h.db.SelectContext(ctx, &params, `
-SELECT DISTINCT var, format FROM product INNER JOIN param USING (device)
-WHERE party_id IN (SELECT party_id FROM last_party)`); err != nil {
-		return nil, err
-	}
-	for _, p := range params {
-		party.Params = append(party.Params, &apitypes.Param{
-			TheVar: int16(p.Var),
-			Format: p.Format,
-		})
+	for _, p := range dataParty.Charts {
+		party.Charts = append(party.Charts, int32(p))
 	}
 
 	return party, nil
@@ -114,25 +141,19 @@ WHERE product_id = ?`, p.Addr, p.Comport, p.Checked, p.Device, p.ProductID)
 }
 
 func (h *productsServiceHandler) GetAppConfig(ctx context.Context) (string, error) {
-	var c appConfig
-	if err := h.db.GetContext(ctx, &c, `SELECT * FROM app_config`); err != nil {
+	c, err := openAppConfig(h.db, ctx)
+	if err != nil {
 		return "", err
 	}
-
-	if err := h.db.SelectContext(ctx, nil, `
-SELECT device, baud, pause,  
-       timeout_get_responses,  
-       timeout_end_response,
-       var, count, format 
-FROM param INNER JOIN hardware USING (device)`); err != nil {
-		return "", err
-	}
-
-	return cfg.GetYaml(), nil
+	return string(must.MarshalYaml(&c)), nil
 }
 
-func (h *productsServiceHandler) SetAppConfig(ctx context.Context, appConfig string) error {
-	return cfg.SetYaml(appConfig)
+func (h *productsServiceHandler) SetAppConfig(ctx context.Context, appConfigYaml string) error {
+	var c appConfig
+	if err := yaml.Unmarshal([]byte(appConfigYaml), &c); err != nil {
+		return err
+	}
+	return c.save(h.db, ctx)
 }
 
 func (h *productsServiceHandler) ListDevices(ctx context.Context) (xs []string, err error) {

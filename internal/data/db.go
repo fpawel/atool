@@ -29,49 +29,53 @@ func Open(filename string) (*sqlx.DB, error) {
 	if _, err := db.Exec(SQLCreate); err != nil {
 		return nil, err
 	}
-	if _, err := GetLastParty(context.Background(), db); err != nil {
+	if _, err := GetCurrentParty(context.Background(), db); err != nil {
 		return nil, err
 	}
 	return db, nil
 }
 
 type Party struct {
+	PartyInfo
+	Products []Product    `db:"-"`
+	Params   []modbus.Var `db:"-"`
+	Charts   []int        `db:"-"`
+}
+
+type PartyInfo struct {
 	PartyID   int64     `db:"party_id"`
 	CreatedAt time.Time `db:"created_at"`
-	Products  []Product `db:"-"`
+	Note      string    `db:"note"`
 }
 
 type Product struct {
-	ProductID      int64       `db:"product_id"`
-	PartyID        int64       `db:"party_id"`
-	CreatedAt      time.Time   `db:"created_at"`
-	PartyCreatedAt time.Time   `db:"created_at"`
-	Comport        string      `db:"comport"`
-	Addr           modbus.Addr `db:"addr"`
-	Checked        bool        `db:"checked"`
-	Device         string      `db:"device"`
+	ProductID      int64              `db:"product_id"`
+	PartyID        int64              `db:"party_id"`
+	PartyCreatedAt time.Time          `db:"created_at"`
+	Comport        string             `db:"comport"`
+	Addr           modbus.Addr        `db:"addr"`
+	Checked        bool               `db:"checked"`
+	Device         string             `db:"device"`
+	Series         []ProductVarSeries `db:"-"`
 }
 
-func GetLastPartyID(ctx context.Context, db *sqlx.DB) (int64, error) {
+type ProductVarSeries struct {
+	Var     modbus.Var `db:"var"`
+	Color   string     `db:"color"`
+	ChartID int        `db:"chart_id"`
+}
+
+func GetCurrentPartyID(ctx context.Context, db *sqlx.DB) (int64, error) {
 	var partyID int64
-	err := db.GetContext(ctx, &partyID, `SELECT party_id FROM last_party`)
-	if err == nil {
-		return partyID, nil
-	}
-	if err != sql.ErrNoRows {
-		return 0, err
-	}
-	if err := CreateNewParty(ctx, db, 1); err != nil {
-		return 0, err
-	}
-	if err := db.GetContext(ctx, &partyID, `SELECT party_id FROM last_party`); err != nil {
+	err := db.GetContext(ctx, &partyID, `SELECT party_id FROM app_config`)
+	if err != nil {
 		return 0, err
 	}
 	return partyID, nil
 }
 
-func GetLastParty(ctx context.Context, db *sqlx.DB) (Party, error) {
-	partyID, err := GetLastPartyID(ctx, db)
+func GetCurrentParty(ctx context.Context, db *sqlx.DB) (Party, error) {
+	partyID, err := GetCurrentPartyID(ctx, db)
 	if err != nil {
 		return Party{}, err
 	}
@@ -87,11 +91,53 @@ func GetParty(ctx context.Context, db *sqlx.DB, partyID int64) (Party, error) {
 	if party.Products, err = ListProducts(ctx, db, party.PartyID); err != nil {
 		return Party{}, err
 	}
+
+	if err := db.SelectContext(ctx, &party.Charts, `
+SELECT DISTINCT chart_id 
+FROM chart 
+    INNER JOIN product USING (product_id)
+WHERE party_id = ?
+ORDER BY chart_id`, partyID); err != nil {
+		return Party{}, err
+	}
+
+	if len(party.Charts) == 0 {
+		party.Charts = append(party.Charts, 1)
+	}
+
+	if err := db.SelectContext(ctx, &party.Params, `
+SELECT DISTINCT var 
+FROM product 
+    INNER JOIN param USING (device)
+WHERE party_id = ?
+ORDER BY var`, partyID); err != nil {
+		return Party{}, err
+	}
+
+	for i := range party.Products {
+		p := &party.Products[i]
+		for _, v := range party.Params {
+			var x ProductVarSeries
+			err := db.GetContext(ctx, &x, `
+SELECT var, chart_id, color FROM chart
+INNER JOIN product USING (product_id)
+WHERE product_id =? AND var=?`, p.ProductID, v)
+			if err != nil {
+				if err != sql.ErrNoRows {
+					return Party{}, err
+				}
+				x.Var = v
+				x.Color = ""
+				x.ChartID = 1
+			}
+			p.Series = append(p.Series, x)
+		}
+	}
 	return party, err
 }
 
-func CreateNewParty(ctx context.Context, db *sqlx.DB, productsCount int) error {
-	r, err := db.ExecContext(ctx, `INSERT INTO party DEFAULT VALUES`)
+func CreateNewParty(ctx context.Context, db *sqlx.DB, productsCount int, note string) error {
+	r, err := db.ExecContext(ctx, `INSERT INTO party (created_at, note) VALUES (?,?)`, time.Now(), note)
 	if err != nil {
 		return err
 	}
@@ -108,24 +154,28 @@ func CreateNewParty(ctx context.Context, db *sqlx.DB, productsCount int) error {
 	}
 	for i := 0; i < productsCount; i++ {
 		if r, err = db.ExecContext(ctx,
-			`INSERT INTO product(party_id, addr, created_at) VALUES (?, ?, ?);`,
-			newPartyID, i+1, i+1, time.Now()); err != nil {
+			`INSERT INTO product(party_id, addr) VALUES (?, ?);`,
+			newPartyID, i+1, i+1, time.Now().Add(time.Second*time.Duration(i))); err != nil {
 			return err
 		}
 		if _, err = getNewInsertedID(r); err != nil {
 			return err
 		}
 	}
+	_, err = db.ExecContext(ctx, `UPDATE app_config SET party_id=? WHERE id=1`, newPartyID)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func ListProducts(ctx context.Context, db *sqlx.DB, partyID int64) (products []Product, err error) {
-	err = db.SelectContext(ctx, &products, `SELECT * FROM product WHERE party_id=? ORDER BY created_at`, partyID)
+	err = db.SelectContext(ctx, &products, `SELECT * FROM product WHERE party_id=? ORDER BY product_id`, partyID)
 	return
 }
 
 func AddNewProduct(ctx context.Context, db *sqlx.DB) error {
-	party, err := GetLastParty(ctx, db)
+	party, err := GetCurrentParty(ctx, db)
 	if err != nil {
 		return err
 	}
@@ -140,7 +190,7 @@ func AddNewProduct(ctx context.Context, db *sqlx.DB) error {
 		}
 	}
 	r, err := db.ExecContext(ctx,
-		`INSERT INTO product( party_id, addr, created_at) VALUES (?,?,?)`,
+		`INSERT INTO product( party_id, addr) VALUES (?,?)`,
 		party.PartyID, addr, time.Now())
 	if err != nil {
 		return err
