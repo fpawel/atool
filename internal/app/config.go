@@ -24,12 +24,19 @@ ON CONFLICT (device) DO UPDATE SET baud=?,
                                    max_attempts_read=?`,
 			x.Name, x.Baud, x.TimeoutGetResponse, x.TimeoutEndResponse, x.Pause, x.MaxAttemptsRead,
 			x.Baud, x.TimeoutGetResponse, x.TimeoutEndResponse, x.Pause, x.MaxAttemptsRead, x.Name); err != nil {
-			return log.Err(merry.Append(err, "save config: INSERT INTO hardware"),
+			return log.Err(merry.Append(err, "save config: INSERT INTO hardware ON CONFLICT (device) DO UPDATE"),
 				"device", x)
 		}
 		if _, err := db.ExecContext(ctx, `DELETE FROM param WHERE device = ?`, x.Name); err != nil {
 			return log.Err(merry.Append(err, "save config: DELETE FROM param WHERE device"),
 				"device", x)
+		}
+		if len(x.Params) == 0 {
+			x.Params = []paramConfig{{
+				Var:    0,
+				Count:  2,
+				Format: "bcd",
+			}}
 		}
 		for _, p := range x.Params {
 			if _, err := db.ExecContext(ctx, `
@@ -52,8 +59,8 @@ lab1:
 				continue lab1
 			}
 		}
-		if c.Name == "DEFAULT" {
-			log.Debug("сохранение конфигурации: нельзя удалиить тип прибора с именем DEFAULT")
+		if c.Name == "default" {
+			// нельзя удалять тип прибора с именем default
 			continue
 		}
 		if _, err := db.ExecContext(ctx, `UPDATE product SET device='DEFAULT' WHERE device=?`, c.Name); err != nil {
@@ -96,7 +103,6 @@ FROM param INNER JOIN hardware USING (device)`); err != nil {
 		return c, merry.Append(err, "get config from db")
 	}
 
-	c.getDeviceByName("DEFAULT")
 	for _, x := range xs {
 		d := c.getDeviceByName(x.Device)
 		d.TimeoutGetResponse = time.Duration(x.TimeoutGetResponse)

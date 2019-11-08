@@ -24,13 +24,8 @@ func (h *productsServiceHandler) SetCurrentParty(ctx context.Context, partyID in
 	return err
 }
 
-func (h *productsServiceHandler) CreateNewParty(ctx context.Context, productsCount int8, note string) error {
-	return data.CreateNewParty(ctx, h.db, int(productsCount), note)
-}
-
-func (h *productsServiceHandler) SetPartyNote(ctx context.Context, partyID int64, note string) error {
-	_, err := h.db.ExecContext(ctx, `UPDATE party SET note=? WHERE party_id=?`, note, partyID)
-	return err
+func (h *productsServiceHandler) CreateNewParty(ctx context.Context, productsCount int8) error {
+	return data.CreateNewParty(ctx, h.db, int(productsCount))
 }
 
 func (h *productsServiceHandler) GetCurrentParty(ctx context.Context) (r *apitypes.Party, err error) {
@@ -50,7 +45,6 @@ func (h *productsServiceHandler) ListParties(ctx context.Context) (parties []*ap
 		parties = append(parties, &apitypes.PartyInfo{
 			PartyID:   x.PartyID,
 			CreatedAt: timeUnixMillis(x.CreatedAt),
-			Note:      x.Note,
 		})
 	}
 	return
@@ -64,10 +58,8 @@ func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*
 	party := &apitypes.Party{
 		PartyID:   dataParty.PartyID,
 		CreatedAt: timeUnixMillis(dataParty.CreatedAt),
-		Note:      dataParty.Note,
 		Products:  []*apitypes.Product{},
 		Params:    []int16{},
-		Charts:    []int32{},
 	}
 
 	for _, dataProduct := range dataParty.Products {
@@ -80,20 +72,11 @@ func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*
 			Checked:        dataProduct.Checked,
 			Device:         dataProduct.Device,
 		}
-		for _, x := range dataProduct.Series {
-			p.Series = append(p.Series, &apitypes.Series{
-				TheVar:  int16(x.Var),
-				ChartID: int32(x.ChartID),
-				Color:   x.Color,
-			})
-		}
+
 		party.Products = append(party.Products, p)
 	}
 	for _, p := range dataParty.Params {
 		party.Params = append(party.Params, int16(p))
-	}
-	for _, p := range dataParty.Charts {
-		party.Charts = append(party.Charts, int32(p))
 	}
 
 	return party, nil

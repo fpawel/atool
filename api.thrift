@@ -2,8 +2,7 @@
 include "apitypes.thrift"
 
 service ProductsService {
-   void createNewParty(1:i8 productsCount, 2:string note)
-   void setPartyNote(1:i64 partyID, 2:string note)
+   void createNewParty(1:i8 productsCount)
    apitypes.Party getParty(1:i64 partyID)
    apitypes.Party getCurrentParty()
    list<apitypes.PartyInfo> listParties()

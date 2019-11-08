@@ -39,30 +39,21 @@ type Party struct {
 	PartyInfo
 	Products []Product    `db:"-"`
 	Params   []modbus.Var `db:"-"`
-	Charts   []int        `db:"-"`
 }
 
 type PartyInfo struct {
 	PartyID   int64     `db:"party_id"`
 	CreatedAt time.Time `db:"created_at"`
-	Note      string    `db:"note"`
 }
 
 type Product struct {
-	ProductID      int64              `db:"product_id"`
-	PartyID        int64              `db:"party_id"`
-	PartyCreatedAt time.Time          `db:"created_at"`
-	Comport        string             `db:"comport"`
-	Addr           modbus.Addr        `db:"addr"`
-	Checked        bool               `db:"checked"`
-	Device         string             `db:"device"`
-	Series         []ProductVarSeries `db:"-"`
-}
-
-type ProductVarSeries struct {
-	Var     modbus.Var `db:"var"`
-	Color   string     `db:"color"`
-	ChartID int        `db:"chart_id"`
+	ProductID      int64       `db:"product_id"`
+	PartyID        int64       `db:"party_id"`
+	PartyCreatedAt time.Time   `db:"created_at"`
+	Comport        string      `db:"comport"`
+	Addr           modbus.Addr `db:"addr"`
+	Checked        bool        `db:"checked"`
+	Device         string      `db:"device"`
 }
 
 func GetCurrentPartyID(ctx context.Context, db *sqlx.DB) (int64, error) {
@@ -92,52 +83,25 @@ func GetParty(ctx context.Context, db *sqlx.DB, partyID int64) (Party, error) {
 		return Party{}, err
 	}
 
-	if err := db.SelectContext(ctx, &party.Charts, `
-SELECT DISTINCT chart_id 
-FROM chart 
-    INNER JOIN product USING (product_id)
-WHERE party_id = ?
-ORDER BY chart_id`, partyID); err != nil {
-		return Party{}, err
-	}
-
-	if len(party.Charts) == 0 {
-		party.Charts = append(party.Charts, 1)
-	}
-
 	if err := db.SelectContext(ctx, &party.Params, `
-SELECT DISTINCT var 
-FROM product 
-    INNER JOIN param USING (device)
+SELECT DISTINCT var
+FROM product
+         INNER JOIN param USING (device)
 WHERE party_id = ?
-ORDER BY var`, partyID); err != nil {
+UNION
+SELECT DISTINCT var
+FROM measurement
+         INNER JOIN product USING (product_id)
+WHERE party_id = ?
+ORDER BY var`, partyID, partyID); err != nil {
 		return Party{}, err
 	}
 
-	for i := range party.Products {
-		p := &party.Products[i]
-		for _, v := range party.Params {
-			var x ProductVarSeries
-			err := db.GetContext(ctx, &x, `
-SELECT var, chart_id, color FROM chart
-INNER JOIN product USING (product_id)
-WHERE product_id =? AND var=?`, p.ProductID, v)
-			if err != nil {
-				if err != sql.ErrNoRows {
-					return Party{}, err
-				}
-				x.Var = v
-				x.Color = ""
-				x.ChartID = 1
-			}
-			p.Series = append(p.Series, x)
-		}
-	}
 	return party, err
 }
 
-func CreateNewParty(ctx context.Context, db *sqlx.DB, productsCount int, note string) error {
-	r, err := db.ExecContext(ctx, `INSERT INTO party (created_at, note) VALUES (?,?)`, time.Now(), note)
+func CreateNewParty(ctx context.Context, db *sqlx.DB, productsCount int) error {
+	r, err := db.ExecContext(ctx, `INSERT INTO party (created_at) VALUES (?)`, time.Now())
 	if err != nil {
 		return err
 	}
