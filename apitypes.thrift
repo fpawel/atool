@@ -17,6 +17,8 @@ struct Party {
     2: TimeUnixMillis createdAt
     3: list<Product> products
     4: list<i16> params
+    5: list<string> charts
+    6: list<ParamVarSeries> series
 }
 
 struct PartyInfo {
@@ -24,7 +26,9 @@ struct PartyInfo {
     2: TimeUnixMillis createdAt
 }
 
-struct YearMonth{
-    1: i32 year
-    2: i32 month
+struct ParamVarSeries {
+    1: i64 productID
+    2: i16 theVar
+    3: string chart
+    4: string color
 }

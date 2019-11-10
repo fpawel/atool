@@ -60,6 +60,19 @@ CREATE TABLE IF NOT EXISTS product
     CHECK (checked IN (0, 1) )
 );
 
+CREATE TABLE IF NOT EXISTS series
+(
+    product_id   INTEGER NOT NULL,
+    var INTEGER NOT NULL,
+    chart TEXT NOT NULL DEFAULT 'График 1',
+    color TEXT NOT NULL DEFAULT '',
+
+    PRIMARY KEY (product_id, var),
+    CHECK (var >= 0 ),
+    FOREIGN KEY (product_id) REFERENCES product (product_id)
+        ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS measurement
 (
     tm         REAL    NOT NULL,

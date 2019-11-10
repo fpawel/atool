@@ -37,8 +37,17 @@ func Open(filename string) (*sqlx.DB, error) {
 
 type Party struct {
 	PartyInfo
-	Products []Product    `db:"-"`
-	Params   []modbus.Var `db:"-"`
+	Products []Product
+	Params   []modbus.Var
+	Charts   []string
+	Series   []ParamVarSeries
+}
+
+type ParamVarSeries struct {
+	ProductID int64      `db:"product_id"`
+	Var       modbus.Var `db:"var"`
+	Chart     string     `db:"chart"`
+	Color     string     `db:"color"`
 }
 
 type PartyInfo struct {
@@ -94,6 +103,25 @@ FROM measurement
          INNER JOIN product USING (product_id)
 WHERE party_id = ?
 ORDER BY var`, partyID, partyID); err != nil {
+		return Party{}, err
+	}
+
+	if err := db.SelectContext(ctx, &party.Charts, `
+SELECT DISTINCT chart
+FROM series
+         INNER JOIN product USING (product_id)
+WHERE party_id = ?
+UNION SELECT ('График 1')
+ORDER BY chart`, partyID); err != nil {
+		return Party{}, err
+	}
+
+	if err := db.SelectContext(ctx, &party.Series, `
+SELECT product_id, var, chart, color
+FROM series
+         INNER JOIN product USING (product_id)
+WHERE party_id = ?
+ORDER BY chart, product_id, var`, partyID); err != nil {
 		return Party{}, err
 	}
 

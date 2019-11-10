@@ -60,6 +60,8 @@ func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*
 		CreatedAt: timeUnixMillis(dataParty.CreatedAt),
 		Products:  []*apitypes.Product{},
 		Params:    []int16{},
+		Charts:    dataParty.Charts,
+		Series:    []*apitypes.ParamVarSeries{},
 	}
 
 	for _, dataProduct := range dataParty.Products {
@@ -77,6 +79,14 @@ func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*
 	}
 	for _, p := range dataParty.Params {
 		party.Params = append(party.Params, int16(p))
+	}
+	for _, p := range dataParty.Series {
+		party.Series = append(party.Series, &apitypes.ParamVarSeries{
+			ProductID: p.ProductID,
+			TheVar:    int16(p.Var),
+			Chart:     p.Chart,
+			Color:     p.Color,
+		})
 	}
 
 	return party, nil
@@ -142,24 +152,6 @@ func (h *productsServiceHandler) SetAppConfig(ctx context.Context, appConfigYaml
 func (h *productsServiceHandler) ListDevices(ctx context.Context) (xs []string, err error) {
 	err = h.db.SelectContext(ctx, &xs, `SELECT device FROM hardware`)
 	return
-}
-
-func (h *productsServiceHandler) ListYearMonths(ctx context.Context) ([]*apitypes.YearMonth, error) {
-	var xs []*apitypes.YearMonth
-	if err := h.db.Select(&xs, `
-SELECT DISTINCT year,  month
-FROM measurement_ext
-ORDER BY year DESC, month DESC`); err != nil {
-		return nil, err
-	}
-	if len(xs) == 0 {
-		t := time.Now()
-		xs = append(xs, &apitypes.YearMonth{
-			Year:  int32(t.Year()),
-			Month: int32(t.Month()),
-		})
-	}
-	return xs, nil
 }
 
 const timeLayout = "2006-01-02 15:04:05.000"
