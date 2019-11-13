@@ -64,11 +64,13 @@ CREATE TABLE IF NOT EXISTS series
 (
     product_id   INTEGER NOT NULL,
     var INTEGER NOT NULL,
-    chart TEXT NOT NULL DEFAULT 'График 1',
-    color TEXT NOT NULL DEFAULT '',
+    chart TEXT NOT NULL,
+    active    BOOLEAN NOT NULL DEFAULT 1,
 
     PRIMARY KEY (product_id, var),
+    CHECK (chart != '' ),
     CHECK (var >= 0 ),
+    CHECK (active IN (0, 1) ),
     FOREIGN KEY (product_id) REFERENCES product (product_id)
         ON DELETE CASCADE
 );

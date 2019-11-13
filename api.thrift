@@ -12,6 +12,8 @@ service ProductsService {
    void setProductsComport(1:list<i64> productIDs, 2:string comport)
    void setProductsDevice(1:list<i64> productIDs, 2:string device)
    void setProduct(1:apitypes.Product product)
+   void setProductVarSeriesChart(1:i64 productID, 2:i16 theVar, 3:string chartName)
+   void setProductVarSeriesActive(1:i64 productID, 2:i16 theVar, 3:bool active)
 
    list<string> listDevices()
 

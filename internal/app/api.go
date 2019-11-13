@@ -19,6 +19,21 @@ type productsServiceHandler struct {
 
 var _ api.ProductsService = new(productsServiceHandler)
 
+func (h *productsServiceHandler) SetProductVarSeriesChart(ctx context.Context, productID int64, theVar int16, chartName string) error {
+	_, err := h.db.ExecContext(ctx, `
+INSERT INTO series(product_id, var, chart) VALUES (?,?,?) 
+	ON CONFLICT (product_id,var) DO 
+	    UPDATE SET chart = ?`,
+		productID, theVar, chartName, chartName)
+	return err
+}
+
+func (h *productsServiceHandler) SetProductVarSeriesActive(ctx context.Context, productID int64, theVar int16, active bool) error {
+	_, err := h.db.ExecContext(ctx, `UPDATE series SET active=? WHERE product_id=? AND var=?`,
+		active, productID, theVar)
+	return err
+}
+
 func (h *productsServiceHandler) SetCurrentParty(ctx context.Context, partyID int64) error {
 	_, err := h.db.ExecContext(ctx, `UPDATE app_config SET party_id=? WHERE id=1`, partyID)
 	return err
@@ -60,8 +75,7 @@ func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*
 		CreatedAt: timeUnixMillis(dataParty.CreatedAt),
 		Products:  []*apitypes.Product{},
 		Params:    []int16{},
-		Charts:    dataParty.Charts,
-		Series:    []*apitypes.ParamVarSeries{},
+		Series:    []*apitypes.ProductVarSeries{},
 	}
 
 	for _, dataProduct := range dataParty.Products {
@@ -81,11 +95,11 @@ func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*
 		party.Params = append(party.Params, int16(p))
 	}
 	for _, p := range dataParty.Series {
-		party.Series = append(party.Series, &apitypes.ParamVarSeries{
+		party.Series = append(party.Series, &apitypes.ProductVarSeries{
 			ProductID: p.ProductID,
 			TheVar:    int16(p.Var),
 			Chart:     p.Chart,
-			Color:     p.Color,
+			Active:    p.Active,
 		})
 	}
 
@@ -154,16 +168,16 @@ func (h *productsServiceHandler) ListDevices(ctx context.Context) (xs []string, 
 	return
 }
 
-const timeLayout = "2006-01-02 15:04:05.000"
+//const timeLayout = "2006-01-02 15:04:05.000"
 
 func timeUnixMillis(t time.Time) apitypes.TimeUnixMillis {
 
 	return apitypes.TimeUnixMillis(t.UnixNano() / int64(time.Millisecond))
 }
 
-func unixMillisToTime(m apitypes.TimeUnixMillis) time.Time {
-	t := int64(time.Millisecond) * int64(m)
-	sec := t / int64(time.Second)
-	ns := t % int64(time.Second)
-	return time.Unix(sec, ns)
-}
+//func unixMillisToTime(m apitypes.TimeUnixMillis) time.Time {
+//	t := int64(time.Millisecond) * int64(m)
+//	sec := t / int64(time.Second)
+//	ns := t % int64(time.Second)
+//	return time.Unix(sec, ns)
+//}
