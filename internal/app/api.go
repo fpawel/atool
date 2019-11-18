@@ -7,7 +7,11 @@ import (
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/jmoiron/sqlx"
+	"github.com/lxn/win"
 	"gopkg.in/yaml.v3"
+	"io/ioutil"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +22,48 @@ type productsServiceHandler struct {
 }
 
 var _ api.ProductsService = new(productsServiceHandler)
+
+func (h *productsServiceHandler) EditConfig(ctx context.Context, hWnd int32, msg int32) error {
+	filename := filepath.Join(tmpDir, "app-config.yaml")
+	c, err := openAppConfig(h.db, ctx)
+	if err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(filename, must.MarshalYaml(&c), 0644); err != nil {
+		return err
+	}
+	cmd := exec.Command("./npp/notepad++.exe", filename)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	applyConfig := func() error {
+		if err := cmd.Wait(); err != nil {
+			return err
+		}
+		b, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return err
+		}
+		var c appConfig
+		if err := yaml.Unmarshal(b, &c); err != nil {
+			return err
+		}
+		if err := c.save(h.db, ctx); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	go func() {
+		if err := applyConfig(); err != nil {
+			log.PrintErr(err)
+		}
+		//win.MessageBox()
+		win.SendMessage(win.HWND(hWnd), uint32(msg), 0, 0)
+	}()
+	return nil
+}
 
 func (h *productsServiceHandler) SetProductVarSeriesChart(ctx context.Context, productID int64, theVar int16, chartName string) error {
 	_, err := h.db.ExecContext(ctx, `

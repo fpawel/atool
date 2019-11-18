@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/apache/thrift/lib/go/thrift"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/pkg/must"
@@ -11,6 +12,7 @@ import (
 	"github.com/powerman/structlog"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
@@ -19,8 +21,14 @@ import (
 
 func Main() {
 
+	cleanTmpDir()
+	if err := os.MkdirAll(tmpDir, os.ModePerm); err != nil {
+		log.PrintErr(merry.Append(err, "os.RemoveAll(tmpDir)"))
+	}
+	defer cleanTmpDir()
+
 	// общий контекст приложения с прерыванием
-	ctx, interrupt := context.WithCancel(context.Background())
+	_, interrupt := context.WithCancel(context.Background())
 
 	// соединение с базой данных
 	dbFilename := filepath.Join(filepath.Dir(os.Args[0]), "atool.sqlite")
@@ -31,16 +39,18 @@ func Main() {
 	// старт сервера
 	stopServer := runServer(db)
 
-	// старт ожидания сигнала прерывания ОС
-	go func() {
+	if len(os.Getenv("ATOOL_DEV_MODE")) != 0 {
+		log.Debug("waiting system signal because of ATOOL_DEV_MODE=" + os.Getenv("ATOOL_DEV_MODE"))
 		done := make(chan os.Signal, 1)
 		signal.Notify(done, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-		<-done
-		log.Info("приложение закрыто сигналом ОС: прервать все фоновые горутины")
-		interrupt()
-	}()
-
-	<-ctx.Done()
+		sig := <-done
+		log.Debug("system signal: " + sig.String())
+	} else {
+		cmd := exec.Command(filepath.Join(filepath.Dir(os.Args[0]), "atoolgui.exe"))
+		log.ErrIfFail(cmd.Start)
+		log.ErrIfFail(cmd.Wait)
+		log.Debug("gui was closed.")
+	}
 
 	log.Debug("прервать все фоновые горутины")
 	interrupt()
@@ -88,9 +98,16 @@ func runServer(db *sqlx.DB) context.CancelFunc {
 }
 
 var (
-	log = structlog.New()
+	log    = structlog.New()
+	tmpDir = filepath.Join(filepath.Dir(os.Args[0]), "tmp")
 )
 
 const (
 	EnvVarProductsPort = "ATOOL_API_PORT"
 )
+
+func cleanTmpDir() {
+	if err := os.RemoveAll(tmpDir); err != nil {
+		log.PrintErr(merry.Append(err, "os.RemoveAll(tmpDir)"))
+	}
+}
