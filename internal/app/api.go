@@ -2,8 +2,10 @@ package app
 
 import (
 	"context"
+	"github.com/fpawel/atool/gui"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/pkg/must"
+	"github.com/fpawel/atool/internal/pkg/winapi"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/jmoiron/sqlx"
@@ -23,7 +25,12 @@ type productsServiceHandler struct {
 
 var _ api.ProductsService = new(productsServiceHandler)
 
-func (h *productsServiceHandler) EditConfig(ctx context.Context, hWnd int32, msg int32) error {
+func (h *productsServiceHandler) SetClientWindow(ctx context.Context, hWnd int64) error {
+	gui.SetHWndTargetSendMessage(win.HWND(hWnd))
+	return nil
+}
+
+func (h *productsServiceHandler) EditConfig(ctx context.Context) error {
 	filename := filepath.Join(tmpDir, "app-config.yaml")
 	c, err := openAppConfig(h.db, ctx)
 	if err != nil {
@@ -36,6 +43,7 @@ func (h *productsServiceHandler) EditConfig(ctx context.Context, hWnd int32, msg
 	if err := cmd.Start(); err != nil {
 		return err
 	}
+	winapi.ActivateWindowByPid(cmd.Process.Pid)
 
 	applyConfig := func() error {
 		if err := cmd.Wait(); err != nil {
@@ -56,11 +64,13 @@ func (h *productsServiceHandler) EditConfig(ctx context.Context, hWnd int32, msg
 	}
 
 	go func() {
+
 		if err := applyConfig(); err != nil {
 			log.PrintErr(err)
+			gui.MsgBox("Конфигурация", err.Error(), win.MB_OK|win.MB_ICONERROR)
+			return
 		}
-		//win.MessageBox()
-		win.SendMessage(win.HWND(hWnd), uint32(msg), 0, 0)
+		gui.NotifyCurrentPartyChanged()
 	}()
 	return nil
 }

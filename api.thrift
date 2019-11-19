@@ -20,5 +20,6 @@ service ProductsService {
    string getAppConfig()
    void setAppConfig(1:string appConfig)
 
-   void EditConfig(1:i32 hWnd, 2:i32 msg)
+   void EditConfig()
+   void setClientWindow(1:i64 hWnd)
 }
