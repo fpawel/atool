@@ -60,7 +60,6 @@ type Product struct {
 	PartyCreatedAt time.Time   `db:"created_at"`
 	Comport        string      `db:"comport"`
 	Addr           modbus.Addr `db:"addr"`
-	Checked        bool        `db:"checked"`
 	Device         string      `db:"device"`
 }
 
@@ -181,6 +180,18 @@ func AddNewProduct(ctx context.Context, db *sqlx.DB) error {
 		return err
 	}
 	return nil
+}
+
+type HardwareTask struct {
+	Device             string        `db:"device"`
+	Comport            string        `db:"comport"`
+	TimeoutGetResponse time.Duration `db:"timeout_get_response"`
+	TimeoutEndResponse time.Duration `db:"timeout_end_response"`
+	MaxAttemptsRead    int           `db:"max_attempts_read"`
+	Pause              time.Duration `db:"pause"`
+	Addr               modbus.Var    `db:"addr"`
+	Var                modbus.Var    `db:"var"`
+	Count              int           `db:"count"`
 }
 
 func getNewInsertedID(r sql.Result) (int64, error) {

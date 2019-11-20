@@ -48,7 +48,6 @@ CREATE TABLE IF NOT EXISTS product
     device     TEXT    NOT NULL DEFAULT 'default',
     comport    TEXT    NOT NULL DEFAULT 'COM1',
     addr       INTEGER NOT NULL DEFAULT 1,
-    checked    BOOLEAN NOT NULL DEFAULT 1,
     PRIMARY KEY (product_id),
     UNIQUE (party_id, comport, addr),
     FOREIGN KEY (party_id) REFERENCES party (party_id)
@@ -56,8 +55,7 @@ CREATE TABLE IF NOT EXISTS product
     FOREIGN KEY (device) REFERENCES hardware (device)
         ON DELETE SET DEFAULT
         ON UPDATE CASCADE,
-    CHECK (addr >= 1 ),
-    CHECK (checked IN (0, 1) )
+    CHECK (addr >= 1 )
 );
 
 CREATE TABLE IF NOT EXISTS series

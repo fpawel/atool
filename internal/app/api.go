@@ -141,7 +141,6 @@ func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*
 			PartyCreatedAt: timeUnixMillis(dataProduct.PartyCreatedAt),
 			Comport:        dataProduct.Comport,
 			Addr:           int8(dataProduct.Addr),
-			Checked:        dataProduct.Checked,
 			Device:         dataProduct.Device,
 		}
 
@@ -158,6 +157,12 @@ func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*
 			Active:    p.Active,
 		})
 	}
+
+	//for _, p := range dataParty.Products {
+	//	p.Device
+	//
+	//	party.Products = append(party.Products, p)
+	//}
 
 	return party, nil
 }
@@ -198,8 +203,8 @@ func (h *productsServiceHandler) DeleteProducts(ctx context.Context, productIDs 
 func (h *productsServiceHandler) SetProduct(ctx context.Context, p *apitypes.Product) error {
 	_, err := h.db.Exec(`
 UPDATE product 
-	SET addr=?, comport=?, checked=?, device=?
-WHERE product_id = ?`, p.Addr, p.Comport, p.Checked, p.Device, p.ProductID)
+	SET addr=?, comport=?, device=?
+WHERE product_id = ?`, p.Addr, p.Comport, p.Device, p.ProductID)
 	return err
 }
 
