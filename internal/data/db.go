@@ -37,16 +37,19 @@ func Open(filename string) (*sqlx.DB, error) {
 
 type Party struct {
 	PartyInfo
-	Products []Product
-	Params   []modbus.Var
-	Series   []ParamVarSeries
+	Products    []Product
+	Vars        []modbus.Var
+	ProductVars []ProductVar
 }
 
-type ParamVarSeries struct {
-	ProductID int64      `db:"product_id"`
-	Var       modbus.Var `db:"var"`
-	Chart     string     `db:"chart"`
-	Active    bool       `db:"active"`
+type ProductVar struct {
+	DeviceVarID  int64      `db:"device_var_id"`
+	ProductID    int64      `db:"product_id"`
+	Var          modbus.Var `db:"var"`
+	Chart        string     `db:"chart"`
+	SeriesActive bool       `db:"series_active"`
+	Read         bool       `db:"read"`
+	SizeRead     int        `db:"size_read"`
 }
 
 type PartyInfo struct {
@@ -90,24 +93,20 @@ func GetParty(ctx context.Context, db *sqlx.DB, partyID int64) (Party, error) {
 		return Party{}, err
 	}
 
-	if err := db.SelectContext(ctx, &party.Params, `
+	if err := db.SelectContext(ctx, &party.Vars, `
 SELECT DISTINCT var
 FROM product
-         INNER JOIN param USING (device)
-WHERE party_id = ?
-UNION
-SELECT DISTINCT var
-FROM measurement
-         INNER JOIN product USING (product_id)
+         INNER JOIN device_var USING (device)
 WHERE party_id = ?
 ORDER BY var`, partyID, partyID); err != nil {
 		return Party{}, err
 	}
 
-	if err := db.SelectContext(ctx, &party.Series, `
-SELECT product_id, var, chart, active
-FROM series
-         INNER JOIN product USING (product_id)
+	if err := db.SelectContext(ctx, &party.ProductVars, `
+SELECT device_var_id, product_id, chart, series_active, read, var, size_read
+FROM product_var
+    INNER JOIN product USING (product_id)
+	INNER JOIN device_var USING (device_var_id)
 WHERE party_id = ?
 ORDER BY chart, product_id, var`, partyID); err != nil {
 		return Party{}, err
@@ -180,18 +179,6 @@ func AddNewProduct(ctx context.Context, db *sqlx.DB) error {
 		return err
 	}
 	return nil
-}
-
-type HardwareTask struct {
-	Device             string        `db:"device"`
-	Comport            string        `db:"comport"`
-	TimeoutGetResponse time.Duration `db:"timeout_get_response"`
-	TimeoutEndResponse time.Duration `db:"timeout_end_response"`
-	MaxAttemptsRead    int           `db:"max_attempts_read"`
-	Pause              time.Duration `db:"pause"`
-	Addr               modbus.Var    `db:"addr"`
-	Var                modbus.Var    `db:"var"`
-	Count              int           `db:"count"`
 }
 
 func getNewInsertedID(r sql.Result) (int64, error) {

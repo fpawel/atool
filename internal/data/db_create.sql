@@ -25,64 +25,66 @@ CREATE TABLE IF NOT EXISTS hardware
 INSERT OR IGNORE INTO hardware(device)
 VALUES ('default');
 
-CREATE TABLE IF NOT EXISTS param
+CREATE TABLE IF NOT EXISTS device_var
 (
-    device TEXT    NOT NULL DEFAULT 'default',
-    var    INTEGER NOT NULL,
-    count  INTEGER NOT NULL,
-    format TEXT    NOT NULL,
+    device_var_id INTEGER PRIMARY KEY NOT NULL,
+    device        TEXT                NOT NULL DEFAULT 'default',
+    var           SMALLINT            NOT NULL,
+    format        TEXT                NOT NULL,
+    name          TEXT                NOT NULL,
+    size_read     SMALLINT            NOT NULL DEFAULT 2,
+    multiple_read BOOLEAN             NOT NULL DEFAULT 1,
+    UNIQUE (device, var, format),
     FOREIGN KEY (device) REFERENCES hardware (device) ON DELETE CASCADE ON UPDATE CASCADE,
-    PRIMARY KEY (device, var),
+    CHECK ( trim(name) != '' ),
     CHECK (var >= 0 ),
-    CHECK (count >= 0 ),
-    CHECK (format IN ('bcd', 'float', 'int'))
+    CHECK (size_read >= 0 ),
+    CHECK (multiple_read IN (0, 1) ),
+    CHECK (format IN ('bcd', 'float_big_endian', 'float_little_endian', 'int', 'byte0', 'byte1',
+                      'bit0', 'bit1', 'bit2', 'bit3', 'bit4', 'bit5', 'bit6', 'bit7',
+                      'bit8', 'bit9', 'bit10', 'bit11', 'bit12', 'bit13', 'bit14', 'bit15'))
 );
-
-INSERT OR IGNORE INTO param(device, var, count, format)
-VALUES ('default', 0, 2, 'bcd');
 
 CREATE TABLE IF NOT EXISTS product
 (
-    product_id INTEGER NOT NULL,
-    party_id   INTEGER NOT NULL,
-    device     TEXT    NOT NULL DEFAULT 'default',
-    comport    TEXT    NOT NULL DEFAULT 'COM1',
-    addr       INTEGER NOT NULL DEFAULT 1,
-    PRIMARY KEY (product_id),
+    product_id INTEGER PRIMARY KEY NOT NULL,
+    party_id   INTEGER             NOT NULL,
+    device     TEXT                NOT NULL DEFAULT 'default',
+    comport    TEXT                NOT NULL DEFAULT 'COM1',
+    addr       INTEGER             NOT NULL DEFAULT 1,
     UNIQUE (party_id, comport, addr),
     FOREIGN KEY (party_id) REFERENCES party (party_id)
         ON DELETE CASCADE,
     FOREIGN KEY (device) REFERENCES hardware (device)
         ON DELETE SET DEFAULT
         ON UPDATE CASCADE,
-    CHECK (addr >= 1 )
+    CHECK (addr >= 1)
 );
 
-CREATE TABLE IF NOT EXISTS series
+CREATE TABLE IF NOT EXISTS product_var
 (
-    product_id   INTEGER NOT NULL,
-    var INTEGER NOT NULL,
-    chart TEXT NOT NULL,
-    active    BOOLEAN NOT NULL DEFAULT 1,
-
-    PRIMARY KEY (product_id, var),
+    product_id    INTEGER NOT NULL,
+    device_var_id INTEGER NOT NULL,
+    chart         TEXT    NOT NULL,
+    series_active        BOOLEAN NOT NULL DEFAULT 1,
+    read          BOOLEAN NOT NULL DEFAULT 1,
+    PRIMARY KEY (product_id, device_var_id),
     CHECK (chart != '' ),
-    CHECK (var >= 0 ),
-    CHECK (active IN (0, 1) ),
-    FOREIGN KEY (product_id) REFERENCES product (product_id)
-        ON DELETE CASCADE
+    CHECK (series_active IN (0, 1) ),
+    CHECK (read IN (0, 1) ),
+    FOREIGN KEY (device_var_id) REFERENCES device_var (device_var_id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES product (product_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS measurement
 (
-    tm         REAL    NOT NULL,
-    product_id INTEGER NOT NULL,
-    var        INTEGER NOT NULL,
-    value      REAL    NOT NULL,
-    PRIMARY KEY (tm, product_id, var),
+    tm            REAL    NOT NULL,
+    product_id    INTEGER NOT NULL,
+    device_var_id INTEGER NOT NULL,
+    value         REAL    NOT NULL,
+    PRIMARY KEY (tm, product_id, device_var_id),
     FOREIGN KEY (product_id) REFERENCES product (product_id) ON DELETE CASCADE
 );
-
 
 CREATE VIEW IF NOT EXISTS measurement_ext AS
 SELECT STRFTIME('%Y-%m-%d %H:%M:%f', tm)   AS stored_at,
@@ -93,9 +95,9 @@ FROM measurement;
 
 CREATE TABLE IF NOT EXISTS app_config
 (
-    id                    INTEGER PRIMARY KEY NOT NULL,
-    party_id              INTEGER             NOT NULL,
-    log_comport           BOOLEAN             NOT NULL DEFAULT 0,
+    id          INTEGER PRIMARY KEY NOT NULL,
+    party_id    INTEGER             NOT NULL,
+    log_comport BOOLEAN             NOT NULL DEFAULT 0,
     FOREIGN KEY (party_id) REFERENCES party (party_id)
 );
 
