@@ -40,7 +40,10 @@ CREATE TABLE IF NOT EXISTS device_var
     CHECK (var >= 0 ),
     CHECK (size_read >= 0 ),
     CHECK (multiple_read IN (0, 1) ),
-    CHECK (format IN ('bcd', 'float_big_endian', 'float_little_endian', 'int', 'byte0', 'byte1',
+    CHECK (format IN ('bcd',
+                      'float_big_endian', 'float_little_endian',
+                      'int_big_endian', 'int_little_endian',
+                      'byte0', 'byte1',
                       'bit0', 'bit1', 'bit2', 'bit3', 'bit4', 'bit5', 'bit6', 'bit7',
                       'bit8', 'bit9', 'bit10', 'bit11', 'bit12', 'bit13', 'bit14', 'bit15'))
 );
@@ -66,7 +69,7 @@ CREATE TABLE IF NOT EXISTS product_var
     product_id    INTEGER NOT NULL,
     device_var_id INTEGER NOT NULL,
     chart         TEXT    NOT NULL,
-    series_active        BOOLEAN NOT NULL DEFAULT 1,
+    series_active BOOLEAN NOT NULL DEFAULT 1,
     read          BOOLEAN NOT NULL DEFAULT 1,
     PRIMARY KEY (product_id, device_var_id),
     CHECK (chart != '' ),
