@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/comm/modbus"
 	"github.com/jmoiron/sqlx"
@@ -35,6 +36,56 @@ func Open(filename string) (*sqlx.DB, error) {
 	return db, nil
 }
 
+func OpenAppConfig(db *sqlx.DB, ctx context.Context) (AppConfig, error) {
+	var c AppConfig
+
+	if err := db.GetContext(ctx, &c.LogComport, `SELECT log_comport FROM app_config WHERE id=1`); err != nil {
+		return c, merry.Append(err, "get config from db")
+	}
+	if err := ListHardware(db, ctx, &c.Hardware); err != nil {
+		return c, err
+	}
+	return c, nil
+}
+
+func SaveAppConfig(db *sqlx.DB, ctx context.Context, c AppConfig) error {
+	if _, err := db.Exec(`UPDATE app_config SET log_comport=? WHERE id=1`, c.LogComport); err != nil {
+		return merry.Append(err, "UPDATE app_config SET log_comport=?")
+	}
+	return SaveHardware(db, ctx, c.Hardware)
+}
+
+func SaveHardware(db *sqlx.DB, ctx context.Context, hardware []Hardware) error {
+
+	if _, err := db.ExecContext(ctx, `DELETE FROM hardware WHERE TRUE`); err != nil {
+		return merry.Append(err, "save config: DELETE FROM hardware WHERE TRUE")
+	}
+
+	for _, device := range hardware {
+		if _, err := db.NamedExecContext(ctx, `
+INSERT INTO hardware(device, baud, timeout_get_responses, timeout_end_response, pause, max_attempts_read)
+VALUES (:device, :baud, :timeout_get_responses, :timeout_end_response, :pause, :max_attempts_read)`, device); err != nil {
+			return merry.Appendf(err, "save config: INSERT INTO hardware: %+v", device)
+		}
+		if len(device.Params) == 0 {
+			device.Params = []Param{{
+				ParamAddr: 0,
+				Format:    "bcd",
+				SizeRead:  2,
+			}}
+		}
+		for _, param := range device.Params {
+			param.Device = device.Device
+			if _, err := db.ExecContext(ctx, `
+INSERT INTO param(device, param_addr, format, size_read, read_once) 
+VALUES (:device, :param_addr, :format, :size_read, :read_once)`, param); err != nil {
+				return merry.Appendf(err, "save config: INSERT INTO param: device: %+v: param: %+v")
+			}
+		}
+	}
+	return nil
+}
+
 func GetCurrentPartyID(ctx context.Context, db *sqlx.DB) (int64, error) {
 	var partyID int64
 	err := db.GetContext(ctx, &partyID, `SELECT party_id FROM app_config`)
@@ -62,22 +113,22 @@ func GetParty(ctx context.Context, db *sqlx.DB, partyID int64) (Party, error) {
 		return Party{}, err
 	}
 
-	if err := db.SelectContext(ctx, &party.Vars, `
-SELECT DISTINCT var
+	if err := db.SelectContext(ctx, &party.ParamAddresses, `
+SELECT DISTINCT param_addr
 FROM product
-         INNER JOIN device_var USING (device)
+         INNER JOIN param USING (device)
 WHERE party_id = ?
-ORDER BY var`, partyID, partyID); err != nil {
+ORDER BY param_addr`, partyID, partyID); err != nil {
 		return Party{}, err
 	}
 
-	if err := db.SelectContext(ctx, &party.ProductVars, `
-SELECT device_var_id, product_id, chart, series_active, read, var, size_read
-FROM product_var
+	if err := db.SelectContext(ctx, &party.ProductParams, `
+SELECT product_id, chart, series_active,  param_addr
+FROM product_param
     INNER JOIN product USING (product_id)
-	INNER JOIN device_var USING (device_var_id)
+	INNER JOIN param USING (param_addr)
 WHERE party_id = ?
-ORDER BY chart, product_id, var`, partyID); err != nil {
+ORDER BY chart, product_id, param_addr`, partyID); err != nil {
 		return Party{}, err
 	}
 
@@ -146,6 +197,19 @@ func AddNewProduct(ctx context.Context, db *sqlx.DB) error {
 
 	if _, err = getNewInsertedID(r); err != nil {
 		return err
+	}
+	return nil
+}
+
+func ListHardware(db *sqlx.DB, ctx context.Context, hardware *[]Hardware) error {
+	if err := db.SelectContext(ctx, hardware, `SELECT * FROM hardware`); err != nil {
+		return merry.Append(err, "SELECT * FROM hardware")
+	}
+	for i := range *hardware {
+		p := &(*hardware)[i]
+		if err := db.SelectContext(ctx, &p.Params, `SELECT * FROM param WHERE device=?`, p.Device); err != nil {
+			return merry.Appendf(err, "SELECT * FROM param WHERE device=? | %s", p.Device)
+		}
 	}
 	return nil
 }

@@ -5,11 +5,34 @@ import (
 	"time"
 )
 
+type AppConfig struct {
+	LogComport bool       `yaml:"log_comport"`
+	Hardware   []Hardware `yaml:"hardware"`
+}
+
+type Hardware struct {
+	Device             string  `db:"device" yaml:"device"`
+	Baud               int     `db:"baud" yaml:"baud"`
+	Pause              int64   `db:"pause" yaml:"pause"`
+	TimeoutGetResponse int64   `db:"timeout_get_responses" yaml:"timeout_get_responses"`
+	TimeoutEndResponse int64   `db:"timeout_end_response" yaml:"timeout_end_response"`
+	MaxAttemptsRead    int     `db:"max_attempts_read" yaml:"max_attempts_read"`
+	Params             []Param `db:"-" yaml:"params"`
+}
+
+type Param struct {
+	Device    string     `db:"device" yaml:"-"`
+	ParamAddr modbus.Var `db:"param_addr" yaml:"param_addr"`
+	Format    string     `db:"format" yaml:"format"`
+	SizeRead  uint16     `db:"size_read" yaml:"size_read"`
+	ReadOnce  bool       `db:"read_once" yaml:"read_once"`
+}
+
 type Party struct {
 	PartyInfo
-	Products    []Product
-	Vars        []modbus.Var
-	ProductVars []ProductVar
+	Products       []Product
+	ParamAddresses []modbus.Var
+	ProductParams  []ProductParam
 }
 
 type Product struct {
@@ -19,16 +42,14 @@ type Product struct {
 	Comport        string      `db:"comport"`
 	Addr           modbus.Addr `db:"addr"`
 	Device         string      `db:"device"`
+	Active         bool        `db:"active"`
 }
 
-type ProductVar struct {
-	DeviceVarID  int64      `db:"device_var_id"`
+type ProductParam struct {
 	ProductID    int64      `db:"product_id"`
-	Var          modbus.Var `db:"var"`
+	ParamAddr    modbus.Var `db:"param_addr"`
 	Chart        string     `db:"chart"`
 	SeriesActive bool       `db:"series_active"`
-	Read         bool       `db:"read"`
-	SizeRead     int        `db:"size_read"`
 }
 
 type PartyInfo struct {

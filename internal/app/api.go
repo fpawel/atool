@@ -8,6 +8,7 @@ import (
 	"github.com/fpawel/atool/internal/pkg/winapi"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
+	"github.com/fpawel/comm/modbus"
 	"github.com/jmoiron/sqlx"
 	"github.com/lxn/win"
 	"gopkg.in/yaml.v3"
@@ -30,9 +31,23 @@ func (h *productsServiceHandler) SetClientWindow(ctx context.Context, hWnd int64
 	return nil
 }
 
+func (h *productsServiceHandler) SetProductParam(ctx context.Context, p *apitypes.ProductParam) (err error) {
+	_, err = h.db.NamedExecContext(ctx, `
+INSERT INTO product_param (product_id, param_addr, chart, series_active) 
+VALUES (:product_id, :param_addr, :chart, :series_active)
+ON CONFLICT DO UPDATE SET series_active=:series_active, chart=:chart 
+WHERE product_id=:product_id AND param_addr=:param_addr`, data.ProductParam{
+		ProductID:    p.ProductID,
+		ParamAddr:    modbus.Var(p.ParamAddr),
+		Chart:        p.Chart,
+		SeriesActive: p.SeriesActive,
+	})
+	return
+}
+
 func (h *productsServiceHandler) EditConfig(ctx context.Context) error {
 	filename := filepath.Join(tmpDir, "app-config.yaml")
-	c, err := openAppConfig(h.db, ctx)
+	c, err := data.OpenAppConfig(h.db, ctx)
 	if err != nil {
 		return err
 	}
@@ -53,41 +68,22 @@ func (h *productsServiceHandler) EditConfig(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		var c appConfig
+		var c data.AppConfig
 		if err := yaml.Unmarshal(b, &c); err != nil {
 			return err
 		}
-		if err := c.save(h.db, ctx); err != nil {
-			return err
-		}
-		return nil
+		return data.SaveAppConfig(h.db, ctx, c)
 	}
 
 	go func() {
 
 		if err := applyConfig(); err != nil {
 			log.PrintErr(err)
-			gui.MsgBox("Конфигурация", err.Error(), win.MB_OK|win.MB_ICONERROR)
-			return
+			gui.MsgBox("Ошибка при сохранении конфигурации", err.Error(), win.MB_OK|win.MB_ICONERROR)
 		}
 		gui.NotifyCurrentPartyChanged()
 	}()
 	return nil
-}
-
-func (h *productsServiceHandler) SetProductVarSeriesChart(ctx context.Context, productID int64, theVar int16, chartName string) error {
-	_, err := h.db.ExecContext(ctx, `
-INSERT INTO series(product_id, var, chart) VALUES (?,?,?) 
-	ON CONFLICT (product_id,var) DO 
-	    UPDATE SET chart = ?`,
-		productID, theVar, chartName, chartName)
-	return err
-}
-
-func (h *productsServiceHandler) SetProductVarSeriesActive(ctx context.Context, productID int64, theVar int16, active bool) error {
-	_, err := h.db.ExecContext(ctx, `UPDATE series SET active=? WHERE product_id=? AND var=?`,
-		active, productID, theVar)
-	return err
 }
 
 func (h *productsServiceHandler) SetCurrentParty(ctx context.Context, partyID int64) error {
@@ -127,43 +123,35 @@ func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*
 		return nil, err
 	}
 	party := &apitypes.Party{
-		PartyID:   dataParty.PartyID,
-		CreatedAt: timeUnixMillis(dataParty.CreatedAt),
-		Products:  []*apitypes.Product{},
-		Params:    []int16{},
-		Series:    []*apitypes.ProductVarSeries{},
+		PartyID:        dataParty.PartyID,
+		CreatedAt:      timeUnixMillis(dataParty.CreatedAt),
+		Products:       []*apitypes.Product{},
+		ProductParams:  []*apitypes.ProductParam{},
+		ParamAddresses: []int16{},
 	}
 
-	for _, dataProduct := range dataParty.Products {
-		p := &apitypes.Product{
-			ProductID:      dataProduct.ProductID,
-			PartyID:        dataProduct.PartyID,
-			PartyCreatedAt: timeUnixMillis(dataProduct.PartyCreatedAt),
-			Comport:        dataProduct.Comport,
-			Addr:           int8(dataProduct.Addr),
-			Device:         dataProduct.Device,
-		}
-
-		party.Products = append(party.Products, p)
-	}
-	for _, p := range dataParty.Params {
-		party.Params = append(party.Params, int16(p))
-	}
-	for _, p := range dataParty.Series {
-		party.Series = append(party.Series, &apitypes.ProductVarSeries{
-			ProductID: p.ProductID,
-			TheVar:    int16(p.Var),
-			Chart:     p.Chart,
-			Active:    p.Active,
+	for _, p := range dataParty.Products {
+		party.Products = append(party.Products, &apitypes.Product{
+			ProductID:      p.ProductID,
+			PartyID:        p.PartyID,
+			PartyCreatedAt: timeUnixMillis(p.PartyCreatedAt),
+			Comport:        p.Comport,
+			Addr:           int8(p.Addr),
+			Device:         p.Device,
+			Active:         p.Active,
 		})
 	}
-
-	//for _, p := range dataParty.Products {
-	//	p.Device
-	//
-	//	party.Products = append(party.Products, p)
-	//}
-
+	for _, p := range dataParty.ParamAddresses {
+		party.ParamAddresses = append(party.ParamAddresses, int16(p))
+	}
+	for _, p := range dataParty.ProductParams {
+		party.ProductParams = append(party.ProductParams, &apitypes.ProductParam{
+			ProductID:    p.ProductID,
+			ParamAddr:    int16(p.ParamAddr),
+			Chart:        p.Chart,
+			SeriesActive: p.SeriesActive,
+		})
+	}
 	return party, nil
 }
 
@@ -201,27 +189,11 @@ func (h *productsServiceHandler) DeleteProducts(ctx context.Context, productIDs 
 }
 
 func (h *productsServiceHandler) SetProduct(ctx context.Context, p *apitypes.Product) error {
-	_, err := h.db.Exec(`
+	_, err := h.db.NamedExecContext(ctx, `
 UPDATE product 
-	SET addr=?, comport=?, device=?
-WHERE product_id = ?`, p.Addr, p.Comport, p.Device, p.ProductID)
+	SET addr=:addr, comport=:comport, device=:device, active=:active 
+WHERE product_id = ?`, p)
 	return err
-}
-
-func (h *productsServiceHandler) GetAppConfig(ctx context.Context) (string, error) {
-	c, err := openAppConfig(h.db, ctx)
-	if err != nil {
-		return "", err
-	}
-	return string(must.MarshalYaml(&c)), nil
-}
-
-func (h *productsServiceHandler) SetAppConfig(ctx context.Context, appConfigYaml string) error {
-	var c appConfig
-	if err := yaml.Unmarshal([]byte(appConfigYaml), &c); err != nil {
-		return err
-	}
-	return c.save(h.db, ctx)
 }
 
 func (h *productsServiceHandler) ListDevices(ctx context.Context) (xs []string, err error) {

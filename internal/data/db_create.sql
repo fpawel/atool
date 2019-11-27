@@ -15,77 +15,69 @@ CREATE TABLE IF NOT EXISTS hardware
     timeout_end_response  INTEGER NOT NULL DEFAULT 50000000,   -- в наносекундах = 50 миллисекунд
     pause                 INTEGER NOT NULL DEFAULT 0,          -- в наносекундах
     max_attempts_read     INTEGER NOT NULL DEFAULT 0,
-    CHECK ( timeout_get_responses >= 0 ),
-    CHECK ( timeout_end_response >= 0 ),
-    CHECK ( pause >= 0 ),
-    CHECK ( baud >= 0 ),
-    CHECK ( max_attempts_read >= 0 )
+    CHECK (timeout_get_responses >= 0),
+    CHECK (timeout_end_response >= 0),
+    CHECK (pause >= 0),
+    CHECK (baud >= 0),
+    CHECK (max_attempts_read >= 0 )
 );
 
-INSERT OR IGNORE INTO hardware(device)
-VALUES ('default');
-
-CREATE TABLE IF NOT EXISTS device_var
+CREATE TABLE IF NOT EXISTS param
 (
-    device_var_id INTEGER PRIMARY KEY NOT NULL,
-    device        TEXT                NOT NULL DEFAULT 'default',
-    var           SMALLINT            NOT NULL,
-    format        TEXT                NOT NULL,
-    name          TEXT                NOT NULL,
-    size_read     SMALLINT            NOT NULL DEFAULT 2,
-    multiple_read BOOLEAN             NOT NULL DEFAULT 1,
-    UNIQUE (device, var, format),
-    FOREIGN KEY (device) REFERENCES hardware (device) ON DELETE CASCADE ON UPDATE CASCADE,
-    CHECK ( trim(name) != '' ),
-    CHECK (var >= 0 ),
+    device        TEXT     NOT NULL,
+    param_addr    SMALLINT NOT NULL,
+    format        TEXT     NOT NULL,
+    size_read     SMALLINT NOT NULL DEFAULT 2,
+    read_once BOOLEAN  NOT NULL DEFAULT 0,
+    PRIMARY KEY (device, param_addr),
+    FOREIGN KEY (device) REFERENCES hardware (device) ON DELETE CASCADE,
+    CHECK (param_addr >= 0 ),
     CHECK (size_read >= 0 ),
-    CHECK (multiple_read IN (0, 1) ),
+    CHECK (read_once IN (0, 1) ),
     CHECK (format IN ('bcd',
                       'float_big_endian', 'float_little_endian',
-                      'int_big_endian', 'int_little_endian',
-                      'byte0', 'byte1',
-                      'bit0', 'bit1', 'bit2', 'bit3', 'bit4', 'bit5', 'bit6', 'bit7',
-                      'bit8', 'bit9', 'bit10', 'bit11', 'bit12', 'bit13', 'bit14', 'bit15'))
+                      'int_big_endian', 'int_little_endian'))
 );
+
+INSERT OR IGNORE INTO hardware(device) VALUES ('');
+INSERT OR IGNORE INTO param(device, param_addr, format) VALUES ('', 0, 'bcd');
 
 CREATE TABLE IF NOT EXISTS product
 (
     product_id INTEGER PRIMARY KEY NOT NULL,
     party_id   INTEGER             NOT NULL,
-    device     TEXT                NOT NULL DEFAULT 'default',
+    device     TEXT                NOT NULL DEFAULT '',
     comport    TEXT                NOT NULL DEFAULT 'COM1',
     addr       INTEGER             NOT NULL DEFAULT 1,
+    active     BOOLEAN             NOT NULL DEFAULT 1,
     UNIQUE (party_id, comport, addr),
     FOREIGN KEY (party_id) REFERENCES party (party_id)
         ON DELETE CASCADE,
-    FOREIGN KEY (device) REFERENCES hardware (device)
-        ON DELETE SET DEFAULT
-        ON UPDATE CASCADE,
-    CHECK (addr >= 1)
+    CHECK (addr >= 1),
+    CHECK (active IN (0, 1) )
 );
 
-CREATE TABLE IF NOT EXISTS product_var
+CREATE TABLE IF NOT EXISTS product_param
 (
-    product_id    INTEGER NOT NULL,
-    device_var_id INTEGER NOT NULL,
-    chart         TEXT    NOT NULL,
-    series_active BOOLEAN NOT NULL DEFAULT 1,
-    read          BOOLEAN NOT NULL DEFAULT 1,
-    PRIMARY KEY (product_id, device_var_id),
+    product_id    INTEGER  NOT NULL,
+    param_addr    SMALLINT NOT NULL,
+    chart         TEXT     NOT NULL,
+    series_active BOOLEAN  NOT NULL DEFAULT 1,
+
+    PRIMARY KEY (product_id, param_addr),
     CHECK (chart != '' ),
     CHECK (series_active IN (0, 1) ),
-    CHECK (read IN (0, 1) ),
-    FOREIGN KEY (device_var_id) REFERENCES device_var (device_var_id) ON DELETE CASCADE,
+
     FOREIGN KEY (product_id) REFERENCES product (product_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS measurement
 (
-    tm            REAL    NOT NULL,
-    product_id    INTEGER NOT NULL,
-    device_var_id INTEGER NOT NULL,
-    value         REAL    NOT NULL,
-    PRIMARY KEY (tm, product_id, device_var_id),
+    tm         REAL     NOT NULL,
+    product_id INTEGER  NOT NULL,
+    param_addr SMALLINT NOT NULL,
+    value      REAL     NOT NULL,
+    PRIMARY KEY (tm, product_id, param_addr),
     FOREIGN KEY (product_id) REFERENCES product (product_id) ON DELETE CASCADE
 );
 
