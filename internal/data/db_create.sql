@@ -39,14 +39,14 @@ CREATE TABLE IF NOT EXISTS param
                       'int_big_endian', 'int_little_endian'))
 );
 
-INSERT OR IGNORE INTO hardware(device) VALUES ('');
-INSERT OR IGNORE INTO param(device, param_addr, format) VALUES ('', 0, 'bcd');
+INSERT OR IGNORE INTO hardware(device) VALUES ('default');
+INSERT OR IGNORE INTO param(device, param_addr, format) VALUES ('default', 0, 'bcd');
 
 CREATE TABLE IF NOT EXISTS product
 (
     product_id INTEGER PRIMARY KEY NOT NULL,
     party_id   INTEGER             NOT NULL,
-    device     TEXT                NOT NULL DEFAULT '',
+    device     TEXT                NOT NULL DEFAULT 'default',
     comport    TEXT                NOT NULL DEFAULT 'COM1',
     addr       INTEGER             NOT NULL DEFAULT 1,
     active     BOOLEAN             NOT NULL DEFAULT 1,

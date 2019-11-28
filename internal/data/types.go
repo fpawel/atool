@@ -11,13 +11,13 @@ type AppConfig struct {
 }
 
 type Hardware struct {
-	Device             string  `db:"device" yaml:"device"`
-	Baud               int     `db:"baud" yaml:"baud"`
-	Pause              int64   `db:"pause" yaml:"pause"`
-	TimeoutGetResponse int64   `db:"timeout_get_responses" yaml:"timeout_get_responses"`
-	TimeoutEndResponse int64   `db:"timeout_end_response" yaml:"timeout_end_response"`
-	MaxAttemptsRead    int     `db:"max_attempts_read" yaml:"max_attempts_read"`
-	Params             []Param `db:"-" yaml:"params"`
+	Device             string        `db:"device" yaml:"device"`
+	Baud               int           `db:"baud" yaml:"baud"`
+	Pause              time.Duration `db:"pause" yaml:"pause"`
+	TimeoutGetResponse time.Duration `db:"timeout_get_responses" yaml:"timeout_get_responses"`
+	TimeoutEndResponse time.Duration `db:"timeout_end_response" yaml:"timeout_end_response"`
+	MaxAttemptsRead    int           `db:"max_attempts_read" yaml:"max_attempts_read"`
+	Params             []Param       `db:"-" yaml:"params"`
 }
 
 type Param struct {
@@ -28,11 +28,15 @@ type Param struct {
 	ReadOnce  bool       `db:"read_once" yaml:"read_once"`
 }
 
+type PartyInfo struct {
+	PartyID   int64     `db:"party_id"`
+	CreatedAt time.Time `db:"created_at"`
+}
+
 type Party struct {
 	PartyInfo
 	Products       []Product
 	ParamAddresses []modbus.Var
-	ProductParams  []ProductParam
 }
 
 type Product struct {
@@ -50,9 +54,4 @@ type ProductParam struct {
 	ParamAddr    modbus.Var `db:"param_addr"`
 	Chart        string     `db:"chart"`
 	SeriesActive bool       `db:"series_active"`
-}
-
-type PartyInfo struct {
-	PartyID   int64     `db:"party_id"`
-	CreatedAt time.Time `db:"created_at"`
 }

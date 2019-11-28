@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"github.com/fpawel/atool/gui"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/pkg/must"
@@ -9,7 +10,6 @@ import (
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm/modbus"
-	"github.com/jmoiron/sqlx"
 	"github.com/lxn/win"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -17,37 +17,76 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
 type productsServiceHandler struct {
-	db *sqlx.DB
 }
 
 var _ api.ProductsService = new(productsServiceHandler)
+
+func (h *productsServiceHandler) Connect(_ context.Context) error {
+	if connected() {
+		return nil
+	}
+	connect()
+	return nil
+}
+
+func (h *productsServiceHandler) Disconnect(_ context.Context) error {
+	if !connected() {
+		return nil
+	}
+	disconnect()
+	return nil
+}
+
+func (h *productsServiceHandler) Connected(_ context.Context) (bool, error) {
+	return atomic.LoadInt32(&atomicConnected) != 0, nil
+}
 
 func (h *productsServiceHandler) SetClientWindow(ctx context.Context, hWnd int64) error {
 	gui.SetHWndTargetSendMessage(win.HWND(hWnd))
 	return nil
 }
 
-func (h *productsServiceHandler) SetProductParam(ctx context.Context, p *apitypes.ProductParam) (err error) {
-	_, err = h.db.NamedExecContext(ctx, `
-INSERT INTO product_param (product_id, param_addr, chart, series_active) 
+func (h *productsServiceHandler) GetProductParam(ctx context.Context, productID int64, paramAddr int16) (*apitypes.ProductParam, error) {
+	var d data.ProductParam
+	err := db.Get(&d, `SELECT * FROM product_param WHERE product_id=? AND param_addr=?`, productID, paramAddr)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	return &apitypes.ProductParam{
+		ProductID:    productID,
+		ParamAddr:    paramAddr,
+		Chart:        d.Chart,
+		SeriesActive: d.SeriesActive,
+	}, nil
+}
+
+func (h *productsServiceHandler) SetProductParam(ctx context.Context, p *apitypes.ProductParam) error {
+	if p.Chart == "" {
+		_, err := db.Exec(`DELETE FROM product_param WHERE product_id = ? AND param_addr = ?`, p.ProductID, p.ParamAddr)
+		return err
+	}
+
+	_, err := db.NamedExecContext(ctx, `
+INSERT INTO product_param (product_id, param_addr, chart, series_active)
 VALUES (:product_id, :param_addr, :chart, :series_active)
-ON CONFLICT DO UPDATE SET series_active=:series_active, chart=:chart 
-WHERE product_id=:product_id AND param_addr=:param_addr`, data.ProductParam{
+ON CONFLICT (product_id, param_addr) DO UPDATE SET series_active=:series_active,
+                                                   chart=:chart`, data.ProductParam{
 		ProductID:    p.ProductID,
 		ParamAddr:    modbus.Var(p.ParamAddr),
 		Chart:        p.Chart,
 		SeriesActive: p.SeriesActive,
 	})
-	return
+	return err
 }
 
 func (h *productsServiceHandler) EditConfig(ctx context.Context) error {
 	filename := filepath.Join(tmpDir, "app-config.yaml")
-	c, err := data.OpenAppConfig(h.db, ctx)
+	c, err := data.OpenAppConfig(db, ctx)
 	if err != nil {
 		return err
 	}
@@ -72,7 +111,7 @@ func (h *productsServiceHandler) EditConfig(ctx context.Context) error {
 		if err := yaml.Unmarshal(b, &c); err != nil {
 			return err
 		}
-		return data.SaveAppConfig(h.db, ctx, c)
+		return data.SaveAppConfig(db, ctx, c)
 	}
 
 	go func() {
@@ -87,16 +126,16 @@ func (h *productsServiceHandler) EditConfig(ctx context.Context) error {
 }
 
 func (h *productsServiceHandler) SetCurrentParty(ctx context.Context, partyID int64) error {
-	_, err := h.db.ExecContext(ctx, `UPDATE app_config SET party_id=? WHERE id=1`, partyID)
+	_, err := db.ExecContext(ctx, `UPDATE app_config SET party_id=? WHERE id=1`, partyID)
 	return err
 }
 
 func (h *productsServiceHandler) CreateNewParty(ctx context.Context, productsCount int8) error {
-	return data.CreateNewParty(ctx, h.db, int(productsCount))
+	return data.CreateNewParty(ctx, db, int(productsCount))
 }
 
 func (h *productsServiceHandler) GetCurrentParty(ctx context.Context) (r *apitypes.Party, err error) {
-	partyID, err := data.GetCurrentPartyID(ctx, h.db)
+	partyID, err := data.GetCurrentPartyID(ctx, db)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +144,7 @@ func (h *productsServiceHandler) GetCurrentParty(ctx context.Context) (r *apityp
 
 func (h *productsServiceHandler) ListParties(ctx context.Context) (parties []*apitypes.PartyInfo, err error) {
 	var xs []data.PartyInfo
-	if err = h.db.SelectContext(ctx, &xs, `SELECT * FROM party ORDER BY created_at`); err != nil {
+	if err = db.SelectContext(ctx, &xs, `SELECT * FROM party ORDER BY created_at`); err != nil {
 		return
 	}
 	for _, x := range xs {
@@ -118,7 +157,7 @@ func (h *productsServiceHandler) ListParties(ctx context.Context) (parties []*ap
 }
 
 func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*apitypes.Party, error) {
-	dataParty, err := data.GetParty(ctx, h.db, partyID)
+	dataParty, err := data.GetParty(ctx, db, partyID)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +165,6 @@ func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*
 		PartyID:        dataParty.PartyID,
 		CreatedAt:      timeUnixMillis(dataParty.CreatedAt),
 		Products:       []*apitypes.Product{},
-		ProductParams:  []*apitypes.ProductParam{},
 		ParamAddresses: []int16{},
 	}
 
@@ -144,20 +182,12 @@ func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*
 	for _, p := range dataParty.ParamAddresses {
 		party.ParamAddresses = append(party.ParamAddresses, int16(p))
 	}
-	for _, p := range dataParty.ProductParams {
-		party.ProductParams = append(party.ProductParams, &apitypes.ProductParam{
-			ProductID:    p.ProductID,
-			ParamAddr:    int16(p.ParamAddr),
-			Chart:        p.Chart,
-			SeriesActive: p.SeriesActive,
-		})
-	}
 	return party, nil
 }
 
 func (h *productsServiceHandler) AddNewProducts(ctx context.Context, productsCount int8) error {
 	for i := productsCount; i > 0; i-- {
-		if err := data.AddNewProduct(ctx, h.db); err != nil {
+		if err := data.AddNewProduct(ctx, db); err != nil {
 			return err
 		}
 	}
@@ -166,12 +196,12 @@ func (h *productsServiceHandler) AddNewProducts(ctx context.Context, productsCou
 }
 
 func (h *productsServiceHandler) SetProductsComport(ctx context.Context, productIDs []int64, comport string) error {
-	_, err := h.db.ExecContext(ctx, `UPDATE product SET comport = ? WHERE product_id IN (`+formatIDs(productIDs)+")", comport)
+	_, err := db.ExecContext(ctx, `UPDATE product SET comport = ? WHERE product_id IN (`+formatIDs(productIDs)+")", comport)
 	return err
 }
 
 func (h *productsServiceHandler) SetProductsDevice(ctx context.Context, productIDs []int64, device string) error {
-	_, err := h.db.ExecContext(ctx, `UPDATE product SET device = ? WHERE product_id IN (`+formatIDs(productIDs)+")", device)
+	_, err := db.ExecContext(ctx, `UPDATE product SET device = ? WHERE product_id IN (`+formatIDs(productIDs)+")", device)
 	return err
 }
 
@@ -184,12 +214,12 @@ func formatIDs(ids []int64) string {
 }
 
 func (h *productsServiceHandler) DeleteProducts(ctx context.Context, productIDs []int64) error {
-	_, err := h.db.ExecContext(ctx, `DELETE FROM product WHERE product_id IN (`+formatIDs(productIDs)+")")
+	_, err := db.ExecContext(ctx, `DELETE FROM product WHERE product_id IN (`+formatIDs(productIDs)+")")
 	return err
 }
 
 func (h *productsServiceHandler) SetProduct(ctx context.Context, p *apitypes.Product) error {
-	_, err := h.db.NamedExecContext(ctx, `
+	_, err := db.NamedExecContext(ctx, `
 UPDATE product 
 	SET addr=:addr, comport=:comport, device=:device, active=:active 
 WHERE product_id = ?`, p)
@@ -197,7 +227,7 @@ WHERE product_id = ?`, p)
 }
 
 func (h *productsServiceHandler) ListDevices(ctx context.Context) (xs []string, err error) {
-	err = h.db.SelectContext(ctx, &xs, `SELECT device FROM hardware`)
+	err = db.SelectContext(ctx, &xs, `SELECT device FROM hardware`)
 	return
 }
 

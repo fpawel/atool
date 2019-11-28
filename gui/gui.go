@@ -45,7 +45,6 @@ var (
 				atomic.StoreInt64(&hWnd, int64(x))
 			}
 	}()
-	//hWndSourceCopyData = winapi.NewWindowWithClassName(os.Args[0]+strconv.FormatInt(time.Now().Unix(), 10))
 )
 
 func init() {

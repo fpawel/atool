@@ -17,7 +17,6 @@ struct Party {
     2: TimeUnixMillis createdAt
     3: list<Product> products
     4: list<i16> paramAddresses
-    5: list<ProductParam> productParams
 }
 
 struct PartyInfo {

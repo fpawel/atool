@@ -61,6 +61,17 @@ func SaveHardware(db *sqlx.DB, ctx context.Context, hardware []Hardware) error {
 		return merry.Append(err, "save config: DELETE FROM hardware WHERE TRUE")
 	}
 
+	if len(hardware) == 0 {
+		hardware = []Hardware{
+			{
+				Device:             "default",
+				Baud:               9600,
+				TimeoutGetResponse: time.Second,
+				TimeoutEndResponse: 50 * time.Millisecond,
+			},
+		}
+	}
+
 	for _, device := range hardware {
 		if _, err := db.NamedExecContext(ctx, `
 INSERT INTO hardware(device, baud, timeout_get_responses, timeout_end_response, pause, max_attempts_read)
@@ -76,7 +87,7 @@ VALUES (:device, :baud, :timeout_get_responses, :timeout_end_response, :pause, :
 		}
 		for _, param := range device.Params {
 			param.Device = device.Device
-			if _, err := db.ExecContext(ctx, `
+			if _, err := db.NamedExecContext(ctx, `
 INSERT INTO param(device, param_addr, format, size_read, read_once) 
 VALUES (:device, :param_addr, :format, :size_read, :read_once)`, param); err != nil {
 				return merry.Appendf(err, "save config: INSERT INTO param: device: %+v: param: %+v")
@@ -121,17 +132,6 @@ WHERE party_id = ?
 ORDER BY param_addr`, partyID, partyID); err != nil {
 		return Party{}, err
 	}
-
-	if err := db.SelectContext(ctx, &party.ProductParams, `
-SELECT product_id, chart, series_active,  param_addr
-FROM product_param
-    INNER JOIN product USING (product_id)
-	INNER JOIN param USING (param_addr)
-WHERE party_id = ?
-ORDER BY chart, product_id, param_addr`, partyID); err != nil {
-		return Party{}, err
-	}
-
 	return party, err
 }
 

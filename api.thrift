@@ -13,9 +13,11 @@ service ProductsService {
    void setProductsDevice(1:list<i64> productIDs, 2:string device)
    void setProduct(1:apitypes.Product product)
    void setProductParam(1:apitypes.ProductParam productParam)
-
+   apitypes.ProductParam getProductParam(1:i64 productID, 2:i16 paramAddr)
    list<string> listDevices()
-
    void EditConfig()
    void setClientWindow(1:i64 hWnd)
+   bool Connected()
+   void Connect()
+   void Disconnect()
 }

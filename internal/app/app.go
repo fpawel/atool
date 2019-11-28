@@ -22,7 +22,8 @@ import (
 func Main() {
 
 	cleanTmpDir()
-	if err := os.MkdirAll(tmpDir, os.ModePerm); err != nil {
+	err := os.MkdirAll(tmpDir, os.ModePerm)
+	if err != nil {
 		log.PrintErr(merry.Append(err, "os.RemoveAll(tmpDir)"))
 	}
 	defer cleanTmpDir()
@@ -33,7 +34,7 @@ func Main() {
 	// соединение с базой данных
 	dbFilename := filepath.Join(filepath.Dir(os.Args[0]), "atool.sqlite")
 	log.Debug("open database: " + dbFilename)
-	db, err := data.Open(dbFilename)
+	db, err = data.Open(dbFilename)
 	must.PanicIf(err)
 
 	// старт сервера
@@ -85,7 +86,7 @@ func runServer(db *sqlx.DB) context.CancelFunc {
 	if err != nil {
 		panic(err)
 	}
-	handler := &productsServiceHandler{db: db}
+	handler := &productsServiceHandler{}
 	processor := api.NewProductsServiceProcessor(handler)
 	server := thrift.NewTSimpleServer4(processor, transport,
 		thrift.NewTTransportFactory(), thrift.NewTBinaryProtocolFactoryDefault())
@@ -98,8 +99,11 @@ func runServer(db *sqlx.DB) context.CancelFunc {
 }
 
 var (
-	log    = structlog.New()
-	tmpDir = filepath.Join(filepath.Dir(os.Args[0]), "tmp")
+	log             = structlog.New()
+	tmpDir          = filepath.Join(filepath.Dir(os.Args[0]), "tmp")
+	db              *sqlx.DB
+	atomicConnected int32
+	disconnect      = func() {}
 )
 
 const (
