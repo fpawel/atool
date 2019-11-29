@@ -8,6 +8,7 @@ import (
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/thriftgen/api"
+	"github.com/fpawel/comm/comport"
 	"github.com/jmoiron/sqlx"
 	"github.com/powerman/structlog"
 	"net"
@@ -16,6 +17,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"syscall"
 )
 
@@ -29,7 +31,8 @@ func Main() {
 	defer cleanTmpDir()
 
 	// общий контекст приложения с прерыванием
-	_, interrupt := context.WithCancel(context.Background())
+	var interrupt context.CancelFunc
+	appCtx, interrupt = context.WithCancel(context.Background())
 
 	// соединение с базой данных
 	dbFilename := filepath.Join(filepath.Dir(os.Args[0]), "atool.sqlite")
@@ -55,6 +58,7 @@ func Main() {
 
 	log.Debug("прервать все фоновые горутины")
 	interrupt()
+	wgConnect.Wait()
 
 	log.Debug("остановка сервера")
 	stopServer()
@@ -68,7 +72,7 @@ func Main() {
 
 func runServer(db *sqlx.DB) context.CancelFunc {
 
-	port, errPort := strconv.Atoi(os.Getenv(EnvVarProductsPort))
+	port, errPort := strconv.Atoi(os.Getenv(EnvVarApiPort))
 	if errPort != nil {
 		log.Debug("finding free port to serve api")
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -76,7 +80,7 @@ func runServer(db *sqlx.DB) context.CancelFunc {
 			panic(err)
 		}
 		port = ln.Addr().(*net.TCPAddr).Port
-		must.PanicIf(os.Setenv(EnvVarProductsPort, strconv.Itoa(port)))
+		must.PanicIf(os.Setenv(EnvVarApiPort, strconv.Itoa(port)))
 		must.PanicIf(ln.Close())
 	}
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
@@ -104,10 +108,13 @@ var (
 	db              *sqlx.DB
 	atomicConnected int32
 	disconnect      = func() {}
+	wgConnect       sync.WaitGroup
+	comports        = map[string]*comport.Port{}
+	appCtx          context.Context
 )
 
 const (
-	EnvVarProductsPort = "ATOOL_API_PORT"
+	EnvVarApiPort = "ATOOL_API_PORT"
 )
 
 func cleanTmpDir() {

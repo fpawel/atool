@@ -46,8 +46,13 @@ func (h *productsServiceHandler) Connected(_ context.Context) (bool, error) {
 	return atomic.LoadInt32(&atomicConnected) != 0, nil
 }
 
-func (h *productsServiceHandler) SetClientWindow(ctx context.Context, hWnd int64) error {
+func (h *productsServiceHandler) OpenGuiClient(ctx context.Context, hWnd int64) error {
 	gui.SetHWndTargetSendMessage(win.HWND(hWnd))
+	return nil
+}
+
+func (h *productsServiceHandler) CloseGuiClient(ctx context.Context) error {
+	gui.SetHWndTargetSendMessage(win.HWND_TOP)
 	return nil
 }
 
@@ -218,11 +223,8 @@ func (h *productsServiceHandler) DeleteProducts(ctx context.Context, productIDs 
 	return err
 }
 
-func (h *productsServiceHandler) SetProduct(ctx context.Context, p *apitypes.Product) error {
-	_, err := db.NamedExecContext(ctx, `
-UPDATE product 
-	SET addr=:addr, comport=:comport, device=:device, active=:active 
-WHERE product_id = ?`, p)
+func (h *productsServiceHandler) SetProductAddr(ctx context.Context, productID int64, addr int16) error {
+	_, err := db.Exec(`UPDATE product SET addr=? WHERE product_id = ?`, addr, productID)
 	return err
 }
 

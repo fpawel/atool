@@ -11,12 +11,15 @@ service ProductsService {
    void deleteProducts(1:list<i64> productIDs)
    void setProductsComport(1:list<i64> productIDs, 2:string comport)
    void setProductsDevice(1:list<i64> productIDs, 2:string device)
-   void setProduct(1:apitypes.Product product)
+   void setProductAddr(1:i64 productID, 2:i16 addr)
    void setProductParam(1:apitypes.ProductParam productParam)
    apitypes.ProductParam getProductParam(1:i64 productID, 2:i16 paramAddr)
    list<string> listDevices()
    void EditConfig()
-   void setClientWindow(1:i64 hWnd)
+
+   oneway void openGuiClient(1:i64 hWnd)
+   oneway void closeGuiClient()
+
    bool Connected()
    void Connect()
    void Disconnect()

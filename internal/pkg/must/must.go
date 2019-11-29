@@ -2,6 +2,7 @@ package must
 
 import (
 	"database/sql"
+	"encoding/json"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/jmoiron/sqlx"
 	"gopkg.in/yaml.v3"
@@ -41,6 +42,12 @@ func UnmarshalYaml(data []byte, v interface{}) {
 // MarshalYaml is a wrapper for toml.Marshal.
 func MarshalYaml(v interface{}) []byte {
 	data, err := yaml.Marshal(v)
+	PanicIf(err)
+	return data
+}
+
+func MarshalJson(v interface{}) []byte {
+	data, err := json.Marshal(v)
 	PanicIf(err)
 	return data
 }
