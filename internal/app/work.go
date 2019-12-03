@@ -77,63 +77,30 @@ func processProduct(ctx context.Context, productID int64, bufferSize int) error 
 		if p.SizeRead == 0 {
 			continue
 		}
-
-		req := modbus.RequestRead3(p.Addr, p.ParamAddr, p.SizeRead)
-		reqStr := fmt.Sprintf("% X", req.Bytes())
-
-		port := getComport(p.Comport)
-		if err := port.SetConfig(comport.Config{
-			Name:        p.Comport,
-			Baud:        p.Baud,
-			ReadTimeout: time.Millisecond,
-		}); err != nil {
+		response, err := p.getResponse3(ctx)
+		if err != nil {
+			if merry.Is(err, context.Canceled) {
+				return err
+			}
+			if len(response) > 0 {
+				err = merry.Appendf(err, "% X", response)
+			}
 			go gui.NotifyCommTransaction(gui.CommTransaction{
 				Comport: p.Comport,
-				Request: reqStr,
-				Result:  "",
+				Request: formatBytes(p.request3().Bytes()),
+				Result:  err.Error(),
 				Ok:      false,
 			})
-			return nil
+			continue
 		}
-		rdr := port.NewResponseReader(ctx, comm.Config{
-			TimeoutGetResponse: p.TimeoutGetResponse,
-			TimeoutEndResponse: p.TimeoutEndResponse,
-			MaxAttemptsRead:    p.MaxAttemptsRead,
-			Pause:              p.Pause,
-		})
-
-		response, err := req.GetResponse(log, rdr, func(request, response []byte) (s string, e error) {
-			lenMustBe := int(p.SizeRead)*2 + 5
-			if len(response) != lenMustBe {
-				return "", merry.Errorf("длина ответа %d не равна %d", len(response), lenMustBe)
-			}
-			copy(data[p.ParamAddr:2*p.SizeRead], response[3:3+2*p.SizeRead])
-			return "", nil
-		})
-		if merry.Is(err, context.Canceled) {
-			return context.Canceled
-		}
-
-		var strResult string
-		if len(response) > 0 {
-			strResult = fmt.Sprintf("% X", response)
-		}
-		if err != nil {
-			if len(strResult) > 0 {
-				strResult += " "
-			}
-			strResult += err.Error()
-		}
+		copy(data[p.ParamAddr:2*p.SizeRead], response[3:3+2*p.SizeRead])
 
 		go gui.NotifyCommTransaction(gui.CommTransaction{
 			Comport: p.Comport,
-			Request: reqStr,
-			Result:  strResult,
-			Ok:      err == nil,
+			Request: formatBytes(p.request3().Bytes()),
+			Result:  formatBytes(response),
+			Ok:      true,
 		})
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -193,6 +160,45 @@ type readParam struct {
 	Format             string        `db:"format"`
 	SizeRead           uint16        `db:"size_read"`
 	ReadOnce           bool          `db:"read_once"`
+}
+
+func (p readParam) getResponse3(ctx context.Context) ([]byte, error) {
+	rdr, err := p.getResponseReader(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return p.request3().GetResponse(log, rdr, func(request, response []byte) (s string, e error) {
+		lenMustBe := int(p.SizeRead)*2 + 5
+		if len(response) != lenMustBe {
+			return "", merry.Errorf("длина ответа %d не равна %d", len(response), lenMustBe)
+		}
+		return "", nil
+	})
+}
+
+func (p readParam) getResponseReader(ctx context.Context) (modbus.ResponseReader, error) {
+	port := getComport(p.Comport)
+	if err := port.SetConfig(comport.Config{
+		Name:        p.Comport,
+		Baud:        p.Baud,
+		ReadTimeout: time.Millisecond,
+	}); err != nil {
+		return nil, merry.Append(err, "не удалось открыть СОМ порт")
+	}
+	return port.NewResponseReader(ctx, comm.Config{
+		TimeoutGetResponse: p.TimeoutGetResponse,
+		TimeoutEndResponse: p.TimeoutEndResponse,
+		MaxAttemptsRead:    p.MaxAttemptsRead,
+		Pause:              p.Pause,
+	}), nil
+}
+
+func (p readParam) request3() modbus.Request {
+	return modbus.RequestRead3(p.Addr, p.ParamAddr, p.SizeRead)
+}
+
+func formatBytes(xs []byte) string {
+	return fmt.Sprintf("% X", xs)
 }
 
 func getReadParams(productID int64) (params []readParam) {

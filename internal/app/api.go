@@ -56,6 +56,11 @@ func (h *productsServiceHandler) CloseGuiClient(ctx context.Context) error {
 	return nil
 }
 
+func (h *productsServiceHandler) SetProductActive(ctx context.Context, productID int64, active bool) error {
+	_, err := db.Exec(`UPDATE product SET active = ? WHERE product_id=?`, active, productID)
+	return err
+}
+
 func (h *productsServiceHandler) GetProductParam(ctx context.Context, productID int64, paramAddr int16) (*apitypes.ProductParam, error) {
 	var d data.ProductParam
 	err := db.Get(&d, `SELECT * FROM product_param WHERE product_id=? AND param_addr=?`, productID, paramAddr)

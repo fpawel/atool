@@ -12,6 +12,7 @@ service ProductsService {
    void setProductsComport(1:list<i64> productIDs, 2:string comport)
    void setProductsDevice(1:list<i64> productIDs, 2:string device)
    void setProductAddr(1:i64 productID, 2:i16 addr)
+   void setProductActive(1:i64 productID, 2:bool active)
    void setProductParam(1:apitypes.ProductParam productParam)
    apitypes.ProductParam getProductParam(1:i64 productID, 2:i16 paramAddr)
    list<string> listDevices()
