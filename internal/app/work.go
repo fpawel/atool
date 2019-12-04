@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"encoding/binary"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/gui"
@@ -10,6 +11,8 @@ import (
 	"github.com/fpawel/comm/comport"
 	"github.com/fpawel/comm/modbus"
 	"github.com/lxn/win"
+	"math"
+	"strconv"
 	"sync/atomic"
 	"time"
 )
@@ -34,14 +37,16 @@ func connect() {
 	go func() {
 		go gui.NotifyStartWork()
 		setComportLog()
+		ms := new(measurements)
 		for {
-			if err := processProductsParams(ctx); err != nil {
+			if err := processProductsParams(ctx, ms); err != nil {
 				if !merry.Is(err, context.Canceled) {
 					go gui.MsgBox("Опрос", err.Error(), win.MB_OK|win.MB_ICONWARNING)
 				}
 				break
 			}
 		}
+		saveMeasurements(ms.xs)
 		interrupt()
 		atomic.StoreInt32(&atomicConnected, 0)
 
@@ -55,23 +60,26 @@ func connect() {
 
 }
 
-func processProductsParams(ctx context.Context) error {
+func processProductsParams(ctx context.Context, ms *measurements) error {
 	bufferSize := getResponseBufferSize()
 	if bufferSize == 0 {
 		return errNoInterrogateObjects
 	}
 	for _, productID := range getCurrentPartyProductsIDs() {
-		if err := processProduct(ctx, productID, bufferSize); err != nil {
+		if err := processProduct(ctx, productID, bufferSize, ms); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func processProduct(ctx context.Context, productID int64, bufferSize int) error {
+func processProduct(ctx context.Context, productID int64, bufferSize int, ms *measurements) error {
 	params := getReadParams(productID)
 
 	data := make([]byte, bufferSize)
+	for i := range data {
+		data[i] = 0xFF
+	}
 
 	for _, p := range params {
 		if p.SizeRead == 0 {
@@ -85,7 +93,8 @@ func processProduct(ctx context.Context, productID int64, bufferSize int) error 
 			if len(response) > 0 {
 				err = merry.Appendf(err, "% X", response)
 			}
-			go gui.NotifyCommTransaction(gui.CommTransaction{
+			go gui.NotifyNewCommTransaction(gui.CommTransaction{
+				Addr:    p.Addr,
 				Comport: p.Comport,
 				Request: formatBytes(p.request3().Bytes()),
 				Result:  err.Error(),
@@ -95,7 +104,8 @@ func processProduct(ctx context.Context, productID int64, bufferSize int) error 
 		}
 		copy(data[p.ParamAddr:2*p.SizeRead], response[3:3+2*p.SizeRead])
 
-		go gui.NotifyCommTransaction(gui.CommTransaction{
+		go gui.NotifyNewCommTransaction(gui.CommTransaction{
+			Addr:    p.Addr,
 			Comport: p.Comport,
 			Request: formatBytes(p.request3().Bytes()),
 			Result:  formatBytes(response),
@@ -103,6 +113,9 @@ func processProduct(ctx context.Context, productID int64, bufferSize int) error 
 		})
 	}
 
+	for _, p := range params {
+		p.processValueRead(data, ms)
+	}
 	return nil
 }
 
@@ -148,6 +161,7 @@ func getCurrentPartyProductsIDs() (productIDs []int64) {
 }
 
 type readParam struct {
+	ProductID          int64         `db:"product_id"`
 	Comport            string        `db:"comport"`
 	Addr               modbus.Addr   `db:"addr"`
 	Device             string        `db:"device"`
@@ -197,13 +211,58 @@ func (p readParam) request3() modbus.Request {
 	return modbus.RequestRead3(p.Addr, p.ParamAddr, p.SizeRead)
 }
 
+func (p readParam) processValueRead(d []byte, ms *measurements) {
+	if int(p.ParamAddr*2) >= len(d) {
+		return
+	}
+	v := gui.ProductParamValue{
+		Addr:      p.Addr,
+		Comport:   p.Comport,
+		ParamAddr: p.ParamAddr,
+	}
+	d = d[p.ParamAddr*2:]
+	value := math.NaN()
+	switch p.Format {
+	case "bcd":
+		if x, ok := modbus.ParseBCD6(d); ok {
+			value = x
+			v.Value = strconv.FormatFloat(x, 'f', -1, 64)
+		} else {
+			v.Value = formatBytes(d)
+		}
+	case "float_big_endian":
+		bits := binary.BigEndian.Uint32(d[:4])
+		value = float64(math.Float32frombits(bits))
+		v.Value = strconv.FormatFloat(value, 'f', -1, 64)
+	case "float_little_endian":
+		bits := binary.LittleEndian.Uint32(d[:4])
+		value = float64(math.Float32frombits(bits))
+		v.Value = strconv.FormatFloat(value, 'f', -1, 64)
+	case "int_big_endian":
+		bits := binary.BigEndian.Uint32(d[:4])
+		value = float64(int32(bits))
+		v.Value = strconv.Itoa(int(int32(bits)))
+	case "int_little_endian":
+		bits := binary.LittleEndian.Uint32(d[:4])
+		value = float64(int32(bits))
+		v.Value = strconv.Itoa(int(int32(bits)))
+	default:
+		panic(p.Format)
+	}
+	go gui.NotifyNewProductParamValue(v)
+	if !math.IsNaN(value) {
+		ms.add(p.ProductID, p.ParamAddr, value)
+	}
+
+}
+
 func formatBytes(xs []byte) string {
 	return fmt.Sprintf("% X", xs)
 }
 
 func getReadParams(productID int64) (params []readParam) {
 	err := db.Select(&params, `
-SELECT comport, addr, device, baud, pause, timeout_get_responses, timeout_end_response, max_attempts_read,       
+SELECT product_id, comport, addr, device, baud, pause, timeout_get_responses, timeout_end_response, max_attempts_read,       
        param_addr, size_read, read_once, format
 FROM product
          INNER JOIN hardware USING (device)

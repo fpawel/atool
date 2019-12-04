@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/pkg/winapi"
 	"github.com/fpawel/atool/internal/pkg/winapi/copydata"
 	"github.com/lxn/win"
@@ -16,10 +17,28 @@ type MsgCopyData = uintptr
 
 const (
 	MsgNewCommTransaction MsgCopyData = iota
+	MsgNewProductParamValue
+	MsgChart
 )
 
-func NotifyCommTransaction(с CommTransaction) bool {
+func NotifyNewCommTransaction(с CommTransaction) bool {
 	return copyData().SendJson(MsgNewCommTransaction, с)
+}
+
+func NotifyNewProductParamValue(x ProductParamValue) bool {
+	return copyData().SendJson(MsgNewProductParamValue, x)
+}
+
+func NotifyChart(xs []data.Measurement) bool {
+	buf := new(bytes.Buffer)
+	writeBinary(buf, int64(len(xs)))
+	for _, m := range xs {
+		writeBinary(buf, m.Time.UnixNano()/1000000) // количество миллисекунд метки времени
+		writeBinary(buf, m.ProductID)
+		writeBinary(buf, m.ParamAddr)
+		writeBinary(buf, m.Value)
+	}
+	return copyData().SendMessage(MsgChart, buf.Bytes())
 }
 
 func MsgBox(title, message string, style int) int {

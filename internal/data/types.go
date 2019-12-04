@@ -55,3 +55,10 @@ type ProductParam struct {
 	Chart        string     `db:"chart"`
 	SeriesActive bool       `db:"series_active"`
 }
+
+type Measurement struct {
+	Time      time.Time
+	ProductID int64
+	ParamAddr modbus.Var
+	Value     float64
+}

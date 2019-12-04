@@ -10,6 +10,7 @@ struct Product {
   5: string comport
   6: i8 addr
   7: string device
+  8: i8 connection
 }
 
 struct Party {

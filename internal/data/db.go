@@ -14,13 +14,7 @@ import (
 
 //go:generate go run github.com/fpawel/gotools/cmd/sqlstr/...
 
-//func OpenDev() (*sqlx.DB,error){
-//	return Open(filepath.Join(os.Getenv("GOPATH"), "src", "github.com", "fpawel", "daf", "build", "daf.sqlite"))
-//}
-
-//func OpenProd() (*sqlx.DB,error){
-//	return Open(filepath.Join(filepath.Dir(os.Args[0]), "atool.sqlite"))
-//}
+const TimeLayout = "2006-01-02 15:04:05.000"
 
 func Open(filename string) (*sqlx.DB, error) {
 	db, err := pkg.OpenSqliteDBx(filename)
@@ -112,6 +106,45 @@ func GetCurrentParty(ctx context.Context, db *sqlx.DB) (Party, error) {
 		return Party{}, err
 	}
 	return GetParty(ctx, db, partyID)
+}
+
+func GetCurrentPartyChart(db *sqlx.DB) ([]Measurement, error) {
+	var xs []struct {
+		Tm        string     `db:"tm"`
+		ProductID int64      `db:"product_id"`
+		ParamAddr modbus.Var `db:"param_addr"`
+		Value     float64    `db:"value"`
+	}
+
+	err := db.Select(&xs, `
+WITH xs AS (
+    SELECT product_id FROM product WHERE party_id = (SELECT party_id FROM app_config)
+)
+SELECT STRFTIME('%Y-%m-%d %H:%M:%f', tm) AS tm,
+       product_id, param_addr, value
+FROM measurement
+WHERE product_id IN (SELECT * FROM xs)`)
+	if err != nil {
+		return nil, err
+	}
+	var r []Measurement
+	for _, x := range xs {
+		r = append(r, Measurement{
+			Time:      parseTime(x.Tm),
+			ProductID: x.ProductID,
+			ParamAddr: x.ParamAddr,
+			Value:     x.Value,
+		})
+	}
+	return r, nil
+}
+
+func parseTime(sqlStr string) time.Time {
+	t, err := time.ParseInLocation(TimeLayout, sqlStr, time.Now().Location())
+	if err != nil {
+		panic(err)
+	}
+	return t
 }
 
 func GetParty(ctx context.Context, db *sqlx.DB, partyID int64) (Party, error) {

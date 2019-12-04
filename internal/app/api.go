@@ -152,6 +152,15 @@ func (h *productsServiceHandler) GetCurrentParty(ctx context.Context) (r *apityp
 	return h.GetParty(ctx, partyID)
 }
 
+func (h *productsServiceHandler) RequestCurrentPartyChart(_ context.Context) error {
+	xs, err := data.GetCurrentPartyChart(db)
+	if err != nil {
+		return err
+	}
+	go gui.NotifyChart(xs)
+	return nil
+}
+
 func (h *productsServiceHandler) ListParties(ctx context.Context) (parties []*apitypes.PartyInfo, err error) {
 	var xs []data.PartyInfo
 	if err = db.SelectContext(ctx, &xs, `SELECT * FROM party ORDER BY created_at`); err != nil {

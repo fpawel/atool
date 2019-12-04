@@ -5,6 +5,7 @@ service ProductsService {
    void createNewParty(1:i8 productsCount)
    apitypes.Party getParty(1:i64 partyID)
    apitypes.Party getCurrentParty()
+   void requestCurrentPartyChart()
    list<apitypes.PartyInfo> listParties()
    void setCurrentParty(1:i64 partyID)
    void addNewProducts(1:i8 productsCount)
