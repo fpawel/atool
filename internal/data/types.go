@@ -24,8 +24,7 @@ type Param struct {
 	Device    string     `db:"device" yaml:"-"`
 	ParamAddr modbus.Var `db:"param_addr" yaml:"param_addr"`
 	Format    string     `db:"format" yaml:"format"`
-	SizeRead  uint16     `db:"size_read" yaml:"size_read"`
-	ReadOnce  bool       `db:"read_once" yaml:"read_once"`
+	SizeRead  uint16     `db:"size_read" yaml:"size_read,omitempty"`
 }
 
 type PartyInfo struct {

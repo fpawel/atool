@@ -82,8 +82,8 @@ VALUES (:device, :baud, :timeout_get_responses, :timeout_end_response, :pause, :
 		for _, param := range device.Params {
 			param.Device = device.Device
 			if _, err := db.NamedExecContext(ctx, `
-INSERT INTO param(device, param_addr, format, size_read, read_once) 
-VALUES (:device, :param_addr, :format, :size_read, :read_once)`, param); err != nil {
+INSERT INTO param(device, param_addr, format, size_read) 
+VALUES (:device, :param_addr, :format, :size_read)`, param); err != nil {
 				return merry.Appendf(err, "save config: INSERT INTO param: device: %+v: param: %+v")
 			}
 		}
@@ -106,6 +106,19 @@ func GetCurrentParty(ctx context.Context, db *sqlx.DB) (Party, error) {
 		return Party{}, err
 	}
 	return GetParty(ctx, db, partyID)
+}
+
+func GetLastMeasurementTime(db *sqlx.DB) (time.Time, error) {
+	var s string
+	err := db.Select(&s, `
+SELECT STRFTIME('%Y-%m-%d %H:%M:%f', tm) AS tm
+FROM measurement
+ORDER BY tm DESC
+LIMIT 1`)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return parseTime(s), nil
 }
 
 func GetCurrentPartyChart(db *sqlx.DB) ([]Measurement, error) {
@@ -168,26 +181,65 @@ ORDER BY param_addr`, partyID, partyID); err != nil {
 	return party, err
 }
 
+func CopyCurrentParty(ctx context.Context, db *sqlx.DB) error {
+	p, err := GetCurrentParty(ctx, db)
+	if err != nil {
+		return err
+	}
+
+	newPartyID, err := createNewParty(db)
+	if err != nil {
+		return err
+	}
+
+	for _, p := range p.Products {
+		p.PartyID = newPartyID
+		r, err := db.ExecContext(ctx, `
+INSERT INTO product( party_id, addr, device, active, comport ) 
+VALUES (:party_id, :addr, :device, :active, :comport);`, p)
+		if err != nil {
+			return err
+		}
+		newProductID, err := getNewInsertedID(r)
+		if err != nil {
+			return err
+		}
+		var pp []ProductParam
+		if err := db.Select(&pp, `
+SELECT * FROM product_param 
+INNER JOIN product USING (product_id)
+WHERE product_id = ?`, p.ProductID); err != nil {
+			return err
+		}
+		for _, p := range pp {
+			p.ProductID = newProductID
+			if err := SetProductParam(db, p); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func SetProductParam(db *sqlx.DB, p ProductParam) error {
+	_, err := db.NamedExec(`
+INSERT INTO product_param (product_id, param_addr, chart, series_active)
+VALUES (:product_id, :param_addr, :chart, :series_active)
+ON CONFLICT (product_id, param_addr) DO UPDATE SET series_active=:series_active,
+                                                   chart=:chart`, p)
+	return err
+}
+
 func CreateNewParty(ctx context.Context, db *sqlx.DB, productsCount int) error {
-	r, err := db.ExecContext(ctx, `INSERT INTO party (created_at) VALUES (?)`, time.Now())
-	if err != nil {
-		return err
-	}
-	n, err := r.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if n != 1 {
-		return fmt.Errorf("excpected 1 rows affected, got %d", n)
-	}
-	newPartyID, err := getNewInsertedID(r)
+	newPartyID, err := createNewParty(db)
 	if err != nil {
 		return err
 	}
 	for i := 0; i < productsCount; i++ {
-		if r, err = db.ExecContext(ctx,
+		r, err := db.ExecContext(ctx,
 			`INSERT INTO product(party_id, addr) VALUES (?, ?);`,
-			newPartyID, i+1, i+1, time.Now().Add(time.Second*time.Duration(i))); err != nil {
+			newPartyID, i+1, i+1, time.Now().Add(time.Second*time.Duration(i)))
+		if err != nil {
 			return err
 		}
 		if _, err = getNewInsertedID(r); err != nil {
@@ -199,6 +251,21 @@ func CreateNewParty(ctx context.Context, db *sqlx.DB, productsCount int) error {
 		return err
 	}
 	return nil
+}
+
+func createNewParty(db *sqlx.DB) (int64, error) {
+	r, err := db.Exec(`INSERT INTO party (created_at) VALUES (?)`, time.Now())
+	if err != nil {
+		return 0, err
+	}
+	n, err := r.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	if n != 1 {
+		return 0, fmt.Errorf("excpected 1 rows affected, got %d", n)
+	}
+	return getNewInsertedID(r)
 }
 
 func ListProducts(ctx context.Context, db *sqlx.DB, partyID int64) (products []Product, err error) {

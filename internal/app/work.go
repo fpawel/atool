@@ -173,7 +173,6 @@ type readParam struct {
 	ParamAddr          modbus.Var    `db:"param_addr"`
 	Format             string        `db:"format"`
 	SizeRead           uint16        `db:"size_read"`
-	ReadOnce           bool          `db:"read_once"`
 }
 
 func (p readParam) getResponse3(ctx context.Context) ([]byte, error) {
@@ -220,7 +219,7 @@ func (p readParam) processValueRead(d []byte, ms *measurements) {
 		Comport:   p.Comport,
 		ParamAddr: p.ParamAddr,
 	}
-	d = d[p.ParamAddr*2:]
+	d = d[p.ParamAddr*2 : p.ParamAddr*2+4]
 	value := math.NaN()
 	switch p.Format {
 	case "bcd":
@@ -263,7 +262,7 @@ func formatBytes(xs []byte) string {
 func getReadParams(productID int64) (params []readParam) {
 	err := db.Select(&params, `
 SELECT product_id, comport, addr, device, baud, pause, timeout_get_responses, timeout_end_response, max_attempts_read,       
-       param_addr, size_read, read_once, format
+       param_addr, size_read, format
 FROM product
          INNER JOIN hardware USING (device)
          INNER JOIN param USING (device)

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/gui"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/pkg/must"
@@ -26,8 +27,22 @@ type productsServiceHandler struct {
 
 var _ api.ProductsService = new(productsServiceHandler)
 
-func (h *productsServiceHandler) Connect(_ context.Context) error {
+func (h *productsServiceHandler) Connect(ctx context.Context) error {
 	if connected() {
+		return nil
+	}
+	t, err := data.GetLastMeasurementTime(db)
+	if err != nil {
+		return err
+	}
+	if time.Since(t) >= time.Minute*5 {
+		go func() {
+			if err := data.CopyCurrentParty(ctx, db); err != nil {
+				go gui.MsgBox("Копирование текущей партии", err.Error(), win.MB_OK|win.MB_ICONWARNING)
+				return
+			}
+
+		}()
 		return nil
 	}
 	connect()
@@ -39,6 +54,7 @@ func (h *productsServiceHandler) Disconnect(_ context.Context) error {
 		return nil
 	}
 	disconnect()
+	wgConnect.Wait()
 	return nil
 }
 
@@ -80,21 +96,19 @@ func (h *productsServiceHandler) SetProductParam(ctx context.Context, p *apitype
 		_, err := db.Exec(`DELETE FROM product_param WHERE product_id = ? AND param_addr = ?`, p.ProductID, p.ParamAddr)
 		return err
 	}
-
-	_, err := db.NamedExecContext(ctx, `
-INSERT INTO product_param (product_id, param_addr, chart, series_active)
-VALUES (:product_id, :param_addr, :chart, :series_active)
-ON CONFLICT (product_id, param_addr) DO UPDATE SET series_active=:series_active,
-                                                   chart=:chart`, data.ProductParam{
+	return data.SetProductParam(db, data.ProductParam{
 		ProductID:    p.ProductID,
 		ParamAddr:    modbus.Var(p.ParamAddr),
 		Chart:        p.Chart,
 		SeriesActive: p.SeriesActive,
 	})
-	return err
 }
 
 func (h *productsServiceHandler) EditConfig(ctx context.Context) error {
+	if connected() {
+		return merry.New("нельзя менять конфигурацию пока выполняется опрос")
+	}
+
 	filename := filepath.Join(tmpDir, "app-config.yaml")
 	c, err := data.OpenAppConfig(db, ctx)
 	if err != nil {
@@ -126,21 +140,34 @@ func (h *productsServiceHandler) EditConfig(ctx context.Context) error {
 
 	go func() {
 
+		if connected() {
+			go gui.MsgBox("Ошибка при сохранении конфигурации",
+				"Нельзя сменить активную партию пока выполняется опрос",
+				win.MB_OK|win.MB_ICONERROR)
+			return
+		}
+
 		if err := applyConfig(); err != nil {
 			log.PrintErr(err)
 			gui.MsgBox("Ошибка при сохранении конфигурации", err.Error(), win.MB_OK|win.MB_ICONERROR)
 		}
-		gui.NotifyCurrentPartyChanged()
+		go gui.NotifyCurrentPartyChanged()
 	}()
 	return nil
 }
 
 func (h *productsServiceHandler) SetCurrentParty(ctx context.Context, partyID int64) error {
+	if connected() {
+		return merry.New("нельзя сменить активную партию пока выполняется опрос")
+	}
 	_, err := db.ExecContext(ctx, `UPDATE app_config SET party_id=? WHERE id=1`, partyID)
 	return err
 }
 
 func (h *productsServiceHandler) CreateNewParty(ctx context.Context, productsCount int8) error {
+	if connected() {
+		return merry.New("нельзя создать новую партию пока выполняется опрос")
+	}
 	return data.CreateNewParty(ctx, db, int(productsCount))
 }
 

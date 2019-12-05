@@ -35,7 +35,7 @@ func NotifyChart(xs []data.Measurement) bool {
 	for _, m := range xs {
 		writeBinary(buf, m.Time.UnixNano()/1000000) // количество миллисекунд метки времени
 		writeBinary(buf, m.ProductID)
-		writeBinary(buf, m.ParamAddr)
+		writeBinary(buf, uint64(m.ParamAddr))
 		writeBinary(buf, m.Value)
 	}
 	return copyData().SendMessage(MsgChart, buf.Bytes())
