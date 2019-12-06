@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/gui"
+	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/comport"
 	"github.com/fpawel/comm/modbus"
@@ -35,6 +37,9 @@ func connect() {
 		interrupt()
 	}
 	go func() {
+
+		must.PanicIf(createNewChartIfUpdatedTooLong())
+
 		go gui.NotifyStartWork()
 		setComportLog()
 		ms := new(measurements)
@@ -60,7 +65,37 @@ func connect() {
 
 }
 
+func createNewChartIfUpdatedTooLong() error {
+	t, err := data.GetCurrentPartyUpdatedAt(db)
+	if err == sql.ErrNoRows {
+		log.Info("last party has no measurements")
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	log.Printf("last party updated at: %v, %v", t, time.Since(t))
+	if time.Since(t) <= time.Hour {
+		return nil
+	}
+
+	s := fmt.Sprintf(
+		"Опрос текущей партии выполнянлся более часа назад.\n\n%v, %v\n\nДля наглядности графичеких данных текущего опроса создан новый график.",
+		t, time.Since(t))
+
+	go gui.MsgBox("atool: создан новый график", s, win.MB_OK|win.MB_ICONINFORMATION)
+
+	log.Info("copy current party for new chart")
+	if err := data.CopyCurrentParty(db); err != nil {
+		return err
+	}
+	gui.NotifyCurrentPartyChanged()
+
+	return nil
+}
+
 func processProductsParams(ctx context.Context, ms *measurements) error {
+
 	bufferSize := getResponseBufferSize()
 	if bufferSize == 0 {
 		return errNoInterrogateObjects
@@ -226,8 +261,6 @@ func (p readParam) processValueRead(d []byte, ms *measurements) {
 		if x, ok := modbus.ParseBCD6(d); ok {
 			value = x
 			v.Value = strconv.FormatFloat(x, 'f', -1, 64)
-		} else {
-			v.Value = formatBytes(d)
 		}
 	case "float_big_endian":
 		bits := binary.BigEndian.Uint32(d[:4])

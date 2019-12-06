@@ -22,23 +22,25 @@ CREATE TABLE IF NOT EXISTS hardware
     CHECK (max_attempts_read >= 0 )
 );
 
-CREATE TABLE IF NOT EXISTS param
+CREATE TABLE IF NOT EXISTS params
 (
-    device        TEXT     NOT NULL,
-    param_addr    SMALLINT NOT NULL,
-    format        TEXT     NOT NULL,
-    size_read     SMALLINT NOT NULL DEFAULT 2,
-    PRIMARY KEY (device, param_addr),
+    device   TEXT     NOT NULL,
+    reg_addr SMALLINT NOT NULL,
+    format   TEXT     NOT NULL,
+    count    SMALLINT NOT NULL,
+    PRIMARY KEY (device, reg_addr),
     FOREIGN KEY (device) REFERENCES hardware (device) ON DELETE CASCADE,
-    CHECK (param_addr >= 0 ),
-    CHECK (size_read >= 0 ),
+    CHECK (reg_addr >= 0 ),
+    CHECK (count > 0 ),
     CHECK (format IN ('bcd',
                       'float_big_endian', 'float_little_endian',
                       'int_big_endian', 'int_little_endian'))
 );
 
-INSERT OR IGNORE INTO hardware(device) VALUES ('default');
-INSERT OR IGNORE INTO param(device, param_addr, format) VALUES ('default', 0, 'bcd');
+INSERT OR IGNORE INTO hardware(device)
+VALUES ('default');
+INSERT OR IGNORE INTO params(device, reg_addr, format, count)
+VALUES ('default', 0, 'bcd', 1);
 
 CREATE TABLE IF NOT EXISTS product
 (

@@ -27,24 +27,11 @@ type productsServiceHandler struct {
 
 var _ api.ProductsService = new(productsServiceHandler)
 
-func (h *productsServiceHandler) Connect(ctx context.Context) error {
+func (h *productsServiceHandler) Connect(_ context.Context) error {
 	if connected() {
 		return nil
 	}
-	t, err := data.GetLastMeasurementTime(db)
-	if err != nil {
-		return err
-	}
-	if time.Since(t) >= time.Minute*5 {
-		go func() {
-			if err := data.CopyCurrentParty(ctx, db); err != nil {
-				go gui.MsgBox("Копирование текущей партии", err.Error(), win.MB_OK|win.MB_ICONWARNING)
-				return
-			}
 
-		}()
-		return nil
-	}
 	connect()
 	return nil
 }
@@ -62,17 +49,17 @@ func (h *productsServiceHandler) Connected(_ context.Context) (bool, error) {
 	return atomic.LoadInt32(&atomicConnected) != 0, nil
 }
 
-func (h *productsServiceHandler) OpenGuiClient(ctx context.Context, hWnd int64) error {
+func (h *productsServiceHandler) OpenGuiClient(_ context.Context, hWnd int64) error {
 	gui.SetHWndTargetSendMessage(win.HWND(hWnd))
 	return nil
 }
 
-func (h *productsServiceHandler) CloseGuiClient(ctx context.Context) error {
+func (h *productsServiceHandler) CloseGuiClient(_ context.Context) error {
 	gui.SetHWndTargetSendMessage(win.HWND_TOP)
 	return nil
 }
 
-func (h *productsServiceHandler) SetProductActive(ctx context.Context, productID int64, active bool) error {
+func (h *productsServiceHandler) SetProductActive(_ context.Context, productID int64, active bool) error {
 	_, err := db.Exec(`UPDATE product SET active = ? WHERE product_id=?`, active, productID)
 	return err
 }
@@ -91,7 +78,7 @@ func (h *productsServiceHandler) GetProductParam(ctx context.Context, productID 
 	}, nil
 }
 
-func (h *productsServiceHandler) SetProductParam(ctx context.Context, p *apitypes.ProductParam) error {
+func (h *productsServiceHandler) SetProductParam(_ context.Context, p *apitypes.ProductParam) error {
 	if p.Chart == "" {
 		_, err := db.Exec(`DELETE FROM product_param WHERE product_id = ? AND param_addr = ?`, p.ProductID, p.ParamAddr)
 		return err
@@ -172,7 +159,7 @@ func (h *productsServiceHandler) CreateNewParty(ctx context.Context, productsCou
 }
 
 func (h *productsServiceHandler) GetCurrentParty(ctx context.Context) (r *apitypes.Party, err error) {
-	partyID, err := data.GetCurrentPartyID(ctx, db)
+	partyID, err := data.GetCurrentPartyID(db)
 	if err != nil {
 		return nil, err
 	}
@@ -202,8 +189,8 @@ func (h *productsServiceHandler) ListParties(ctx context.Context) (parties []*ap
 	return
 }
 
-func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*apitypes.Party, error) {
-	dataParty, err := data.GetParty(ctx, db, partyID)
+func (h *productsServiceHandler) GetParty(_ context.Context, partyID int64) (*apitypes.Party, error) {
+	dataParty, err := data.GetParty(db, partyID)
 	if err != nil {
 		return nil, err
 	}
@@ -231,9 +218,9 @@ func (h *productsServiceHandler) GetParty(ctx context.Context, partyID int64) (*
 	return party, nil
 }
 
-func (h *productsServiceHandler) AddNewProducts(ctx context.Context, productsCount int8) error {
+func (h *productsServiceHandler) AddNewProducts(_ context.Context, productsCount int8) error {
 	for i := productsCount; i > 0; i-- {
-		if err := data.AddNewProduct(ctx, db); err != nil {
+		if err := data.AddNewProduct(db); err != nil {
 			return err
 		}
 	}
@@ -264,7 +251,7 @@ func (h *productsServiceHandler) DeleteProducts(ctx context.Context, productIDs 
 	return err
 }
 
-func (h *productsServiceHandler) SetProductAddr(ctx context.Context, productID int64, addr int16) error {
+func (h *productsServiceHandler) SetProductAddr(_ context.Context, productID int64, addr int16) error {
 	_, err := db.Exec(`UPDATE product SET addr=? WHERE product_id = ?`, addr, productID)
 	return err
 }

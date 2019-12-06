@@ -24,7 +24,7 @@ func Open(filename string) (*sqlx.DB, error) {
 	if _, err := db.Exec(SQLCreate); err != nil {
 		return nil, err
 	}
-	if _, err := GetCurrentParty(context.Background(), db); err != nil {
+	if _, err := GetCurrentParty(db); err != nil {
 		return nil, err
 	}
 	return db, nil
@@ -91,34 +91,38 @@ VALUES (:device, :param_addr, :format, :size_read)`, param); err != nil {
 	return nil
 }
 
-func GetCurrentPartyID(ctx context.Context, db *sqlx.DB) (int64, error) {
+func GetCurrentPartyID(db *sqlx.DB) (int64, error) {
 	var partyID int64
-	err := db.GetContext(ctx, &partyID, `SELECT party_id FROM app_config`)
+	err := db.Get(&partyID, `SELECT party_id FROM app_config`)
 	if err != nil {
 		return 0, err
 	}
 	return partyID, nil
 }
 
-func GetCurrentParty(ctx context.Context, db *sqlx.DB) (Party, error) {
-	partyID, err := GetCurrentPartyID(ctx, db)
-	if err != nil {
-		return Party{}, err
-	}
-	return GetParty(ctx, db, partyID)
-}
-
-func GetLastMeasurementTime(db *sqlx.DB) (time.Time, error) {
-	var s string
-	err := db.Select(&s, `
+// момент времени последнего обновления текущей партии
+func GetCurrentPartyUpdatedAt(db *sqlx.DB) (time.Time, error) {
+	var tm string
+	err := db.Get(&tm, `
+WITH q AS ( SELECT party_id FROM app_config )
 SELECT STRFTIME('%Y-%m-%d %H:%M:%f', tm) AS tm
 FROM measurement
+INNER JOIN product USING (product_id)
+WHERE party_id = (SELECT q.party_id FROM q)
 ORDER BY tm DESC
 LIMIT 1`)
 	if err != nil {
 		return time.Time{}, err
 	}
-	return parseTime(s), nil
+	return parseTime(tm), nil
+}
+
+func GetCurrentParty(db *sqlx.DB) (Party, error) {
+	partyID, err := GetCurrentPartyID(db)
+	if err != nil {
+		return Party{}, err
+	}
+	return GetParty(db, partyID)
 }
 
 func GetCurrentPartyChart(db *sqlx.DB) ([]Measurement, error) {
@@ -132,11 +136,17 @@ func GetCurrentPartyChart(db *sqlx.DB) ([]Measurement, error) {
 	err := db.Select(&xs, `
 WITH xs AS (
     SELECT product_id FROM product WHERE party_id = (SELECT party_id FROM app_config)
+), ps AS (
+    SELECT DISTINCT param_addr
+	FROM product
+         INNER JOIN param USING (device)
+	WHERE party_id = (SELECT party_id FROM app_config)
+	ORDER BY param_addr
 )
 SELECT STRFTIME('%Y-%m-%d %H:%M:%f', tm) AS tm,
        product_id, param_addr, value
 FROM measurement
-WHERE product_id IN (SELECT * FROM xs)`)
+WHERE product_id IN (SELECT * FROM xs) AND param_addr IN (SELECT * FROM ps)`)
 	if err != nil {
 		return nil, err
 	}
@@ -152,25 +162,17 @@ WHERE product_id IN (SELECT * FROM xs)`)
 	return r, nil
 }
 
-func parseTime(sqlStr string) time.Time {
-	t, err := time.ParseInLocation(TimeLayout, sqlStr, time.Now().Location())
-	if err != nil {
-		panic(err)
-	}
-	return t
-}
-
-func GetParty(ctx context.Context, db *sqlx.DB, partyID int64) (Party, error) {
+func GetParty(db *sqlx.DB, partyID int64) (Party, error) {
 	var party Party
-	err := db.GetContext(ctx, &party, `SELECT * FROM party WHERE party_id=?`, partyID)
+	err := db.Get(&party, `SELECT * FROM party WHERE party_id=?`, partyID)
 	if err != nil {
 		return Party{}, err
 	}
-	if party.Products, err = ListProducts(ctx, db, party.PartyID); err != nil {
+	if party.Products, err = ListProducts(db, party.PartyID); err != nil {
 		return Party{}, err
 	}
 
-	if err := db.SelectContext(ctx, &party.ParamAddresses, `
+	if err := db.Select(&party.ParamAddresses, `
 SELECT DISTINCT param_addr
 FROM product
          INNER JOIN param USING (device)
@@ -181,8 +183,8 @@ ORDER BY param_addr`, partyID, partyID); err != nil {
 	return party, err
 }
 
-func CopyCurrentParty(ctx context.Context, db *sqlx.DB) error {
-	p, err := GetCurrentParty(ctx, db)
+func CopyCurrentParty(db *sqlx.DB) error {
+	p, err := GetCurrentParty(db)
 	if err != nil {
 		return err
 	}
@@ -194,7 +196,7 @@ func CopyCurrentParty(ctx context.Context, db *sqlx.DB) error {
 
 	for _, p := range p.Products {
 		p.PartyID = newPartyID
-		r, err := db.ExecContext(ctx, `
+		r, err := db.NamedExec(`
 INSERT INTO product( party_id, addr, device, active, comport ) 
 VALUES (:party_id, :addr, :device, :active, :comport);`, p)
 		if err != nil {
@@ -206,7 +208,7 @@ VALUES (:party_id, :addr, :device, :active, :comport);`, p)
 		}
 		var pp []ProductParam
 		if err := db.Select(&pp, `
-SELECT * FROM product_param 
+SELECT product_id, param_addr, chart, series_active FROM product_param 
 INNER JOIN product USING (product_id)
 WHERE product_id = ?`, p.ProductID); err != nil {
 			return err
@@ -218,6 +220,11 @@ WHERE product_id = ?`, p.ProductID); err != nil {
 			}
 		}
 	}
+
+	if err := setAppConfigPartyID(db, newPartyID); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -246,11 +253,15 @@ func CreateNewParty(ctx context.Context, db *sqlx.DB, productsCount int) error {
 			return err
 		}
 	}
-	_, err = db.ExecContext(ctx, `UPDATE app_config SET party_id=? WHERE id=1`, newPartyID)
-	if err != nil {
+	if err := setAppConfigPartyID(db, newPartyID); err != nil {
 		return err
 	}
 	return nil
+}
+
+func setAppConfigPartyID(db *sqlx.DB, partyID int64) error {
+	_, err := db.Exec(`UPDATE app_config SET party_id=? WHERE id=1`, partyID)
+	return err
 }
 
 func createNewParty(db *sqlx.DB) (int64, error) {
@@ -268,13 +279,13 @@ func createNewParty(db *sqlx.DB) (int64, error) {
 	return getNewInsertedID(r)
 }
 
-func ListProducts(ctx context.Context, db *sqlx.DB, partyID int64) (products []Product, err error) {
-	err = db.SelectContext(ctx, &products, `SELECT * FROM product WHERE party_id=? ORDER BY product_id`, partyID)
+func ListProducts(db *sqlx.DB, partyID int64) (products []Product, err error) {
+	err = db.Select(&products, `SELECT * FROM product WHERE party_id=? ORDER BY product_id`, partyID)
 	return
 }
 
-func AddNewProduct(ctx context.Context, db *sqlx.DB) error {
-	party, err := GetCurrentParty(ctx, db)
+func AddNewProduct(db *sqlx.DB) error {
+	party, err := GetCurrentParty(db)
 	if err != nil {
 		return err
 	}
@@ -288,7 +299,7 @@ func AddNewProduct(ctx context.Context, db *sqlx.DB) error {
 			break
 		}
 	}
-	r, err := db.ExecContext(ctx,
+	r, err := db.Exec(
 		`INSERT INTO product( party_id, addr) VALUES (?,?)`,
 		party.PartyID, addr, time.Now())
 	if err != nil {
@@ -323,4 +334,12 @@ func getNewInsertedID(r sql.Result) (int64, error) {
 		return 0, errors.New("was not inserted")
 	}
 	return id, nil
+}
+
+func parseTime(sqlStr string) time.Time {
+	t, err := time.ParseInLocation(TimeLayout, sqlStr, time.Now().Location())
+	if err != nil {
+		panic(err)
+	}
+	return t
 }
