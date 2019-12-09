@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/gui"
+	"github.com/fpawel/atool/internal/cfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/pkg/winapi"
@@ -12,7 +13,6 @@ import (
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm/modbus"
 	"github.com/lxn/win"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
@@ -59,6 +59,13 @@ func (h *productsServiceHandler) CloseGuiClient(_ context.Context) error {
 	return nil
 }
 
+func (h *productsServiceHandler) ListParamAddresses(_ context.Context) (r []int32, _ error) {
+	for _, n := range cfg.Get().Hardware.ParamAddresses() {
+		r = append(r, int32(n))
+	}
+	return
+}
+
 func (h *productsServiceHandler) SetProductActive(_ context.Context, productID int64, active bool) error {
 	_, err := db.Exec(`UPDATE product SET active = ? WHERE product_id=?`, active, productID)
 	return err
@@ -96,12 +103,9 @@ func (h *productsServiceHandler) EditConfig(ctx context.Context) error {
 		return merry.New("нельзя менять конфигурацию пока выполняется опрос")
 	}
 
-	filename := filepath.Join(tmpDir, "app-config.yaml")
-	c, err := data.OpenAppConfig(db, ctx)
-	if err != nil {
-		return err
-	}
-	if err := ioutil.WriteFile(filename, must.MarshalYaml(&c), 0644); err != nil {
+	filename := filepath.Join(tmpDir, "config.yaml")
+
+	if err := ioutil.WriteFile(filename, must.MarshalYaml(cfg.Get()), 0644); err != nil {
 		return err
 	}
 	cmd := exec.Command("./npp/notepad++.exe", filename)
@@ -118,11 +122,7 @@ func (h *productsServiceHandler) EditConfig(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		var c data.AppConfig
-		if err := yaml.Unmarshal(b, &c); err != nil {
-			return err
-		}
-		return data.SaveAppConfig(db, ctx, c)
+		return cfg.SetYaml(b)
 	}
 
 	go func() {
@@ -167,7 +167,7 @@ func (h *productsServiceHandler) GetCurrentParty(ctx context.Context) (r *apityp
 }
 
 func (h *productsServiceHandler) RequestCurrentPartyChart(_ context.Context) error {
-	xs, err := data.GetCurrentPartyChart(db)
+	xs, err := data.GetCurrentPartyChart(db, cfg.Get().Hardware.ParamAddresses())
 	if err != nil {
 		return err
 	}
@@ -195,10 +195,9 @@ func (h *productsServiceHandler) GetParty(_ context.Context, partyID int64) (*ap
 		return nil, err
 	}
 	party := &apitypes.Party{
-		PartyID:        dataParty.PartyID,
-		CreatedAt:      timeUnixMillis(dataParty.CreatedAt),
-		Products:       []*apitypes.Product{},
-		ParamAddresses: []int16{},
+		PartyID:   dataParty.PartyID,
+		CreatedAt: timeUnixMillis(dataParty.CreatedAt),
+		Products:  []*apitypes.Product{},
 	}
 
 	for _, p := range dataParty.Products {
@@ -211,9 +210,6 @@ func (h *productsServiceHandler) GetParty(_ context.Context, partyID int64) (*ap
 			Device:         p.Device,
 			Active:         p.Active,
 		})
-	}
-	for _, p := range dataParty.ParamAddresses {
-		party.ParamAddresses = append(party.ParamAddresses, int16(p))
 	}
 	return party, nil
 }
@@ -257,7 +253,9 @@ func (h *productsServiceHandler) SetProductAddr(_ context.Context, productID int
 }
 
 func (h *productsServiceHandler) ListDevices(ctx context.Context) (xs []string, err error) {
-	err = db.SelectContext(ctx, &xs, `SELECT device FROM hardware`)
+	for _, d := range cfg.Get().Hardware {
+		xs = append(xs, d.Name)
+	}
 	return
 }
 

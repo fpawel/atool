@@ -9,81 +9,81 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 type Config struct {
-	LogComm  bool     `yaml:"log_comm"` // выводить посылки приёмопередачи в консоль
-	Comports []string `yaml:"comports"` // СОМ порты
+	LogComm  bool     `yaml:"log_comm"`
+	Hardware Hardware `yaml:"hardware"`
 }
 
-func SetYaml(strYaml string) error {
-	if err := yaml.Unmarshal([]byte(strYaml), &config); err != nil {
+func SetYaml(strYaml []byte) error {
+	var c Config
+	if err := yaml.Unmarshal(strYaml, &c); err != nil {
 		return err
 	}
+	if err := c.Hardware.Validate(); err != nil {
+		return err
+	}
+	comm.SetEnableLog(c.LogComm)
 	mu.Lock()
 	defer mu.Unlock()
-	comm.SetEnableLog(config.LogComm)
-	mustWrite([]byte(strYaml))
-	return nil
+	return write(strYaml)
 }
 
-func GetYaml() string {
+func Get() Config {
 	mu.Lock()
 	defer mu.Unlock()
-	return string(must.MarshalYaml(&config))
+	r, err := read()
+	must.PanicIf(err)
+	return r
 }
 
-func Set(v Config) {
-	mu.Lock()
-	defer mu.Unlock()
-	data := must.MarshalYaml(&v)
-	must.UnmarshalYaml(data, &config)
-	comm.SetEnableLog(config.LogComm)
-	mustWrite(data)
-	return
-}
-
-func Get() (result Config) {
-	mu.Lock()
-	defer mu.Unlock()
-	must.UnmarshalYaml(must.MarshalYaml(&config), &result)
-	return
-}
-
-func mustWrite(b []byte) {
-	must.WriteFile(filename(), b, 0666)
+func write(b []byte) error {
+	return ioutil.WriteFile(filename(), b, 0666)
 }
 
 func filename() string {
-	return filepath.Join(filepath.Dir(os.Args[0]), "config.toml")
+	return filepath.Join(filepath.Dir(os.Args[0]), "config.yaml")
 }
 
-var (
-	mu     sync.Mutex
-	config = func() Config {
-		x := Config{
-			LogComm:  false,
-			Comports: []string{"COM1"},
+func read() (Config, error) {
+	var c Config
+	data, err := ioutil.ReadFile(filename())
+	if err != nil {
+		return c, err
+	}
+	err = yaml.Unmarshal(data, &c)
+	return c, err
+}
+
+var mu sync.Mutex
+
+func init() {
+	c, err := read()
+	if err != nil {
+		fmt.Println(err, "file:", filename())
+		c = Config{
+			LogComm: false,
+			Hardware: Hardware{
+				Device{
+					Name:               "default",
+					Baud:               9600,
+					TimeoutGetResponse: time.Second,
+					TimeoutEndResponse: time.Millisecond * 50,
+					MaxAttemptsRead:    0,
+					Pause:              0,
+					Params: []Params{
+						{
+							Format:    "bcd",
+							ParamAddr: 0,
+							Count:     1,
+						},
+					},
+				},
+			},
 		}
-		filename := filename()
-
-		mustWrite := func() {
-			mustWrite(must.MarshalYaml(&x))
-		}
-
-		if _, err := os.Stat(filename); os.IsNotExist(err) {
-			mustWrite()
-		}
-
-		data, err := ioutil.ReadFile(filename)
-		must.PanicIf(err)
-
-		if err = yaml.Unmarshal(data, &x); err != nil {
-			fmt.Println(err, "file:", filename)
-			mustWrite()
-		}
-
-		comm.SetEnableLog(x.LogComm)
-		return x
-	}()
-)
+		must.PanicIf(write(must.MarshalYaml(c)))
+	}
+	comm.SetEnableLog(c.LogComm)
+}

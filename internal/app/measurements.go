@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/data"
-	"github.com/fpawel/comm/modbus"
 	"strings"
 	"time"
 )
@@ -13,7 +12,7 @@ type measurements struct {
 	xs []data.Measurement
 }
 
-func (x *measurements) add(ProductID int64, ParamAddr modbus.Var, Value float64) {
+func (x *measurements) add(ProductID int64, ParamAddr int, Value float64) {
 	x.xs = append(x.xs, data.Measurement{
 		Time:      time.Now(),
 		ProductID: ProductID,

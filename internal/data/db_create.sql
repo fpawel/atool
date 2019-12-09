@@ -7,40 +7,6 @@ CREATE TABLE IF NOT EXISTS party
     created_at TIMESTAMP           NOT NULL DEFAULT (datetime('now')) UNIQUE
 );
 
-CREATE TABLE IF NOT EXISTS hardware
-(
-    device                TEXT    NOT NULL PRIMARY KEY,
-    baud                  INTEGER NOT NULL DEFAULT 9600,
-    timeout_get_responses INTEGER NOT NULL DEFAULT 1000000000, -- в наносекундах = 1 секунда
-    timeout_end_response  INTEGER NOT NULL DEFAULT 50000000,   -- в наносекундах = 50 миллисекунд
-    pause                 INTEGER NOT NULL DEFAULT 0,          -- в наносекундах
-    max_attempts_read     INTEGER NOT NULL DEFAULT 0,
-    CHECK (timeout_get_responses >= 0),
-    CHECK (timeout_end_response >= 0),
-    CHECK (pause >= 0),
-    CHECK (baud >= 0),
-    CHECK (max_attempts_read >= 0 )
-);
-
-CREATE TABLE IF NOT EXISTS params
-(
-    device   TEXT     NOT NULL,
-    reg_addr SMALLINT NOT NULL,
-    format   TEXT     NOT NULL,
-    count    SMALLINT NOT NULL,
-    PRIMARY KEY (device, reg_addr),
-    FOREIGN KEY (device) REFERENCES hardware (device) ON DELETE CASCADE,
-    CHECK (reg_addr >= 0 ),
-    CHECK (count > 0 ),
-    CHECK (format IN ('bcd',
-                      'float_big_endian', 'float_little_endian',
-                      'int_big_endian', 'int_little_endian'))
-);
-
-INSERT OR IGNORE INTO hardware(device)
-VALUES ('default');
-INSERT OR IGNORE INTO params(device, reg_addr, format, count)
-VALUES ('default', 0, 'bcd', 1);
 
 CREATE TABLE IF NOT EXISTS product
 (
@@ -92,7 +58,6 @@ CREATE TABLE IF NOT EXISTS app_config
 (
     id          INTEGER PRIMARY KEY NOT NULL,
     party_id    INTEGER             NOT NULL,
-    log_comport BOOLEAN             NOT NULL DEFAULT 0,
     FOREIGN KEY (party_id) REFERENCES party (party_id)
 );
 

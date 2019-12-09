@@ -16,7 +16,10 @@ service ProductsService {
    void setProductActive(1:i64 productID, 2:bool active)
    void setProductParam(1:apitypes.ProductParam productParam)
    apitypes.ProductParam getProductParam(1:i64 productID, 2:i16 paramAddr)
+
    list<string> listDevices()
+   list<i32> listParamAddresses()
+
    void EditConfig()
 
    oneway void openGuiClient(1:i64 hWnd)

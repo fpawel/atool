@@ -13,6 +13,6 @@ type CommTransaction struct {
 type ProductParamValue struct {
 	Addr      modbus.Addr
 	Comport   string
-	ParamAddr modbus.Var
+	ParamAddr int
 	Value     string
 }
