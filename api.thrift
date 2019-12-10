@@ -25,7 +25,9 @@ service ProductsService {
    oneway void openGuiClient(1:i64 hWnd)
    oneway void closeGuiClient()
 
-   bool Connected()
-   void Connect()
-   void Disconnect()
+   bool connected()
+   void connect()
+   void disconnect()
+
+   void deleteChartPoints(1:apitypes.DeleteChartPointsRequest r)
 }

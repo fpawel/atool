@@ -30,3 +30,12 @@ struct ProductParam {
     3: string chart
     4: bool seriesActive
 }
+
+
+struct DeleteChartPointsRequest {
+    1: string chart
+    2: TimeUnixMillis timeFrom
+    3: TimeUnixMillis timeTo
+    4: double valueFrom
+    5: double valueTo
+}

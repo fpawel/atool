@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/gui"
 	"github.com/fpawel/atool/internal/cfg"
@@ -99,9 +100,6 @@ func (h *productsServiceHandler) SetProductParam(_ context.Context, p *apitypes.
 }
 
 func (h *productsServiceHandler) EditConfig(ctx context.Context) error {
-	if connected() {
-		return merry.New("нельзя менять конфигурацию пока выполняется опрос")
-	}
 
 	filename := filepath.Join(tmpDir, "config.yaml")
 
@@ -126,19 +124,12 @@ func (h *productsServiceHandler) EditConfig(ctx context.Context) error {
 	}
 
 	go func() {
-
-		if connected() {
-			go gui.MsgBox("Ошибка при сохранении конфигурации",
-				"Нельзя сменить активную партию пока выполняется опрос",
-				win.MB_OK|win.MB_ICONERROR)
-			return
-		}
-
 		if err := applyConfig(); err != nil {
 			log.PrintErr(err)
-			gui.MsgBox("Ошибка при сохранении конфигурации", err.Error(), win.MB_OK|win.MB_ICONERROR)
+			go gui.MsgBox("Ошибка при сохранении конфигурации", err.Error(), win.MB_OK|win.MB_ICONERROR)
+			return
 		}
-		go gui.NotifyCurrentPartyChanged()
+		gui.NotifyCurrentPartyChanged()
 	}()
 	return nil
 }
@@ -259,16 +250,58 @@ func (h *productsServiceHandler) ListDevices(ctx context.Context) (xs []string, 
 	return
 }
 
-//const timeLayout = "2006-01-02 15:04:05.000"
+func (h *productsServiceHandler) DeleteChartPoints(_ context.Context, r *apitypes.DeleteChartPointsRequest) error {
+	var xs []data.ProductParam
+	if err := db.Select(&xs, `SELECT * FROM product_param WHERE chart=? AND series_active=TRUE`, r.Chart); err != nil {
+		return err
+	}
+	var qProductsXs, qParamsXs []string
+	mProducts := map[int64]struct{}{}
+	for _, p := range xs {
+		if _, f := mProducts[p.ProductID]; !f {
+			mProducts[p.ProductID] = struct{}{}
+			qProductsXs = append(qProductsXs, fmt.Sprintf("%d", p.ProductID))
+		}
+		qParamsXs = append(qParamsXs, fmt.Sprintf("%d", p.ParamAddr))
+	}
+	qProducts := strings.Join(qProductsXs, ",")
+	qParams := strings.Join(qParamsXs, ",")
+
+	timeFrom := unixMillisToTime(r.TimeFrom)
+	timeTo := unixMillisToTime(r.TimeTo)
+
+	sQ := fmt.Sprintf(`
+DELETE FROM measurement 
+WHERE product_id IN (%s) 
+  AND param_addr IN (%s) 
+  AND tm >= %s
+  AND tm <= %s
+  AND value >= ?
+  AND value <= ?`,
+		qProducts, qParams, formatTimeAsQuery(timeFrom), formatTimeAsQuery(timeTo))
+	log.Printf("delete chart points %q, products:%s, params:%s, time:%v...%v, value:%v...%v, sql:%s",
+		r.Chart, qProducts, qParams, timeFrom, timeTo, r.ValueFrom, r.ValueTo, sQ)
+	res, err := db.Exec(sQ, r.ValueFrom, r.ValueTo)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	log.Println(n, "rows deleted")
+	return nil
+
+}
 
 func timeUnixMillis(t time.Time) apitypes.TimeUnixMillis {
 
 	return apitypes.TimeUnixMillis(t.UnixNano() / int64(time.Millisecond))
 }
 
-//func unixMillisToTime(m apitypes.TimeUnixMillis) time.Time {
-//	t := int64(time.Millisecond) * int64(m)
-//	sec := t / int64(time.Second)
-//	ns := t % int64(time.Second)
-//	return time.Unix(sec, ns)
-//}
+func unixMillisToTime(m apitypes.TimeUnixMillis) time.Time {
+	t := int64(time.Millisecond) * int64(m)
+	sec := t / int64(time.Second)
+	ns := t % int64(time.Second)
+	return time.Unix(sec, ns)
+}
