@@ -2,12 +2,15 @@
 include "apitypes.thrift"
 
 service ProductsService {
-   void createNewParty(1:i8 productsCount)
+   void createNewParty(1:i8 productsCount, 2:string name)
    apitypes.Party getParty(1:i64 partyID)
    apitypes.Party getCurrentParty()
    void requestCurrentPartyChart()
    list<apitypes.PartyInfo> listParties()
    void setCurrentParty(1:i64 partyID)
+   void setPartyName(1:string name)
+   void setProductSerial(1:i64 productID, 2:i64 serial)
+
    void addNewProducts(1:i8 productsCount)
    void deleteProducts(1:list<i64> productIDs)
    void setProductsComport(1:list<i64> productIDs, 2:string comport)

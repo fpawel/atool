@@ -5,23 +5,26 @@ typedef i64 TimeUnixMillis
 struct Product {
   1: i64 productID
   2: i64 partyID
-  3: bool active
-  4: TimeUnixMillis partyCreatedAt
-  5: string comport
-  6: i8 addr
-  7: string device
-  8: i8 connection
+  3: i64 serial
+  4: bool active
+  5: TimeUnixMillis partyCreatedAt
+  6: string comport
+  7: i8 addr
+  8: string device
+  9: i8 connection
 }
 
 struct Party {
     1: i64 partyID
     2: TimeUnixMillis createdAt
-    3: list<Product> products
+    3: string name
+    4: list<Product> products
 }
 
 struct PartyInfo {
     1: i64 partyID
-    2: TimeUnixMillis createdAt
+    2: string name
+    3: TimeUnixMillis createdAt
 }
 
 struct ProductParam {

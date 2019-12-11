@@ -126,7 +126,7 @@ func (h *productsServiceHandler) EditConfig(ctx context.Context) error {
 	go func() {
 		if err := applyConfig(); err != nil {
 			log.PrintErr(err)
-			go gui.MsgBox("Ошибка при сохранении конфигурации", err.Error(), win.MB_OK|win.MB_ICONERROR)
+			go gui.PopupError(merry.Append(err, "Ошибка при сохранении конфигурации"))
 			return
 		}
 		gui.NotifyCurrentPartyChanged()
@@ -142,11 +142,11 @@ func (h *productsServiceHandler) SetCurrentParty(ctx context.Context, partyID in
 	return err
 }
 
-func (h *productsServiceHandler) CreateNewParty(ctx context.Context, productsCount int8) error {
+func (h *productsServiceHandler) CreateNewParty(ctx context.Context, productsCount int8, name string) error {
 	if connected() {
 		return merry.New("нельзя создать новую партию пока выполняется опрос")
 	}
-	return data.CreateNewParty(ctx, db, int(productsCount))
+	return data.CreateNewParty(ctx, db, int(productsCount), name)
 }
 
 func (h *productsServiceHandler) GetCurrentParty(ctx context.Context) (r *apitypes.Party, err error) {
@@ -175,6 +175,7 @@ func (h *productsServiceHandler) ListParties(ctx context.Context) (parties []*ap
 		parties = append(parties, &apitypes.PartyInfo{
 			PartyID:   x.PartyID,
 			CreatedAt: timeUnixMillis(x.CreatedAt),
+			Name:      x.Name,
 		})
 	}
 	return
@@ -188,6 +189,7 @@ func (h *productsServiceHandler) GetParty(_ context.Context, partyID int64) (*ap
 	party := &apitypes.Party{
 		PartyID:   dataParty.PartyID,
 		CreatedAt: timeUnixMillis(dataParty.CreatedAt),
+		Name:      dataParty.Name,
 		Products:  []*apitypes.Product{},
 	}
 
@@ -200,6 +202,7 @@ func (h *productsServiceHandler) GetParty(_ context.Context, partyID int64) (*ap
 			Addr:           int8(p.Addr),
 			Device:         p.Device,
 			Active:         p.Active,
+			Serial:         int64(p.Serial),
 		})
 	}
 	return party, nil
@@ -248,6 +251,17 @@ func (h *productsServiceHandler) ListDevices(ctx context.Context) (xs []string, 
 		xs = append(xs, d.Name)
 	}
 	return
+}
+
+func (h *productsServiceHandler) SetPartyName(_ context.Context, name string) error {
+	_, err := db.Exec(`UPDATE party SET name = ? WHERE party_id = (SELECT party_id FROM app_config)`, name)
+	return err
+}
+
+func (h *productsServiceHandler) SetProductSerial(_ context.Context, productID int64, serial int64) error {
+	_, err := db.Exec(`UPDATE product SET serial = ? WHERE product_id = ?`,
+		serial, productID)
+	return err
 }
 
 func (h *productsServiceHandler) DeleteChartPoints(_ context.Context, r *apitypes.DeleteChartPointsRequest) error {

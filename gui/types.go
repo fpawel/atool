@@ -16,3 +16,8 @@ type ProductParamValue struct {
 	ParamAddr int
 	Value     string
 }
+
+type PopupMessage struct {
+	Text string
+	Ok   bool
+}

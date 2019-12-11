@@ -4,7 +4,8 @@ PRAGMA encoding = 'UTF-8';
 CREATE TABLE IF NOT EXISTS party
 (
     party_id   INTEGER PRIMARY KEY NOT NULL,
-    created_at TIMESTAMP           NOT NULL DEFAULT (datetime('now')) UNIQUE
+    created_at TIMESTAMP           NOT NULL DEFAULT (datetime('now')) UNIQUE,
+    name       TEXT                NOT NULL DEFAULT '(без имени)'
 );
 
 
@@ -12,6 +13,7 @@ CREATE TABLE IF NOT EXISTS product
 (
     product_id INTEGER PRIMARY KEY NOT NULL,
     party_id   INTEGER             NOT NULL,
+    serial     INTEGER             NOT NULL DEFAULT 0,
     device     TEXT                NOT NULL DEFAULT 'default',
     comport    TEXT                NOT NULL DEFAULT 'COM1',
     addr       INTEGER             NOT NULL DEFAULT 1,
@@ -56,8 +58,8 @@ FROM measurement;
 
 CREATE TABLE IF NOT EXISTS app_config
 (
-    id          INTEGER PRIMARY KEY NOT NULL,
-    party_id    INTEGER             NOT NULL,
+    id       INTEGER PRIMARY KEY NOT NULL,
+    party_id INTEGER             NOT NULL,
     FOREIGN KEY (party_id) REFERENCES party (party_id)
 );
 

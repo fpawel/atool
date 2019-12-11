@@ -12,7 +12,6 @@ import (
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/comm/comport"
 	"github.com/fpawel/comm/modbus"
-	"github.com/lxn/win"
 	"math"
 	"strconv"
 	"sync/atomic"
@@ -38,14 +37,15 @@ func connect() {
 	}
 	go func() {
 
+		go gui.NotifyStartWork()
+
 		must.PanicIf(createNewChartIfUpdatedTooLong())
 
-		go gui.NotifyStartWork()
 		ms := new(measurements)
 		for {
 			if err := processProductsParams(ctx, ms); err != nil {
 				if !merry.Is(err, context.Canceled) {
-					go gui.MsgBox("Опрос", err.Error(), win.MB_OK|win.MB_ICONWARNING)
+					go gui.PopupError(err)
 				}
 				break
 			}
@@ -78,11 +78,7 @@ func createNewChartIfUpdatedTooLong() error {
 		return nil
 	}
 
-	s := fmt.Sprintf(
-		"Опрос текущей партии выполнянлся более часа назад.\n\n%v, %v\n\nДля наглядности графичеких данных текущего опроса создан новый график.",
-		t, time.Since(t))
-
-	go gui.MsgBox("atool: создан новый график", s, win.MB_OK|win.MB_ICONINFORMATION)
+	go gui.Popup("Для наглядности графичеких данных текущего опроса создан новый график.")
 
 	log.Info("copy current party for new chart")
 	if err := data.CopyCurrentParty(db); err != nil {

@@ -19,7 +19,16 @@ const (
 	MsgNewCommTransaction MsgCopyData = iota
 	MsgNewProductParamValue
 	MsgChart
+	MsgPopup
 )
+
+func Popup(x string) bool {
+	return copyData().SendJson(MsgPopup, PopupMessage{x, true})
+}
+
+func PopupError(x error) bool {
+	return copyData().SendJson(MsgPopup, PopupMessage{x.Error(), false})
+}
 
 func NotifyNewCommTransaction(с CommTransaction) bool {
 	return copyData().SendJson(MsgNewCommTransaction, с)

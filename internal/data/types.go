@@ -8,6 +8,7 @@ import (
 type PartyInfo struct {
 	PartyID   int64     `db:"party_id"`
 	CreatedAt time.Time `db:"created_at"`
+	Name      string    `db:"name"`
 }
 
 type Party struct {
@@ -19,6 +20,7 @@ type Product struct {
 	ProductID      int64       `db:"product_id"`
 	PartyID        int64       `db:"party_id"`
 	PartyCreatedAt time.Time   `db:"created_at"`
+	Serial         int         `db:"serial"`
 	Comport        string      `db:"comport"`
 	Addr           modbus.Addr `db:"addr"`
 	Device         string      `db:"device"`

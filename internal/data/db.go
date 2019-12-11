@@ -118,7 +118,7 @@ func CopyCurrentParty(db *sqlx.DB) error {
 		return err
 	}
 
-	newPartyID, err := createNewParty(db)
+	newPartyID, err := createNewParty(db, p.Name)
 	if err != nil {
 		return err
 	}
@@ -166,8 +166,8 @@ ON CONFLICT (product_id, param_addr) DO UPDATE SET series_active=:series_active,
 	return err
 }
 
-func CreateNewParty(ctx context.Context, db *sqlx.DB, productsCount int) error {
-	newPartyID, err := createNewParty(db)
+func CreateNewParty(ctx context.Context, db *sqlx.DB, productsCount int, name string) error {
+	newPartyID, err := createNewParty(db, name)
 	if err != nil {
 		return err
 	}
@@ -193,8 +193,8 @@ func setAppConfigPartyID(db *sqlx.DB, partyID int64) error {
 	return err
 }
 
-func createNewParty(db *sqlx.DB) (int64, error) {
-	r, err := db.Exec(`INSERT INTO party (created_at) VALUES (?)`, time.Now())
+func createNewParty(db *sqlx.DB, name string) (int64, error) {
+	r, err := db.Exec(`INSERT INTO party (created_at, name) VALUES (?,?)`, time.Now(), name)
 	if err != nil {
 		return 0, err
 	}
