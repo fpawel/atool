@@ -3,11 +3,12 @@ package gui
 import "github.com/fpawel/comm/modbus"
 
 type CommTransaction struct {
-	Addr    modbus.Addr
-	Comport string
-	Request string
-	Result  string
-	Ok      bool
+	Addr     modbus.Addr
+	Comport  string
+	Request  string
+	Response string
+	Duration string
+	Ok       bool
 }
 
 type ProductParamValue struct {

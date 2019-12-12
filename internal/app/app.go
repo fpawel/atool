@@ -90,8 +90,18 @@ func runServer(db *sqlx.DB) context.CancelFunc {
 	if err != nil {
 		panic(err)
 	}
-	handler := &productsServiceHandler{}
-	processor := api.NewProductsServiceProcessor(handler)
+
+	processor := thrift.NewTMultiplexedProcessor()
+
+	processor.RegisterProcessor("MainService",
+		api.NewMainServiceProcessor(new(mainSvc)))
+	processor.RegisterProcessor("HardwareConnectionService",
+		api.NewHardwareConnectionServiceProcessor(new(hardwareConnSvc)))
+	processor.RegisterProcessor("CurrentFileService",
+		api.NewCurrentFileServiceProcessor(new(currentFileSvc)))
+	processor.RegisterProcessor("ProductService",
+		api.NewProductServiceProcessor(new(productSvc)))
+
 	server := thrift.NewTSimpleServer4(processor, transport,
 		thrift.NewTTransportFactory(), thrift.NewTBinaryProtocolFactoryDefault())
 

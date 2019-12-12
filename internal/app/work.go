@@ -163,19 +163,21 @@ func newParamsReader(ctx context.Context, product data.Product, device cfg.Devic
 }
 
 func (r paramsReader) read(prm cfg.Params) error {
+	startTime := time.Now()
 	request, response, err := r.getResponse(prm)
 	if merry.Is(err, context.Canceled) {
 		return err
 	}
 	ct := gui.CommTransaction{
-		Addr:    r.p.Addr,
-		Comport: r.p.Comport,
-		Request: formatBytes(request),
-		Result:  formatBytes(response),
-		Ok:      err == nil,
+		Addr:     r.p.Addr,
+		Comport:  r.p.Comport,
+		Request:  formatBytes(request),
+		Response: formatBytes(response),
+		Duration: time.Since(startTime).String(),
+		Ok:       err == nil,
 	}
 	if err != nil {
-		ct.Result = err.Error()
+		ct.Response = err.Error()
 	}
 	go gui.NotifyNewCommTransaction(ct)
 	return err
