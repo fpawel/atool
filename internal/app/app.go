@@ -41,10 +41,10 @@ func Main() {
 	must.PanicIf(err)
 
 	// старт сервера
-	stopServer := runServer(db)
+	stopServer := runServer()
 
-	if len(os.Getenv("ATOOL_DEV_MODE")) != 0 {
-		log.Debug("waiting system signal because of ATOOL_DEV_MODE=" + os.Getenv("ATOOL_DEV_MODE"))
+	if envVarDevModeSet() {
+		log.Printf("waiting system signal because of %s=%s", envVarDevMode, os.Getenv(envVarDevMode))
 		done := make(chan os.Signal, 1)
 		signal.Notify(done, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 		sig := <-done
@@ -70,20 +70,9 @@ func Main() {
 	log.Debug("all canceled and closed")
 }
 
-func runServer(db *sqlx.DB) context.CancelFunc {
+func runServer() context.CancelFunc {
 
-	port, errPort := strconv.Atoi(os.Getenv(EnvVarApiPort))
-	if errPort != nil {
-		log.Debug("finding free port to serve api")
-		ln, err := net.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			panic(err)
-		}
-		port = ln.Addr().(*net.TCPAddr).Port
-		must.PanicIf(os.Setenv(EnvVarApiPort, strconv.Itoa(port)))
-		must.PanicIf(ln.Close())
-	}
-	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	addr := getTCPAddrApi()
 	log.Debug("serve api: " + addr)
 
 	transport, err := thrift.NewTServerSocket(addr)
@@ -91,18 +80,7 @@ func runServer(db *sqlx.DB) context.CancelFunc {
 		panic(err)
 	}
 
-	processor := thrift.NewTMultiplexedProcessor()
-
-	processor.RegisterProcessor("MainService",
-		api.NewMainServiceProcessor(new(mainSvc)))
-	processor.RegisterProcessor("HardwareConnectionService",
-		api.NewHardwareConnectionServiceProcessor(new(hardwareConnSvc)))
-	processor.RegisterProcessor("CurrentFileService",
-		api.NewCurrentFileServiceProcessor(new(currentFileSvc)))
-	processor.RegisterProcessor("ProductService",
-		api.NewProductServiceProcessor(new(productSvc)))
-
-	server := thrift.NewTSimpleServer4(processor, transport,
+	server := thrift.NewTSimpleServer4(newApiProcessor(), transport,
 		thrift.NewTTransportFactory(), thrift.NewTBinaryProtocolFactoryDefault())
 
 	go log.ErrIfFail(server.Serve, "problem", "`failed to serve`")
@@ -124,8 +102,47 @@ var (
 )
 
 const (
-	EnvVarApiPort = "ATOOL_API_PORT"
+	envVarApiPort = "ATOOL_API_PORT"
+	envVarDevMode = "ATOOL_DEV_MODE"
 )
+
+func envVarDevModeSet() bool {
+	return os.Getenv(envVarDevMode) == "true"
+}
+
+func newApiProcessor() thrift.TProcessor {
+	p := thrift.NewTMultiplexedProcessor()
+	p.RegisterProcessor("FilesService",
+		api.NewFilesServiceProcessor(new(filesSvc)))
+	p.RegisterProcessor("HardwareConnectionService",
+		api.NewHardwareConnectionServiceProcessor(new(hardwareConnSvc)))
+	p.RegisterProcessor("CurrentFileService",
+		api.NewCurrentFileServiceProcessor(new(currentFileSvc)))
+	p.RegisterProcessor("ProductService",
+		api.NewProductServiceProcessor(new(productSvc)))
+	p.RegisterProcessor("AppConfigService",
+		api.NewAppConfigServiceProcessor(new(appConfigSvc)))
+	p.RegisterProcessor("NotifyGuiService",
+		api.NewNotifyGuiServiceProcessor(new(notifyGuiSvc)))
+	p.RegisterProcessor("HelperService",
+		api.NewHelperServiceProcessor(new(helperSvc)))
+	return p
+}
+
+func getTCPAddrApi() string {
+	port, errPort := strconv.Atoi(os.Getenv(envVarApiPort))
+	if errPort != nil {
+		log.Debug("search free port to serve api")
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			panic(err)
+		}
+		port = ln.Addr().(*net.TCPAddr).Port
+		must.PanicIf(os.Setenv(envVarApiPort, strconv.Itoa(port)))
+		must.PanicIf(ln.Close())
+	}
+	return fmt.Sprintf("127.0.0.1:%d", port)
+}
 
 func cleanTmpDir() {
 	if err := os.RemoveAll(tmpDir); err != nil {

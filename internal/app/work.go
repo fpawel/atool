@@ -22,7 +22,25 @@ func connected() bool {
 	return atomic.LoadInt32(&atomicConnected) != 0
 }
 
-func connect() {
+func runInterrogate() {
+	run(func(ctx context.Context) error {
+		must.PanicIf(createNewChartIfUpdatedTooLong())
+		ms := new(measurements)
+		defer func() {
+			saveMeasurements(ms.xs)
+		}()
+		for {
+			if err := processProductsParams(ctx, ms); err != nil {
+				if merry.Is(err, context.Canceled) {
+					return nil
+				}
+				return err
+			}
+		}
+	})
+}
+
+func run(work func(context.Context) error) {
 	if connected() {
 		log.Debug("connect: connected")
 		return
@@ -39,18 +57,9 @@ func connect() {
 
 		go gui.NotifyStartWork()
 
-		must.PanicIf(createNewChartIfUpdatedTooLong())
-
-		ms := new(measurements)
-		for {
-			if err := processProductsParams(ctx, ms); err != nil {
-				if !merry.Is(err, context.Canceled) {
-					go gui.PopupError(err)
-				}
-				break
-			}
+		if err := work(ctx); err != nil {
+			go gui.PopupError(err)
 		}
-		saveMeasurements(ms.xs)
 		interrupt()
 		atomic.StoreInt32(&atomicConnected, 0)
 
@@ -90,14 +99,15 @@ func createNewChartIfUpdatedTooLong() error {
 }
 
 func processProductsParams(ctx context.Context, ms *measurements) error {
-	var products []data.Product
-	err := db.Select(&products,
-		`SELECT * FROM product WHERE party_id = (SELECT party_id FROM app_config) AND active`)
+	return processEachActiveProduct(ctx, func(p data.Product, d cfg.Device) error {
+		return processProduct(ctx, p, d, ms)
+	})
+}
+
+func processEachActiveProduct(ctx context.Context, work func(data.Product, cfg.Device) error) error {
+	products, err := getActiveProducts()
 	if err != nil {
-		return err
-	}
-	if len(products) == 0 {
-		return errNoInterrogateObjects
+		return nil
 	}
 	c := cfg.Get()
 	for i, p := range products {
@@ -106,11 +116,24 @@ func processProductsParams(ctx context.Context, ms *measurements) error {
 			return fmt.Errorf("не заданы параметры устройства %s для прибора номер %d %+v",
 				p.Device, i, p)
 		}
-		if err := processProduct(ctx, p, d, ms); merry.Is(err, context.Canceled) {
+		if err := work(p, d); merry.Is(err, context.Canceled) {
 			return err
 		}
 	}
 	return nil
+}
+
+func getActiveProducts() ([]data.Product, error) {
+	var products []data.Product
+	err := db.Select(&products,
+		`SELECT * FROM product WHERE party_id = (SELECT party_id FROM app_config) AND active`)
+	if err != nil {
+		return nil, err
+	}
+	if len(products) == 0 {
+		return nil, errNoInterrogateObjects
+	}
+	return products, nil
 }
 
 func processProduct(ctx context.Context, product data.Product, device cfg.Device, ms *measurements) error {
@@ -131,6 +154,19 @@ func processProduct(ctx context.Context, product data.Product, device cfg.Device
 	return nil
 }
 
+func getResponseReader(ctx context.Context, comportName string, device cfg.Device) (modbus.ResponseReader, error) {
+	port := getComport(comportName)
+	err := port.SetConfig(comport.Config{
+		Name:        comportName,
+		Baud:        device.Baud,
+		ReadTimeout: time.Millisecond,
+	})
+	if err != nil {
+		return nil, merry.Append(err, "не удалось открыть СОМ порт")
+	}
+	return port.NewResponseReader(ctx, device.CommConfig()), nil
+}
+
 type paramsReader struct {
 	p   data.Product
 	rdr modbus.ResponseReader
@@ -139,20 +175,13 @@ type paramsReader struct {
 }
 
 func newParamsReader(ctx context.Context, product data.Product, device cfg.Device) (paramsReader, error) {
-
-	port := getComport(product.Comport)
-	err := port.SetConfig(comport.Config{
-		Name:        product.Comport,
-		Baud:        device.Baud,
-		ReadTimeout: time.Millisecond,
-	})
+	rdr, err := getResponseReader(ctx, product.Comport, device)
 	if err != nil {
-		return paramsReader{}, merry.Append(err, "не удалось открыть СОМ порт")
+		return paramsReader{}, nil
 	}
-
 	r := paramsReader{
 		p:   product,
-		rdr: port.NewResponseReader(ctx, device.CommConfig()),
+		rdr: rdr,
 		dt:  make([]byte, device.BufferSize()),
 		rd:  make([]bool, device.BufferSize()),
 	}
@@ -287,3 +316,38 @@ func getComport(name string) *comport.Port {
 }
 
 var errNoInterrogateObjects = merry.New("не установлены объекты опроса")
+
+func runRawCommand(c modbus.ProtoCmd, b []byte) {
+	run(func(ctx context.Context) error {
+		return processEachActiveProduct(ctx, func(p data.Product, d cfg.Device) error {
+			startTime := time.Now()
+			rdr, err := getResponseReader(ctx, p.Comport, d)
+			if err != nil {
+				return err
+			}
+			req := modbus.Request{
+				Addr:     p.Addr,
+				ProtoCmd: c,
+				Data:     b,
+			}
+			response, err := rdr.GetResponse(req.Bytes(), log, nil)
+			if merry.Is(err, context.Canceled) {
+				return err
+			}
+			ct := gui.CommTransaction{
+				Addr:     p.Addr,
+				Comport:  p.Comport,
+				Request:  formatBytes(req.Bytes()),
+				Response: formatBytes(response),
+				Duration: time.Since(startTime).String(),
+				Ok:       err == nil,
+			}
+			if err != nil {
+				ct.Response = err.Error()
+			}
+			go gui.NotifyNewCommTransaction(ct)
+			return err
+		})
+	})
+
+}

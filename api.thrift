@@ -5,14 +5,16 @@ service HardwareConnectionService {
     bool connected()
     void connect()
     void disconnect()
+    void command(1:i16 cmd; 2:string s)
 }
 
 service CurrentFileService {
-    void requestCurrentPartyChart()
-    void setPartyName(1:string name)
-
+    void requestChart()
+    void setName(1:string name)
+    void renameChart(1:string oldName, 2:string newName)
     void addNewProducts(1:i8 productsCount)
     void deleteProducts(1:list<i64> productIDs)
+    list<i32> listParamAddresses()
 }
 
 service ProductService {
@@ -26,15 +28,26 @@ service ProductService {
    void deleteChartPoints(1:apitypes.DeleteChartPointsRequest r)
 }
 
-service MainService {
+service FilesService {
    void createNewParty(1:i8 productsCount, 2:string name)
    apitypes.Party getCurrentParty()
    void setCurrentParty(1:i64 partyID)
    apitypes.Party getParty(1:i64 partyID)
    list<apitypes.PartyInfo> listParties()
-   list<string> listDevices()
-   list<i32> listParamAddresses()
-   void EditConfig()
-   oneway void openGuiClient(1:i64 hWnd)
-   oneway void closeGuiClient()
+}
+
+service NotifyGuiService {
+    oneway void open(1:i64 hWnd)
+    oneway void close()
+}
+
+service AppConfigService {
+    void EditConfig()
+    list<string> listDevices()
+}
+
+service HelperService {
+    string FormatWrite32BCD(1:string s)
+    string FormatWrite32FloatBE(1:string s)
+    string FormatWrite32FloatLE(1:string s)
 }

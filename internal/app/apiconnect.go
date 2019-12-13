@@ -2,8 +2,9 @@ package app
 
 import (
 	"context"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/thriftgen/api"
-	"sync/atomic"
+	"github.com/fpawel/comm/modbus"
 )
 
 type hardwareConnSvc struct{}
@@ -14,8 +15,7 @@ func (h *hardwareConnSvc) Connect(_ context.Context) error {
 	if connected() {
 		return nil
 	}
-
-	connect()
+	runInterrogate()
 	return nil
 }
 
@@ -29,5 +29,18 @@ func (h *hardwareConnSvc) Disconnect(_ context.Context) error {
 }
 
 func (h *hardwareConnSvc) Connected(_ context.Context) (bool, error) {
-	return atomic.LoadInt32(&atomicConnected) != 0, nil
+	return connected(), nil
+}
+
+func (h *hardwareConnSvc) Command(_ context.Context, cmd int16, s string) error {
+	b, err := parseHexBytes(s)
+	if err != nil {
+		return merry.New("ожидалась последовательность байтов HEX")
+	}
+	if connected() {
+		disconnect()
+		wgConnect.Wait()
+	}
+	runRawCommand(modbus.ProtoCmd(cmd), b)
+	return nil
 }
