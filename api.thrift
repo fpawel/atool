@@ -6,6 +6,7 @@ service HardwareConnectionService {
     void connect()
     void disconnect()
     void command(1:i16 cmd; 2:string s)
+    void switchGas(1:i8 deviceType, 2:string comport, 3:i8 valve)
 }
 
 service CurrentFileService {
@@ -42,8 +43,9 @@ service NotifyGuiService {
 }
 
 service AppConfigService {
-    void EditConfig()
+    void editConfig()
     list<string> listDevices()
+    apitypes.AppConfig get()
 }
 
 service HelperService {

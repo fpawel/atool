@@ -8,6 +8,7 @@ import (
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/pkg/winapi"
 	"github.com/fpawel/atool/internal/thriftgen/api"
+	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
@@ -17,14 +18,14 @@ type appConfigSvc struct{}
 
 var _ api.AppConfigService = new(appConfigSvc)
 
-func (h *appConfigSvc) ListDevices(ctx context.Context) (xs []string, err error) {
+func (h *appConfigSvc) ListDevices(_ context.Context) (xs []string, err error) {
 	for _, d := range cfg.Get().Hardware {
 		xs = append(xs, d.Name)
 	}
 	return
 }
 
-func (h *appConfigSvc) EditConfig(ctx context.Context) error {
+func (h *appConfigSvc) EditConfig(_ context.Context) error {
 
 	filename := filepath.Join(tmpDir, "config.yaml")
 
@@ -57,4 +58,14 @@ func (h *appConfigSvc) EditConfig(ctx context.Context) error {
 		gui.NotifyCurrentPartyChanged()
 	}()
 	return nil
+}
+
+func (h *appConfigSvc) Get(_ context.Context) (*apitypes.AppConfig, error) {
+	c := cfg.Get()
+	return &apitypes.AppConfig{
+		Gas: &apitypes.GasDeviceConfig{
+			DeviceType: int8(c.Gas.Type),
+			Comport:    c.Gas.Comport,
+		},
+	}, nil
 }

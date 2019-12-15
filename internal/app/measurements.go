@@ -39,10 +39,3 @@ func saveMeasurements(measurements []data.Measurement) {
 		log.PrintErr(err)
 	}
 }
-
-func formatTimeAsQuery(t time.Time) string {
-	return "julianday(STRFTIME('%Y-%m-%d %H:%M:%f','" +
-		t.Format(timeLayout) + "'))"
-}
-
-const timeLayout = "2006-01-02 15:04:05.000"

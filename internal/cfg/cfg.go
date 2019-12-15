@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/comm"
+	"github.com/fpawel/hardware/gas"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
@@ -15,6 +16,7 @@ import (
 type Config struct {
 	LogComm  bool     `yaml:"log_comm"`
 	Hardware Hardware `yaml:"hardware"`
+	Gas      Gas      `yaml:"gas"`
 }
 
 func SetYaml(strYaml []byte) error {
@@ -22,7 +24,7 @@ func SetYaml(strYaml []byte) error {
 	if err := yaml.Unmarshal(strYaml, &c); err != nil {
 		return err
 	}
-	if err := c.Hardware.Validate(); err != nil {
+	if err := c.Validate(); err != nil {
 		return err
 	}
 	comm.SetEnableLog(c.LogComm)
@@ -37,6 +39,23 @@ func Get() Config {
 	r, err := read()
 	must.PanicIf(err)
 	return r
+}
+
+func Set(c Config) {
+	b := must.MarshalYaml(c)
+	mu.Lock()
+	defer mu.Unlock()
+	must.PanicIf(write(b))
+}
+
+func (c Config) Validate() error {
+	if err := c.Hardware.Validate(); err != nil {
+		return err
+	}
+	if err := c.Gas.Validate(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func write(b []byte) error {
@@ -81,6 +100,14 @@ func init() {
 						},
 					},
 				},
+			},
+			Gas: Gas{
+				Type:               gas.Mil82,
+				Addr:               100,
+				Comport:            "COM1",
+				TimeoutGetResponse: time.Second,
+				TimeoutEndResponse: time.Millisecond * 50,
+				MaxAttemptsRead:    0,
 			},
 		}
 		must.PanicIf(write(must.MarshalYaml(c)))

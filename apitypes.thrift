@@ -42,3 +42,12 @@ struct DeleteChartPointsRequest {
     4: double valueFrom
     5: double valueTo
 }
+
+struct AppConfig {
+    1: GasDeviceConfig gas
+}
+
+struct GasDeviceConfig {
+    1:i8 deviceType
+    3:string comport
+}

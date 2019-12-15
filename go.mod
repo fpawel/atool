@@ -7,6 +7,7 @@ require (
 	github.com/apache/thrift v0.13.0
 	github.com/fpawel/comm v0.0.0-20191129132203-77f61c24bd87
 	github.com/fpawel/gotools v0.0.0-20191030125146-1d6c7465834c // indirect
+	github.com/fpawel/hardware v0.0.0-20191215131528-3add98f7602d
 	github.com/gopherjs/gopherjs v0.0.0-20191106031601-ce3c9ade29de // indirect
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/lxn/win v0.0.0-20191128105842-2da648fda5b4

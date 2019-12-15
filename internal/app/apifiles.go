@@ -6,9 +6,6 @@ import (
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type filesSvc struct{}
@@ -73,29 +70,9 @@ func (h *filesSvc) GetParty(_ context.Context, partyID int64) (*apitypes.Party, 
 	return party, nil
 }
 
-func formatIDs(ids []int64) string {
-	var ss []string
-	for _, id := range ids {
-		ss = append(ss, strconv.FormatInt(id, 10))
-	}
-	return strings.Join(ss, ",")
-}
-
 func (h *filesSvc) CreateNewParty(ctx context.Context, productsCount int8, name string) error {
 	if connected() {
 		return merry.New("нельзя создать новую партию пока выполняется опрос")
 	}
 	return data.CreateNewParty(ctx, db, int(productsCount), name)
-}
-
-func timeUnixMillis(t time.Time) apitypes.TimeUnixMillis {
-
-	return apitypes.TimeUnixMillis(t.UnixNano() / int64(time.Millisecond))
-}
-
-func unixMillisToTime(m apitypes.TimeUnixMillis) time.Time {
-	t := int64(time.Millisecond) * int64(m)
-	sec := t / int64(time.Second)
-	ns := t % int64(time.Second)
-	return time.Unix(sec, ns)
 }
