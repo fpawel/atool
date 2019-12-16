@@ -60,6 +60,14 @@ func runWork(work func(context.Context) error) {
 
 }
 
+func runTask(task func() error) {
+	go func() {
+		if err := task(); err != nil {
+			go gui.PopupError(err)
+		}
+	}()
+}
+
 func processEachActiveProduct(work func(data.Product, cfg.Device) error) error {
 	products, err := getActiveProducts()
 	if err != nil {
@@ -92,9 +100,8 @@ func getActiveProducts() ([]data.Product, error) {
 	return products, nil
 }
 
-func getResponseReader(ctx context.Context, comportName string, device cfg.Device) (modbus.ResponseReader, error) {
-	port := getComport(comportName)
-	err := port.SetConfig(comport.Config{
+func getResponseReader(comportName string, device cfg.Device) (modbus.ResponseReader, error) {
+	port, err := getComport(comport.Config{
 		Name:        comportName,
 		Baud:        device.Baud,
 		ReadTimeout: time.Millisecond,
@@ -102,17 +109,16 @@ func getResponseReader(ctx context.Context, comportName string, device cfg.Devic
 	if err != nil {
 		return nil, merry.Append(err, "не удалось открыть СОМ порт")
 	}
-	return port.NewResponseReader(ctx, device.CommConfig()), nil
+	return modbus.NewResponseReader(port, device.CommConfig()), nil
 }
 
-func getComport(name string) *comport.Port {
-	if p, f := comports[name]; f {
-		return p
+func getComport(c comport.Config) (*comport.Port, error) {
+	if p, f := comports[c.Name]; f {
+		if err := p.SetConfig(c); err != nil {
+			return nil, err
+		}
+		return p, nil
 	}
-	comports[name] = comport.NewPort(comport.Config{
-		Name:        name,
-		Baud:        9600,
-		ReadTimeout: time.Millisecond,
-	})
-	return comports[name]
+	comports[c.Name] = comport.NewPort(c)
+	return comports[c.Name], nil
 }

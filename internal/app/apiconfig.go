@@ -9,6 +9,7 @@ import (
 	"github.com/fpawel/atool/internal/pkg/winapi"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
+	"github.com/fpawel/hardware/gas"
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
@@ -60,12 +61,50 @@ func (h *appConfigSvc) EditConfig(_ context.Context) error {
 	return nil
 }
 
-func (h *appConfigSvc) Get(_ context.Context) (*apitypes.AppConfig, error) {
+func (h *appConfigSvc) SetConfig(_ context.Context, c *apitypes.AppConfig) (err error) {
+	x := cfg.Get()
+	x.Gas.Comport = c.Gas.Comport
+	x.Gas.Type = gas.DevType(c.Gas.DeviceType)
+	x.Temperature.Comport = c.Temperature.Comport
+	x.Temperature.Type = cfg.TempDevType(c.Temperature.DeviceType)
+	if err := x.Validate(); err != nil {
+		return err
+	}
+	return cfg.Set(x)
+}
+
+func (h *appConfigSvc) GetConfig(_ context.Context) (*apitypes.AppConfig, error) {
 	c := cfg.Get()
 	return &apitypes.AppConfig{
 		Gas: &apitypes.GasDeviceConfig{
 			DeviceType: int8(c.Gas.Type),
 			Comport:    c.Gas.Comport,
 		},
+		Temperature: &apitypes.TemperatureDeviceConfig{
+			DeviceType: int8(c.Temperature.Type),
+			Comport:    c.Temperature.Comport,
+		},
 	}, nil
+}
+
+func (h *appConfigSvc) ListCoefficients(_ context.Context) (r []*apitypes.Coefficient, err error) {
+	c := cfg.Get()
+	for _, i := range c.ListCoefficients() {
+		_, inactive := c.InactiveCoefficients[i]
+		r = append(r, &apitypes.Coefficient{
+			N:      int32(i),
+			Active: !inactive,
+		})
+	}
+	return
+}
+
+func (h *appConfigSvc) SetCoefficientActive(ctx context.Context, n int32, active bool) (err error) {
+	c := cfg.Get()
+	if active {
+		delete(c.InactiveCoefficients, int(n))
+	} else {
+		c.InactiveCoefficients[int(n)] = struct{}{}
+	}
+	return nil
 }

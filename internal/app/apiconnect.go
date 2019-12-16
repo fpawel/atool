@@ -3,10 +3,8 @@ package app
 import (
 	"context"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/internal/cfg"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/comm/modbus"
-	"github.com/fpawel/hardware/gas"
 )
 
 type hardwareConnSvc struct{}
@@ -47,16 +45,11 @@ func (h *hardwareConnSvc) Command(_ context.Context, cmd int16, s string) error 
 	return nil
 }
 
-func (h *hardwareConnSvc) SwitchGas(ctx context.Context, deviceType int8, comport string, valve int8) error {
-	c := cfg.Get()
-	c.Gas.Type = gas.DevType(deviceType)
-	c.Gas.Comport = comport
-	if err := c.Validate(); err != nil {
+func (h *hardwareConnSvc) SwitchGas(_ context.Context, valve int8) error {
+	runTask(func() error {
+		err := switchGas(context.Background(), byte(valve))
+		closeGasComport()
 		return err
-	}
-	err := switchGas(ctx, c.Gas, byte(valve))
-	if err == nil {
-		cfg.Set(c)
-	}
-	return err
+	})
+	return nil
 }

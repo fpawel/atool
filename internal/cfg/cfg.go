@@ -5,18 +5,23 @@ import (
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/hardware/gas"
+	"github.com/fpawel/hardware/temp/ktx500"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 )
 
 type Config struct {
-	LogComm  bool     `yaml:"log_comm"`
-	Hardware Hardware `yaml:"hardware"`
-	Gas      Gas      `yaml:"gas"`
+	LogComm              bool             `yaml:"log_comm"`
+	Hardware             Hardware         `yaml:"hardware"`
+	Gas                  Gas              `yaml:"gas"`
+	Temperature          Temperature      `yaml:"temperature"`
+	Coefficients         [][2]int         `yaml:"coefficients,flow"`
+	InactiveCoefficients map[int]struct{} `yaml:"inactive_coefficients,flow"`
 }
 
 func SetYaml(strYaml []byte) error {
@@ -26,6 +31,9 @@ func SetYaml(strYaml []byte) error {
 	}
 	if err := c.Validate(); err != nil {
 		return err
+	}
+	if c.InactiveCoefficients == nil {
+		c.InactiveCoefficients = make(map[int]struct{})
 	}
 	comm.SetEnableLog(c.LogComm)
 	mu.Lock()
@@ -41,11 +49,20 @@ func Get() Config {
 	return r
 }
 
-func Set(c Config) {
+func Set(c Config) error {
+	if c.InactiveCoefficients == nil {
+		c.InactiveCoefficients = make(map[int]struct{})
+	}
 	b := must.MarshalYaml(c)
+	if err := c.Validate(); err != nil {
+		return err
+	}
 	mu.Lock()
 	defer mu.Unlock()
-	must.PanicIf(write(b))
+	if err := write(b); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c Config) Validate() error {
@@ -55,7 +72,24 @@ func (c Config) Validate() error {
 	if err := c.Gas.Validate(); err != nil {
 		return err
 	}
+	if err := c.Temperature.Validate(); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (c Config) ListCoefficients() (xs []int) {
+	m := map[int]struct{}{}
+	for _, p := range c.Coefficients {
+		for i := p[0]; i <= p[1]; i++ {
+			m[i] = struct{}{}
+		}
+	}
+	for i := range m {
+		xs = append(xs, i)
+	}
+	sort.Ints(xs)
+	return
 }
 
 func write(b []byte) error {
@@ -109,8 +143,25 @@ func init() {
 				TimeoutEndResponse: time.Millisecond * 50,
 				MaxAttemptsRead:    0,
 			},
+			Temperature: Temperature{
+				Type:               T800,
+				Comport:            "COM1",
+				TimeoutGetResponse: time.Second,
+				TimeoutEndResponse: time.Millisecond * 50,
+				MaxAttemptsRead:    1,
+				Ktx500:             ktx500.NewDefaultConfig(),
+			},
 		}
-		must.PanicIf(write(must.MarshalYaml(c)))
 	}
+	if len(c.Coefficients) == 0 {
+		c.Coefficients = [][2]int{
+			{0, 50},
+		}
+	}
+	if c.InactiveCoefficients == nil {
+		c.InactiveCoefficients = make(map[int]struct{})
+	}
+
+	must.PanicIf(write(must.MarshalYaml(c)))
 	comm.SetEnableLog(c.LogComm)
 }

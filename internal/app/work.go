@@ -8,10 +8,7 @@ import (
 	"github.com/fpawel/atool/internal/cfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/pkg/must"
-	"github.com/fpawel/comm"
-	"github.com/fpawel/comm/comport"
 	"github.com/fpawel/comm/modbus"
-	"github.com/fpawel/hardware/gas"
 	"time"
 )
 
@@ -35,12 +32,12 @@ func runInterrogate() {
 
 func processProductsParams(ctx context.Context, ms *measurements) error {
 	return processEachActiveProduct(func(product data.Product, device cfg.Device) error {
-		rdr, err := newParamsReader(ctx, product, device)
+		rdr, err := newParamsReader(product, device)
 		if err != nil {
 			return err
 		}
 		for _, prm := range device.Params {
-			if err := rdr.read(prm); err != nil {
+			if err := rdr.read(ctx, prm); err != nil {
 				return err
 			}
 		}
@@ -57,7 +54,7 @@ func runRawCommand(c modbus.ProtoCmd, b []byte) {
 	runWork(func(ctx context.Context) error {
 		return processEachActiveProduct(func(p data.Product, d cfg.Device) error {
 			startTime := time.Now()
-			rdr, err := getResponseReader(ctx, p.Comport, d)
+			rdr, err := getResponseReader(p.Comport, d)
 			if err != nil {
 				return err
 			}
@@ -66,7 +63,7 @@ func runRawCommand(c modbus.ProtoCmd, b []byte) {
 				ProtoCmd: c,
 				Data:     b,
 			}
-			response, err := rdr.GetResponse(req.Bytes(), log, nil)
+			response, err := rdr.GetResponse(log, ctx, req.Bytes(), nil)
 			if merry.Is(err, context.Canceled) {
 				return err
 			}
@@ -110,22 +107,4 @@ func createNewChartIfUpdatedTooLong() error {
 	gui.NotifyCurrentPartyChanged()
 
 	return nil
-}
-
-func switchGas(ctx context.Context, c cfg.Gas, valve byte) error {
-	port := getComport(c.Comport)
-	if err := port.SetConfig(comport.Config{
-		Name:        c.Comport,
-		Baud:        9600,
-		ReadTimeout: time.Millisecond,
-	}); err != nil {
-		return merry.Append(err, "COM порт газового блока")
-	}
-	rdr := port.NewResponseReader(ctx, comm.Config{
-		TimeoutGetResponse: c.TimeoutGetResponse,
-		TimeoutEndResponse: c.TimeoutEndResponse,
-		MaxAttemptsRead:    c.MaxAttemptsRead,
-		Pause:              0,
-	})
-	return gas.Switch(c.Type, log, rdr, c.Addr, valve)
 }

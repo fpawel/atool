@@ -20,8 +20,8 @@ type paramsReader struct {
 	rd  []bool
 }
 
-func newParamsReader(ctx context.Context, product data.Product, device cfg.Device) (paramsReader, error) {
-	rdr, err := getResponseReader(ctx, product.Comport, device)
+func newParamsReader(product data.Product, device cfg.Device) (paramsReader, error) {
+	rdr, err := getResponseReader(product.Comport, device)
 	if err != nil {
 		return paramsReader{}, nil
 	}
@@ -37,9 +37,9 @@ func newParamsReader(ctx context.Context, product data.Product, device cfg.Devic
 	return r, nil
 }
 
-func (r paramsReader) read(prm cfg.Params) error {
+func (r paramsReader) read(ctx context.Context, prm cfg.Params) error {
 	startTime := time.Now()
-	request, response, err := r.getResponse(prm)
+	request, response, err := r.getResponse(ctx, prm)
 	if merry.Is(err, context.Canceled) {
 		return err
 	}
@@ -58,12 +58,12 @@ func (r paramsReader) read(prm cfg.Params) error {
 	return err
 }
 
-func (r paramsReader) getResponse(prm cfg.Params) ([]byte, []byte, error) {
+func (r paramsReader) getResponse(ctx context.Context, prm cfg.Params) ([]byte, []byte, error) {
 	regsCount := prm.Count * 2
 	bytesCount := regsCount * 2
 
 	req := modbus.RequestRead3(r.p.Addr, modbus.Var(prm.ParamAddr), uint16(regsCount))
-	response, err := req.GetResponse(log, r.rdr, func(request, response []byte) (s string, e error) {
+	response, err := req.GetResponse(log, ctx, r.rdr, func(request, response []byte) (s string, e error) {
 		if len(response) != bytesCount+5 {
 			return "", merry.Errorf("длина ответа %d не равна %d", len(response), bytesCount+5)
 		}

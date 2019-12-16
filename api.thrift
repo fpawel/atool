@@ -6,7 +6,7 @@ service HardwareConnectionService {
     void connect()
     void disconnect()
     void command(1:i16 cmd; 2:string s)
-    void switchGas(1:i8 deviceType, 2:string comport, 3:i8 valve)
+    void switchGas(1:i8 valve)
 }
 
 service CurrentFileService {
@@ -45,11 +45,22 @@ service NotifyGuiService {
 service AppConfigService {
     void editConfig()
     list<string> listDevices()
-    apitypes.AppConfig get()
+    apitypes.AppConfig getConfig()
+    void setConfig(1:apitypes.AppConfig config)
+    list<apitypes.Coefficient> listCoefficients()
+    void setCoefficientActive(1:i32 n, 2:bool active)
 }
 
 service HelperService {
     string FormatWrite32BCD(1:string s)
     string FormatWrite32FloatBE(1:string s)
     string FormatWrite32FloatLE(1:string s)
+}
+
+service TemperatureDeviceService {
+    void start()
+    void stop()
+    void setup(1:double temperature)
+    void coolingOn()
+    void coolingOff()
 }
