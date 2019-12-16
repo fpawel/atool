@@ -60,18 +60,21 @@ func runWork(work func(context.Context) error) {
 
 }
 
-func runTask(task func() error) {
+func runTask(what string, task func() error) {
 	go func() {
+		gui.Popup(what + ": выполняется")
 		if err := task(); err != nil {
-			go gui.PopupError(err)
+			gui.PopupError(merry.Append(err, what))
+			return
 		}
+		gui.Popup(what + ": успешно")
 	}()
 }
 
 func processEachActiveProduct(work func(data.Product, cfg.Device) error) error {
 	products, err := getActiveProducts()
 	if err != nil {
-		return nil
+		return err
 	}
 	c := cfg.Get()
 	for i, p := range products {

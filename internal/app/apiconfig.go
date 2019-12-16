@@ -106,5 +106,5 @@ func (h *appConfigSvc) SetCoefficientActive(ctx context.Context, n int32, active
 	} else {
 		c.InactiveCoefficients[int(n)] = struct{}{}
 	}
-	return nil
+	return cfg.Set(c)
 }

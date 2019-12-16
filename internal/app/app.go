@@ -121,6 +121,9 @@ func newApiProcessor() thrift.TProcessor {
 		api.NewNotifyGuiServiceProcessor(new(notifyGuiSvc)))
 	p.RegisterProcessor("HelperService",
 		api.NewHelperServiceProcessor(new(helperSvc)))
+	p.RegisterProcessor("TemperatureDeviceService",
+		api.NewTemperatureDeviceServiceProcessor(new(tempDeviceSvc)))
+
 	return p
 }
 

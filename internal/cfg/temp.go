@@ -1,6 +1,7 @@
 package cfg
 
 import (
+	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/hardware/temp/ktx500"
 	"time"
@@ -23,6 +24,19 @@ func (c Temperature) Validate() error {
 }
 
 type TempDevType byte
+
+func (c TempDevType) String() string {
+	switch c {
+	case T800:
+		return "T800"
+	case T2500:
+		return "T2500"
+	case Ktx500:
+		return "KTX500"
+	default:
+		return fmt.Sprintf("%d", c)
+	}
+}
 
 func (c TempDevType) Validate() error {
 	switch c {

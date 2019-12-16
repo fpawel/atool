@@ -2,6 +2,7 @@ package cfg
 
 import (
 	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/hardware/gas"
@@ -20,7 +21,7 @@ type Config struct {
 	Hardware             Hardware         `yaml:"hardware"`
 	Gas                  Gas              `yaml:"gas"`
 	Temperature          Temperature      `yaml:"temperature"`
-	Coefficients         [][2]int         `yaml:"coefficients,flow"`
+	Coefficients         []Coefficients   `yaml:"coefficients"`
 	InactiveCoefficients map[int]struct{} `yaml:"inactive_coefficients,flow"`
 }
 
@@ -75,13 +76,19 @@ func (c Config) Validate() error {
 	if err := c.Temperature.Validate(); err != nil {
 		return err
 	}
+
+	for i, c := range c.Coefficients {
+		if err := c.Validate(); err != nil {
+			return merry.Appendf(err, "диапазон к-тов номер %d", i)
+		}
+	}
 	return nil
 }
 
 func (c Config) ListCoefficients() (xs []int) {
 	m := map[int]struct{}{}
 	for _, p := range c.Coefficients {
-		for i := p[0]; i <= p[1]; i++ {
+		for i := p.Range[0]; i <= p.Range[1]; i++ {
 			m[i] = struct{}{}
 		}
 	}
@@ -154,8 +161,11 @@ func init() {
 		}
 	}
 	if len(c.Coefficients) == 0 {
-		c.Coefficients = [][2]int{
-			{0, 50},
+		c.Coefficients = []Coefficients{
+			{
+				Range:  [2]int{0, 50},
+				Format: "float_big_endian",
+			},
 		}
 	}
 	if c.InactiveCoefficients == nil {
