@@ -8,9 +8,12 @@ import (
 
 type Hardware []Device
 
-func (xs Hardware) ParamAddresses() (ps []int) {
+func (xs Hardware) ParamAddresses(devices map[string]struct{}) (ps []int) {
 	m := map[int]struct{}{}
 	for _, p := range xs {
+		if _, f := devices[p.Name]; !f {
+			continue
+		}
 		for _, p := range p.ParamAddresses() {
 			m[p] = struct{}{}
 		}

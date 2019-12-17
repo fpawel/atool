@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-func InitLog(){
+func InitLog() {
 	structlog.DefaultLogger.
 		SetPrefixKeys(
 			structlog.KeyApp, structlog.KeyPID, structlog.KeyLevel, structlog.KeyUnit, structlog.KeyTime,
@@ -24,4 +24,18 @@ func InitLog(){
 			structlog.KeySource: " %6[2]s",
 			structlog.KeyUnit:   " %6[2]s",
 		})
+}
+
+func LogPrependSuffixKeys(log *structlog.Logger, args ...interface{}) *structlog.Logger {
+	var keys []string
+	for i, arg := range args {
+		if i%2 == 0 {
+			k, ok := arg.(string)
+			if !ok {
+				panic("key must be string")
+			}
+			keys = append(keys, k)
+		}
+	}
+	return log.New(args...).PrependSuffixKeys(keys...)
 }

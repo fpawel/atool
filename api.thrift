@@ -47,8 +47,7 @@ service AppConfigService {
     list<string> listDevices()
     apitypes.AppConfig getConfig()
     void setConfig(1:apitypes.AppConfig config)
-    list<apitypes.Coefficient> listCoefficients()
-    void setCoefficientActive(1:i32 n, 2:bool active)
+
 }
 
 service HelperService {
@@ -63,4 +62,11 @@ service TemperatureDeviceService {
     void setup(1:double temperature)
     void coolingOn()
     void coolingOff()
+}
+
+service CoefficientsService {
+    void writeAll()
+    void readAll()
+    list<apitypes.Coefficient> listCoefficients()
+    void setActive(1:i32 n, 2:bool active)
 }

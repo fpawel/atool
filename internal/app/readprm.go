@@ -47,8 +47,7 @@ func (r paramsReader) read(ctx context.Context, prm cfg.Params) error {
 		Addr:     r.p.Addr,
 		Comport:  r.p.Comport,
 		Request:  formatBytes(request),
-		Response: formatBytes(response),
-		Duration: time.Since(startTime).String(),
+		Response: formatBytes(response) + " " + time.Since(startTime).String(),
 		Ok:       err == nil,
 	}
 	if err != nil {

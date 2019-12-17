@@ -20,14 +20,19 @@ const (
 	MsgNewProductParamValue
 	MsgChart
 	MsgPopup
+	MsgCoefficients
 )
 
-func Popup(x string) bool {
-	return copyData().SendJson(MsgPopup, PopupMessage{x, true})
+func NotifyCoefficients(xs []CoefficientValue) bool {
+	return copyData().SendJson(MsgCoefficients, xs)
 }
 
-func PopupError(x error) bool {
-	return copyData().SendJson(MsgPopup, PopupMessage{x.Error(), false})
+func Popup(warning bool, x string) bool {
+	return copyData().SendJson(MsgPopup, PopupMessage{Text: x, Ok: true, Warning: warning})
+}
+
+func PopupError(warning bool, x error) bool {
+	return copyData().SendJson(MsgPopup, PopupMessage{Text: x.Error(), Ok: false, Warning: warning})
 }
 
 func NotifyNewCommTransaction(с CommTransaction) bool {

@@ -13,7 +13,11 @@ type currentFileSvc struct{}
 var _ api.CurrentFileService = new(currentFileSvc)
 
 func (h *currentFileSvc) RequestChart(_ context.Context) error {
-	xs, err := data.GetCurrentPartyChart(db, cfg.Get().Hardware.ParamAddresses())
+	ns, err := getParamAddresses()
+	if err != nil {
+		return err
+	}
+	xs, err := data.GetCurrentPartyChart(db, ns)
 	if err != nil {
 		return err
 	}
@@ -50,9 +54,30 @@ func (h *currentFileSvc) DeleteProducts(ctx context.Context, productIDs []int64)
 	return err
 }
 
-func (h *currentFileSvc) ListParamAddresses(_ context.Context) (r []int32, _ error) {
-	for _, n := range cfg.Get().Hardware.ParamAddresses() {
-		r = append(r, int32(n))
+func (h *currentFileSvc) ListParamAddresses(_ context.Context) ([]int32, error) {
+	xs, err := getParamAddresses()
+	if err != nil {
+		return nil, err
 	}
-	return
+	var r []int32
+	for _, x := range xs {
+		r = append(r, int32(x))
+	}
+	return r, nil
+}
+
+func getParamAddresses() ([]int, error) {
+	var xs []string
+	if err := db.Select(&xs, `SELECT DISTINCT device FROM product WHERE party_id IN (SELECT party_id FROM app_config)`); err != nil {
+		return nil, err
+	}
+	m := make(map[string]struct{})
+	for _, x := range xs {
+		m[x] = struct{}{}
+	}
+	var r []int
+	for _, n := range cfg.Get().Hardware.ParamAddresses(m) {
+		r = append(r, n)
+	}
+	return r, nil
 }

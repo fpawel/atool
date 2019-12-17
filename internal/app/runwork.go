@@ -27,7 +27,7 @@ func connected() bool {
 	return atomic.LoadInt32(&atomicConnected) != 0
 }
 
-func runWork(work func(context.Context) error) {
+func runWork(what string, work func(context.Context) (string, error)) {
 	if connected() {
 		log.Debug("connect: connected")
 		return
@@ -43,9 +43,17 @@ func runWork(work func(context.Context) error) {
 	go func() {
 
 		go gui.NotifyStartWork()
+		go gui.Popup(false, what+": выполняется")
 
-		if err := work(ctx); err != nil {
-			go gui.PopupError(err)
+		result, err := work(ctx)
+		if err != nil {
+			go gui.PopupError(false, merry.Append(err, what))
+		} else {
+			if len(what) == 0 {
+				gui.Popup(false, what+": "+result)
+				return
+			}
+			go gui.Popup(false, what+": выполнено")
 		}
 		interrupt()
 		atomic.StoreInt32(&atomicConnected, 0)
@@ -56,18 +64,25 @@ func runWork(work func(context.Context) error) {
 
 		wgConnect.Done()
 		go gui.NotifyStopWork()
+
 	}()
 
 }
 
-func runTask(what string, task func() error) {
+func runTask(what string, task func() (string, error)) {
 	go func() {
-		gui.Popup(what + ": выполняется")
-		if err := task(); err != nil {
-			gui.PopupError(merry.Append(err, what))
+		gui.Popup(false, what+": выполняется")
+		str, err := task()
+		if err != nil {
+			gui.PopupError(false, merry.Append(err, what))
 			return
 		}
-		gui.Popup(what + ": успешно")
+		if len(what) == 0 {
+			gui.Popup(false, what+": "+str)
+			return
+		}
+		gui.Popup(false, what+": выполнено")
+
 	}()
 }
 
@@ -77,12 +92,13 @@ func processEachActiveProduct(work func(data.Product, cfg.Device) error) error {
 		return err
 	}
 	c := cfg.Get()
-	for i, p := range products {
+	for _, p := range products {
 		d, f := c.Hardware.DeviceByName(p.Device)
 		if !f {
-			return fmt.Errorf("не заданы параметры устройства %s для прибора номер %d %+v",
-				p.Device, i, p)
+			return fmt.Errorf("не заданы параметры устройства %s для прибора %+v",
+				p.Device, p)
 		}
+		go gui.Popup(false, fmt.Sprintf("опрашивается прибор: %s %s адр.%d", d.Name, p.Comport, p.Addr))
 		if err := work(p, d); merry.Is(err, context.Canceled) {
 			return err
 		}

@@ -1,11 +1,17 @@
 package app
 
 import (
+	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/atool/gui"
+	"github.com/fpawel/atool/internal/cfg"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
+	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
+	"github.com/powerman/structlog"
 	"math"
 	"strconv"
 	"strings"
@@ -121,3 +127,88 @@ func unixMillisToTime(m apitypes.TimeUnixMillis) time.Time {
 }
 
 const timeLayout = "2006-01-02 15:04:05.000"
+
+func parseFloatBits(format string, d []byte) (float64, error) {
+	d = d[:4]
+	_ = d[0]
+	_ = d[1]
+	_ = d[2]
+	_ = d[3]
+
+	floatBits := func(endian binary.ByteOrder) (float64, error) {
+		bits := endian.Uint32(d)
+		x := float64(math.Float32frombits(bits))
+		if math.IsNaN(x) {
+			return x, fmt.Errorf("not a float %v number", endian)
+		}
+		return x, nil
+	}
+	intBits := func(endian binary.ByteOrder) float64 {
+		bits := endian.Uint32(d)
+		return float64(int32(bits))
+	}
+
+	var (
+		be = binary.BigEndian
+		le = binary.LittleEndian
+	)
+
+	switch format {
+	case "bcd":
+		if x, ok := modbus.ParseBCD6(d); ok {
+			return x, nil
+		} else {
+			return 0, errors.New("not a BCD number")
+		}
+	case "float_big_endian":
+		return floatBits(be)
+	case "float_little_endian":
+		return floatBits(le)
+	case "int_big_endian":
+		return intBits(be), nil
+	case "int_little_endian":
+		return intBits(le), nil
+	default:
+		return 0, fmt.Errorf("wrong float format %q", format)
+	}
+}
+
+type commTransaction struct {
+	comportName string
+	what        string
+	device      cfg.Device
+	req         modbus.Request
+	prs         comm.ResponseParser
+}
+
+func (x commTransaction) getResponse(log *structlog.Logger, ctx context.Context) ([]byte, error) {
+	startTime := time.Now()
+	rdr, err := getResponseReader(x.comportName, x.device)
+	if err != nil {
+		return nil, err
+	}
+	response, err := x.req.GetResponse(log, ctx, rdr, x.prs)
+	if merry.Is(err, context.Canceled) {
+		return response, err
+	}
+	ct := gui.CommTransaction{
+		Addr:     x.req.Addr,
+		Comport:  x.comportName,
+		Request:  formatBytes(x.req.Bytes()),
+		Response: formatBytes(response) + " " + time.Since(startTime).String(),
+		Ok:       err == nil,
+	}
+	if len(x.what) > 0 {
+		ct.Request += " " + x.what
+	}
+
+	if err != nil {
+		if len(response) == 0 {
+			ct.Response = err.Error()
+		} else {
+			ct.Response += " " + err.Error()
+		}
+	}
+	go gui.NotifyNewCommTransaction(ct)
+	return response, err
+}

@@ -7,7 +7,6 @@ type CommTransaction struct {
 	Comport  string
 	Request  string
 	Response string
-	Duration string
 	Ok       bool
 }
 
@@ -19,6 +18,15 @@ type ProductParamValue struct {
 }
 
 type PopupMessage struct {
-	Text string
-	Ok   bool
+	Text    string
+	Ok      bool
+	Warning bool
+}
+
+type CoefficientValue struct {
+	ProductID   int64
+	What        string
+	Coefficient int
+	Result      string
+	Ok          bool
 }

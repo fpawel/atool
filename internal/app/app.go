@@ -123,6 +123,8 @@ func newApiProcessor() thrift.TProcessor {
 		api.NewHelperServiceProcessor(new(helperSvc)))
 	p.RegisterProcessor("TemperatureDeviceService",
 		api.NewTemperatureDeviceServiceProcessor(new(tempDeviceSvc)))
+	p.RegisterProcessor("CoefficientsService",
+		api.NewCoefficientsServiceProcessor(new(coefficientsSvc)))
 
 	return p
 }

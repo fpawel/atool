@@ -14,64 +14,64 @@ type tempDeviceSvc struct{}
 var _ api.TemperatureDeviceService = new(tempDeviceSvc)
 
 func (tempDeviceSvc) Start(context.Context) error {
-	runTask("термокамера: старт", func() error {
+	runTask("термокамера: старт", func() (string, error) {
 		d, err := getTemperatureDevice()
 		if err != nil {
-			return err
+			return "", err
 		}
-		return d.Start(log, context.Background())
+		return "", d.Start(log, context.Background())
 	})
 	return nil
 }
 
 func (tempDeviceSvc) Stop(context.Context) error {
-	runTask("термокамера: стоп", func() error {
+	runTask("термокамера: стоп", func() (string, error) {
 		d, err := getTemperatureDevice()
 		if err != nil {
-			return err
+			return "", err
 		}
-		return d.Stop(log, context.Background())
+		return "", d.Stop(log, context.Background())
 	})
 	return nil
 }
 
 func (tempDeviceSvc) Setup(_ context.Context, temperature float64) error {
-	runTask(fmt.Sprintf("термокамера: уставка %v", temperature), func() error {
+	runTask(fmt.Sprintf("термокамера: уставка %v", temperature), func() (string, error) {
 		d, err := getTemperatureDevice()
 		if err != nil {
-			return err
+			return "", err
 		}
-		return d.Setup(log, context.Background(), temperature)
+		return "", d.Setup(log, context.Background(), temperature)
 	})
 	return nil
 }
 func (tempDeviceSvc) CoolingOn(context.Context) error {
-	runTask("термокамера: включить охлаждение", func() error {
+	runTask("термокамера: включить охлаждение", func() (string, error) {
 		dd, err := getTemperatureDevice()
 		if err != nil {
-			return err
+			return "", err
 		}
 		d, f := dd.(ktx500.Client)
 		if !f {
-			return merry.Errorf("заданный тип термокамеры %q не поддерживает управление охлаждением",
+			return "", merry.Errorf("заданный тип термокамеры %q не поддерживает управление охлаждением",
 				cfg.Get().Temperature.Type)
 		}
-		return d.CoolingOn(log, context.Background())
+		return "", d.CoolingOn(log, context.Background())
 	})
 	return nil
 }
 func (tempDeviceSvc) CoolingOff(context.Context) error {
-	runTask("термокамера: выключить охлаждение", func() error {
+	runTask("термокамера: выключить охлаждение", func() (string, error) {
 		d, err := getTemperatureDevice()
 		if err != nil {
-			return err
+			return "", err
 		}
 		c, f := d.(ktx500.Client)
 		if !f {
-			return merry.Errorf("заданный тип термокамеры %q не поддерживает управление охлаждением",
+			return "", merry.Errorf("заданный тип термокамеры %q не поддерживает управление охлаждением",
 				cfg.Get().Temperature.Type)
 		}
-		return c.CoolingOff(log, context.Background())
+		return "", c.CoolingOff(log, context.Background())
 	})
 	return nil
 }

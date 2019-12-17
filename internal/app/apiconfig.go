@@ -53,7 +53,7 @@ func (h *appConfigSvc) EditConfig(_ context.Context) error {
 	go func() {
 		if err := applyConfig(); err != nil {
 			log.PrintErr(err)
-			go gui.PopupError(merry.Append(err, "Ошибка при сохранении конфигурации"))
+			go gui.PopupError(true, merry.Append(err, "Ошибка при сохранении конфигурации"))
 			return
 		}
 		gui.NotifyCurrentPartyChanged()
@@ -85,26 +85,4 @@ func (h *appConfigSvc) GetConfig(_ context.Context) (*apitypes.AppConfig, error)
 			Comport:    c.Temperature.Comport,
 		},
 	}, nil
-}
-
-func (h *appConfigSvc) ListCoefficients(_ context.Context) (r []*apitypes.Coefficient, err error) {
-	c := cfg.Get()
-	for _, i := range c.ListCoefficients() {
-		_, inactive := c.InactiveCoefficients[i]
-		r = append(r, &apitypes.Coefficient{
-			N:      int32(i),
-			Active: !inactive,
-		})
-	}
-	return
-}
-
-func (h *appConfigSvc) SetCoefficientActive(ctx context.Context, n int32, active bool) (err error) {
-	c := cfg.Get()
-	if active {
-		delete(c.InactiveCoefficients, int(n))
-	} else {
-		c.InactiveCoefficients[int(n)] = struct{}{}
-	}
-	return cfg.Set(c)
 }

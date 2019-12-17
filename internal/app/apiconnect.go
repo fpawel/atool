@@ -47,10 +47,10 @@ func (h *hardwareConnSvc) Command(_ context.Context, cmd int16, s string) error 
 }
 
 func (h *hardwareConnSvc) SwitchGas(_ context.Context, valve int8) error {
-	runTask(fmt.Sprintf("переключение клапана газового блока: %d", valve), func() error {
+	runTask(fmt.Sprintf("переключение клапана газового блока: %d", valve), func() (string, error) {
 		err := switchGas(context.Background(), byte(valve))
 		closeGasComport()
-		return err
+		return "", err
 	})
 	return nil
 }
