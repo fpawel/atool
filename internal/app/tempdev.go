@@ -15,24 +15,15 @@ var (
 	ktx500Client *fins.Client
 )
 
-func closeTemperatureDevice() {
-	if ktx500Client != nil {
-		ktx500Client.Close()
-	}
-	if port, f := comports[cfg.Get().Temperature.Comport]; f {
-		log.ErrIfFail(port.Close)
-	}
-}
-
 func getTemperatureDevice() (temp.TemperatureDevice, error) {
-	closeTemperatureDevice()
-	c := cfg.Get().Temperature
+	wrk.closeTemperatureDevice()
+	c := wrk.cfg.Temperature
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
 
 	getComportReader := func() (comm.ResponseReader, error) {
-		port, err := getComport(comport.Config{
+		port, err := wrk.getComport(comport.Config{
 			Name:        c.Comport,
 			Baud:        9600,
 			ReadTimeout: time.Millisecond,

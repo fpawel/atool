@@ -2,15 +2,12 @@ package app
 
 import (
 	"context"
-	"encoding/binary"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/gui"
 	"github.com/fpawel/atool/internal/cfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/comm/modbus"
 	"math"
-	"strconv"
-	"time"
 )
 
 type paramsReader struct {
@@ -18,10 +15,11 @@ type paramsReader struct {
 	rdr modbus.ResponseReader
 	dt  []byte
 	rd  []bool
+	dv  cfg.Device
 }
 
 func newParamsReader(product data.Product, device cfg.Device) (paramsReader, error) {
-	rdr, err := getResponseReader(product.Comport, device)
+	rdr, err := wrk.getResponseReader(product.Comport, device)
 	if err != nil {
 		return paramsReader{}, nil
 	}
@@ -30,6 +28,7 @@ func newParamsReader(product data.Product, device cfg.Device) (paramsReader, err
 		rdr: rdr,
 		dt:  make([]byte, device.BufferSize()),
 		rd:  make([]bool, device.BufferSize()),
+		dv:  device,
 	}
 	for i := range r.dt {
 		r.dt[i] = 0xFF
@@ -37,37 +36,25 @@ func newParamsReader(product data.Product, device cfg.Device) (paramsReader, err
 	return r, nil
 }
 
-func (r paramsReader) read(ctx context.Context, prm cfg.Params) error {
-	startTime := time.Now()
-	request, response, err := r.getResponse(ctx, prm)
-	if merry.Is(err, context.Canceled) {
-		return err
-	}
-	ct := gui.CommTransaction{
-		Addr:     r.p.Addr,
-		Comport:  r.p.Comport,
-		Request:  formatBytes(request),
-		Response: formatBytes(response) + " " + time.Since(startTime).String(),
-		Ok:       err == nil,
-	}
-	if err != nil {
-		ct.Response = err.Error()
-	}
-	go gui.NotifyNewCommTransaction(ct)
-	return err
-}
+func (r paramsReader) getResponse(ctx context.Context, prm cfg.Params) error {
 
-func (r paramsReader) getResponse(ctx context.Context, prm cfg.Params) ([]byte, []byte, error) {
 	regsCount := prm.Count * 2
 	bytesCount := regsCount * 2
 
 	req := modbus.RequestRead3(r.p.Addr, modbus.Var(prm.ParamAddr), uint16(regsCount))
-	response, err := req.GetResponse(log, ctx, r.rdr, func(request, response []byte) (s string, e error) {
-		if len(response) != bytesCount+5 {
-			return "", merry.Errorf("длина ответа %d не равна %d", len(response), bytesCount+5)
-		}
-		return "", nil
-	})
+
+	ct := commTransaction{
+		req:         req,
+		device:      r.dv,
+		comportName: r.p.Comport,
+		prs: func(request, response []byte) (s string, e error) {
+			if len(response) != bytesCount+5 {
+				return "", merry.Errorf("длина ответа %d не равна %d", len(response), bytesCount+5)
+			}
+			return "", nil
+		},
+	}
+	response, err := ct.getResponse(log, ctx)
 	if err == nil {
 		offset := 2 * prm.ParamAddr
 		copy(r.dt[offset:], response[3:][:bytesCount])
@@ -75,7 +62,8 @@ func (r paramsReader) getResponse(ctx context.Context, prm cfg.Params) ([]byte, 
 			r.rd[offset+i] = true
 		}
 	}
-	return req.Bytes(), response, err
+
+	return err
 }
 
 func (r paramsReader) processParamValueRead(p cfg.Params, i int, ms *measurements) {
@@ -86,60 +74,18 @@ func (r paramsReader) processParamValueRead(p cfg.Params, i int, ms *measurement
 	}
 	d := r.dt[offset:]
 
-	setValue := func(value float64, str string) {
-		if !math.IsNaN(value) {
-			ms.add(r.p.ProductID, p.ParamAddr+2*i, value)
+	ct := gui.ProductParamValue{
+		Addr:      r.p.Addr,
+		Comport:   r.p.Comport,
+		ParamAddr: p.ParamAddr + 2*i,
+	}
+	if v, err := p.Format.ParseFloat(d); err == nil {
+		ct.Value = formatFloat(v)
+		if !math.IsNaN(v) {
+			ms.add(r.p.ProductID, p.ParamAddr+2*i, v)
 		}
-		go gui.NotifyNewProductParamValue(gui.ProductParamValue{
-			Addr:      r.p.Addr,
-			Comport:   r.p.Comport,
-			ParamAddr: p.ParamAddr + 2*i,
-			Value:     str,
-		})
+	} else {
+		ct.Value = err.Error()
 	}
-
-	setBytesNaN := func() {
-		setValue(math.NaN(), formatBytes(d))
-	}
-
-	setFloat := func(x float64) {
-		if math.IsNaN(x) {
-			setBytesNaN()
-			return
-		}
-		setValue(x, strconv.FormatFloat(x, 'f', -1, 64))
-	}
-
-	setFloatBits := func(endian binary.ByteOrder) {
-		bits := endian.Uint32(d)
-		setFloat(float64(math.Float32frombits(bits)))
-	}
-	setIntBits := func(endian binary.ByteOrder) {
-		bits := endian.Uint32(d)
-		setValue(float64(int32(bits)), strconv.Itoa(int(bits)))
-	}
-
-	var (
-		be = binary.BigEndian
-		le = binary.LittleEndian
-	)
-
-	switch p.Format {
-	case "bcd":
-		if x, ok := modbus.ParseBCD6(d); ok {
-			setFloat(x)
-		} else {
-			setBytesNaN()
-		}
-	case "float_big_endian":
-		setFloatBits(be)
-	case "float_little_endian":
-		setFloatBits(le)
-	case "int_big_endian":
-		setIntBits(be)
-	case "int_little_endian":
-		setIntBits(le)
-	default:
-		panic(p.Format)
-	}
+	go gui.NotifyNewProductParamValue(ct)
 }

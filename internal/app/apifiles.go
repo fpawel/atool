@@ -21,7 +21,7 @@ func (h *filesSvc) GetCurrentParty(ctx context.Context) (r *apitypes.Party, err 
 }
 
 func (h *filesSvc) SetCurrentParty(ctx context.Context, partyID int64) error {
-	if connected() {
+	if wrk.connected() {
 		return merry.New("нельзя сменить активную партию пока выполняется опрос")
 	}
 	_, err := db.ExecContext(ctx, `UPDATE app_config SET party_id=? WHERE id=1`, partyID)
@@ -71,7 +71,7 @@ func (h *filesSvc) GetParty(_ context.Context, partyID int64) (*apitypes.Party, 
 }
 
 func (h *filesSvc) CreateNewParty(ctx context.Context, productsCount int8, name string) error {
-	if connected() {
+	if wrk.connected() {
 		return merry.New("нельзя создать новую партию пока выполняется опрос")
 	}
 	return data.CreateNewParty(ctx, db, int(productsCount), name)

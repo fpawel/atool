@@ -12,7 +12,8 @@ type coefficientsSvc struct {
 
 var _ api.CoefficientsService = new(coefficientsSvc)
 
-func (*coefficientsSvc) WriteAll(context.Context) error {
+func (*coefficientsSvc) WriteAll(_ context.Context, in []*apitypes.ProductCoefficientValue) error {
+	runWriteAllCoefficients(in)
 	return nil
 }
 

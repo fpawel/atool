@@ -18,6 +18,7 @@ import (
 
 type Config struct {
 	LogComm              bool             `yaml:"log_comm"`
+	FloatPrecision       int              `yaml:"float_precision"`
 	Hardware             Hardware         `yaml:"hardware"`
 	Gas                  Gas              `yaml:"gas"`
 	Temperature          Temperature      `yaml:"temperature"`
@@ -85,6 +86,18 @@ func (c Config) Validate() error {
 	return nil
 }
 
+func (c Config) GetCoefficientFormat(n int) (FloatBitsFormat, error) {
+	for _, c := range c.Coefficients {
+		if err := c.Validate(); err != nil {
+			return "", fmt.Errorf("коэффициент %d: %+v: %w", n, c, err)
+		}
+		if n >= c.Range[0] && n <= c.Range[1] {
+			return c.Format, nil
+		}
+	}
+	return "", fmt.Errorf("коэффициент %d не найден в настройках", n)
+}
+
 func (c Config) ListCoefficients() (xs []int) {
 	m := map[int]struct{}{}
 	for _, p := range c.Coefficients {
@@ -124,7 +137,8 @@ func init() {
 	if err != nil {
 		fmt.Println(err, "file:", filename())
 		c = Config{
-			LogComm: false,
+			LogComm:        false,
+			FloatPrecision: 6,
 			Hardware: Hardware{
 				Device{
 					Name:               "default",
@@ -171,7 +185,6 @@ func init() {
 	if c.InactiveCoefficients == nil {
 		c.InactiveCoefficients = make(map[int]struct{})
 	}
-
 	must.PanicIf(write(must.MarshalYaml(c)))
 	comm.SetEnableLog(c.LogComm)
 }

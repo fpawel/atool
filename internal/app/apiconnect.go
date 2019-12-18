@@ -13,7 +13,7 @@ type hardwareConnSvc struct{}
 var _ api.HardwareConnectionService = new(hardwareConnSvc)
 
 func (h *hardwareConnSvc) Connect(_ context.Context) error {
-	if connected() {
+	if wrk.connected() {
 		return nil
 	}
 	runInterrogate()
@@ -21,16 +21,16 @@ func (h *hardwareConnSvc) Connect(_ context.Context) error {
 }
 
 func (h *hardwareConnSvc) Disconnect(_ context.Context) error {
-	if !connected() {
+	if !wrk.connected() {
 		return nil
 	}
-	disconnect()
-	wgConnect.Wait()
+	wrk.disconnect()
+	wrk.wg.Wait()
 	return nil
 }
 
 func (h *hardwareConnSvc) Connected(_ context.Context) (bool, error) {
-	return connected(), nil
+	return wrk.connected(), nil
 }
 
 func (h *hardwareConnSvc) Command(_ context.Context, cmd int16, s string) error {
@@ -38,9 +38,9 @@ func (h *hardwareConnSvc) Command(_ context.Context, cmd int16, s string) error 
 	if err != nil {
 		return merry.New("ожидалась последовательность байтов HEX")
 	}
-	if connected() {
-		disconnect()
-		wgConnect.Wait()
+	if wrk.connected() {
+		wrk.disconnect()
+		wrk.wg.Wait()
 	}
 	runRawCommand(modbus.ProtoCmd(cmd), b)
 	return nil
@@ -49,7 +49,7 @@ func (h *hardwareConnSvc) Command(_ context.Context, cmd int16, s string) error 
 func (h *hardwareConnSvc) SwitchGas(_ context.Context, valve int8) error {
 	runTask(fmt.Sprintf("переключение клапана газового блока: %d", valve), func() (string, error) {
 		err := switchGas(context.Background(), byte(valve))
-		closeGasComport()
+		wrk.closeGasComport()
 		return "", err
 	})
 	return nil

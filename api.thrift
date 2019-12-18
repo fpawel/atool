@@ -65,7 +65,7 @@ service TemperatureDeviceService {
 }
 
 service CoefficientsService {
-    void writeAll()
+    void writeAll(1:list<apitypes.ProductCoefficientValue> xs)
     void readAll()
     list<apitypes.Coefficient> listCoefficients()
     void setActive(1:i32 n, 2:bool active)

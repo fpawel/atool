@@ -11,7 +11,6 @@ struct Product {
   6: string comport
   7: i8 addr
   8: string device
-  9: i8 connection
 }
 
 struct Party {
@@ -61,4 +60,10 @@ struct TemperatureDeviceConfig {
 struct Coefficient {
     1:i32 n
     2:bool active
+}
+
+struct ProductCoefficientValue {
+    1:i64 productID
+    2:i32 coefficient
+    3:double value
 }

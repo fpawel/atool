@@ -1,6 +1,7 @@
 package data
 
 import (
+	"fmt"
 	"github.com/fpawel/comm/modbus"
 	"time"
 )
@@ -25,6 +26,10 @@ type Product struct {
 	Addr           modbus.Addr `db:"addr"`
 	Device         string      `db:"device"`
 	Active         bool        `db:"active"`
+}
+
+func (p Product) String() string {
+	return fmt.Sprintf("%s,%s,адр=%d,сер№=%d,id=%d", p.Comport, p.Device, p.Addr, p.Serial, p.ProductID)
 }
 
 type ProductParam struct {

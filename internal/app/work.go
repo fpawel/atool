@@ -11,12 +11,14 @@ import (
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/must"
+	"github.com/fpawel/atool/internal/thriftgen/apitypes"
+	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
 	"time"
 )
 
 func runInterrogate() {
-	runWork("опрос приборов", func(ctx context.Context) (string, error) {
+	wrk.runWork("опрос приборов", func(ctx context.Context) (string, error) {
 		must.PanicIf(createNewChartIfUpdatedTooLong())
 		ms := new(measurements)
 		defer func() {
@@ -40,7 +42,7 @@ func processProductsParams(ctx context.Context, ms *measurements) error {
 			return err
 		}
 		for _, prm := range device.Params {
-			if err := rdr.read(ctx, prm); err != nil {
+			if err := rdr.getResponse(ctx, prm); err != nil {
 				return err
 			}
 		}
@@ -54,16 +56,16 @@ func processProductsParams(ctx context.Context, ms *measurements) error {
 }
 
 func runReadAllCoefficients() {
-	runWork("считывание коэффициентов", func(ctx context.Context) (string, error) {
-		c := cfg.Get()
+	wrk.runWork("считывание коэффициентов", func(ctx context.Context) (string, error) {
 		log := pkg.LogPrependSuffixKeys(log, "work", "считывание_коэффициентов")
 		var xs []gui.CoefficientValue
 		hasFormatErrors := false
 		err := processEachActiveProduct(func(product data.Product, device cfg.Device) error {
-			for _, k := range c.Coefficients {
+			log := pkg.LogPrependSuffixKeys(log, "product", product.String())
+			for _, k := range wrk.cfg.Coefficients {
 				count := k.Range[1] - k.Range[0] + 1
 				ct := commTransaction{
-					what:        fmt.Sprintf("считывание коэффициентов:%d...%d,%s", k.Range[0], k.Range[1], k.Format),
+					what:        fmt.Sprintf("read K:%d...%d,%s", k.Range[0], k.Range[1], k.Format),
 					req:         modbus.RequestRead3(product.Addr, modbus.Var(224+k.Range[0]*2), uint16(count*2)),
 					device:      device,
 					comportName: product.Comport,
@@ -77,23 +79,24 @@ func runReadAllCoefficients() {
 				log := pkg.LogPrependSuffixKeys(log, "range", fmt.Sprintf("%d...%d", k.Range[0], k.Range[1]))
 				response, err := ct.getResponse(log, ctx)
 				if err != nil {
+					//go gui.PopupError(true, fmt.Errorf("%s: %w", product, err))
 					return err
 				}
 				n := k.Range[0]
 				d := response[3 : len(response)-2]
 				for i := 0; i < len(d); i, n = i+4, n+1 {
-					if _, f := c.InactiveCoefficients[n]; f {
+					d := d[i:][:4]
+					if _, f := wrk.cfg.InactiveCoefficients[n]; f {
 						continue
 					}
-
 					x := gui.CoefficientValue{
 						ProductID:   product.ProductID,
 						What:        "read",
 						Coefficient: n,
 					}
-					d := response[i:][:4]
-					if v, err := parseFloatBits(string(k.Format), d); err == nil {
-						x.Result = fmt.Sprintf("%v", v)
+
+					if v, err := k.Format.ParseFloat(d); err == nil {
+						x.Result = formatFloat(v)
 						x.Ok = true
 					} else {
 						x.Result = fmt.Sprintf("% X: %v", d, err)
@@ -108,12 +111,55 @@ func runReadAllCoefficients() {
 		if err != nil {
 			return "", err
 		}
-		go gui.NotifyCoefficients(xs)
+		if len(xs) > 0 {
+			go gui.NotifyCoefficients(xs)
+		}
+
 		if hasFormatErrors {
 			return "", errors.New("один или несколько к-тов имеют не верный формат")
 		}
 		return "см. таблицу во вкладке коэффициентов", nil
 
+	})
+}
+
+func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) {
+	wrk.runWork("запись коэффициентов", func(ctx context.Context) (string, error) {
+		log := pkg.LogPrependSuffixKeys(log, "work", "запись_коэффициентов")
+
+		for _, x := range in {
+			valFmt, err := wrk.cfg.GetCoefficientFormat(int(x.Coefficient))
+			if err != nil {
+				return "", err
+			}
+			var product data.Product
+			if err := db.Get(&product, `SELECT * FROM product WHERE product_id = ?`, x.ProductID); err != nil {
+				return "", err
+			}
+			device, okDevice := wrk.cfg.Hardware.DeviceByName(product.Device)
+			if !okDevice {
+				return "", fmt.Errorf("не найден тип проибора %q", product.Device)
+			}
+			go gui.Popup(false, fmt.Sprintf("%s %s адр.%d K%d=%v", product.Device,
+				product.Comport, product.Addr, x.Coefficient, x.Value))
+			ct := commTransaction{
+				what: fmt.Sprintf("write K%d=%v", x.Coefficient, x.Value),
+				req: modbus.Request{
+					Addr:     product.Addr,
+					ProtoCmd: 0x10,
+					Data:     requestWrite32Bytes(uint16((0x80<<8)+x.Coefficient), x.Value, valFmt),
+				},
+				device:      device,
+				comportName: product.Comport,
+			}
+			log := pkg.LogPrependSuffixKeys(log, "write_coefficient", x.Coefficient, "value", x.Value,
+				"product", fmt.Sprintf("%+v", product))
+			_, err = ct.getResponse(log, ctx)
+			if err != nil && !merry.Is(err, comm.Err) {
+				return "", err
+			}
+		}
+		return "", nil
 	})
 }
 
