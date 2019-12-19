@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/internal/cfg"
+	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 )
 
@@ -16,7 +16,7 @@ func (_ *helperSvc) FormatWrite32BCD(_ context.Context, s string) (string, error
 	if err != nil {
 		return "", merry.Append(err, "ожидался номер и аргумент команды")
 	}
-	return formatBytes(requestWrite32Bytes(n, v, cfg.BCD)), nil
+	return formatBytes(requestWrite32Bytes(n, v, config.BCD)), nil
 }
 
 func (_ *helperSvc) FormatWrite32FloatBE(_ context.Context, s string) (string, error) {
@@ -24,12 +24,12 @@ func (_ *helperSvc) FormatWrite32FloatBE(_ context.Context, s string) (string, e
 	if err != nil {
 		return "", merry.Append(err, "ожидался номер и аргумент команды")
 	}
-	return formatBytes(requestWrite32Bytes(n, v, cfg.FloatBigEndian)), nil
+	return formatBytes(requestWrite32Bytes(n, v, config.FloatBigEndian)), nil
 }
 func (_ *helperSvc) FormatWrite32FloatLE(_ context.Context, s string) (string, error) {
 	n, v, err := parseDevCmdAndFloat(s)
 	if err != nil {
 		return "", merry.Append(err, "ожидался номер и аргумент команды")
 	}
-	return formatBytes(requestWrite32Bytes(n, v, cfg.FloatLittleEndian)), nil
+	return formatBytes(requestWrite32Bytes(n, v, config.FloatLittleEndian)), nil
 }

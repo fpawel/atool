@@ -2,10 +2,11 @@ package app
 
 import (
 	"context"
-	"github.com/fpawel/atool/gui"
-	"github.com/fpawel/atool/internal/cfg"
+	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/thriftgen/api"
+	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 )
 
 type currentFileSvc struct{}
@@ -54,14 +55,19 @@ func (h *currentFileSvc) DeleteProducts(ctx context.Context, productIDs []int64)
 	return err
 }
 
-func (h *currentFileSvc) ListParamAddresses(_ context.Context) ([]int32, error) {
+func (h *currentFileSvc) ListDeviceParams(ctx context.Context) ([]*apitypes.DeviceParam, error) {
 	xs, err := getParamAddresses()
 	if err != nil {
 		return nil, err
 	}
-	var r []int32
+	r := make([]*apitypes.DeviceParam, 0)
+	m := config.Get().ParamsNames
 	for _, x := range xs {
-		r = append(r, int32(x))
+		name, _ := m[x]
+		r = append(r, &apitypes.DeviceParam{
+			ParamAddr: int32(x),
+			Name:      name,
+		})
 	}
 	return r, nil
 }
@@ -76,7 +82,7 @@ func getParamAddresses() ([]int, error) {
 		m[x] = struct{}{}
 	}
 	var r []int
-	for _, n := range cfg.Get().Hardware.ParamAddresses(m) {
+	for _, n := range config.Get().Hardware.ParamAddresses(m) {
 		r = append(r, n)
 	}
 	return r, nil

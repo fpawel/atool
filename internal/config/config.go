@@ -1,4 +1,4 @@
-package cfg
+package config
 
 import (
 	"fmt"
@@ -23,7 +23,8 @@ type Config struct {
 	Gas                  Gas              `yaml:"gas"`
 	Temperature          Temperature      `yaml:"temperature"`
 	Coefficients         []Coefficients   `yaml:"coefficients"`
-	InactiveCoefficients map[int]struct{} `yaml:"inactive_coefficients,flow"`
+	InactiveCoefficients map[int]struct{} `yaml:"inactive_coefficients"`
+	ParamsNames          map[int]string   `yaml:"params_names"`
 }
 
 func SetYaml(strYaml []byte) error {
@@ -31,39 +32,38 @@ func SetYaml(strYaml []byte) error {
 	if err := yaml.Unmarshal(strYaml, &c); err != nil {
 		return err
 	}
+	c.validate()
 	if err := c.Validate(); err != nil {
 		return err
-	}
-	if c.InactiveCoefficients == nil {
-		c.InactiveCoefficients = make(map[int]struct{})
 	}
 	comm.SetEnableLog(c.LogComm)
 	mu.Lock()
 	defer mu.Unlock()
-	return write(strYaml)
+	must.PanicIf(writeFile(strYaml))
+	cfg = c
+	return nil
 }
 
-func Get() Config {
+func Get() (r Config) {
 	mu.Lock()
 	defer mu.Unlock()
-	r, err := read()
-	must.PanicIf(err)
-	return r
+	must.UnmarshalJson(must.MarshalJson(cfg), &r)
+	return
 }
 
 func Set(c Config) error {
-	if c.InactiveCoefficients == nil {
-		c.InactiveCoefficients = make(map[int]struct{})
-	}
-	b := must.MarshalYaml(c)
+	c.validate()
 	if err := c.Validate(); err != nil {
 		return err
 	}
+	b := must.MarshalYaml(c)
 	mu.Lock()
 	defer mu.Unlock()
-	if err := write(b); err != nil {
+	if err := writeFile(b); err != nil {
 		return err
 	}
+	comm.SetEnableLog(c.LogComm)
+	cfg = c
 	return nil
 }
 
@@ -112,7 +112,7 @@ func (c Config) ListCoefficients() (xs []int) {
 	return
 }
 
-func write(b []byte) error {
+func writeFile(b []byte) error {
 	return ioutil.WriteFile(filename(), b, 0666)
 }
 
@@ -120,7 +120,7 @@ func filename() string {
 	return filepath.Join(filepath.Dir(os.Args[0]), "config.yaml")
 }
 
-func read() (Config, error) {
+func readFile() (Config, error) {
 	var c Config
 	data, err := ioutil.ReadFile(filename())
 	if err != nil {
@@ -130,50 +130,7 @@ func read() (Config, error) {
 	return c, err
 }
 
-var mu sync.Mutex
-
-func init() {
-	c, err := read()
-	if err != nil {
-		fmt.Println(err, "file:", filename())
-		c = Config{
-			LogComm:        false,
-			FloatPrecision: 6,
-			Hardware: Hardware{
-				Device{
-					Name:               "default",
-					Baud:               9600,
-					TimeoutGetResponse: time.Second,
-					TimeoutEndResponse: time.Millisecond * 50,
-					MaxAttemptsRead:    0,
-					Pause:              0,
-					Params: []Params{
-						{
-							Format:    "bcd",
-							ParamAddr: 0,
-							Count:     1,
-						},
-					},
-				},
-			},
-			Gas: Gas{
-				Type:               gas.Mil82,
-				Addr:               100,
-				Comport:            "COM1",
-				TimeoutGetResponse: time.Second,
-				TimeoutEndResponse: time.Millisecond * 50,
-				MaxAttemptsRead:    0,
-			},
-			Temperature: Temperature{
-				Type:               T800,
-				Comport:            "COM1",
-				TimeoutGetResponse: time.Second,
-				TimeoutEndResponse: time.Millisecond * 50,
-				MaxAttemptsRead:    1,
-				Ktx500:             ktx500.NewDefaultConfig(),
-			},
-		}
-	}
+func (c *Config) validate() {
 	if len(c.Coefficients) == 0 {
 		c.Coefficients = []Coefficients{
 			{
@@ -185,6 +142,74 @@ func init() {
 	if c.InactiveCoefficients == nil {
 		c.InactiveCoefficients = make(map[int]struct{})
 	}
-	must.PanicIf(write(must.MarshalYaml(c)))
-	comm.SetEnableLog(c.LogComm)
+	if c.ParamsNames == nil {
+		c.ParamsNames = map[int]string{
+			0: "C",
+			2: "I",
+		}
+	}
 }
+
+func init() {
+	var err error
+	c, err := readFile()
+	if err != nil {
+		fmt.Println(err, "file:", filename())
+		c = defaultCfg
+	}
+	c.validate()
+	if err := c.Validate(); err != nil {
+		fmt.Println(err)
+		c = defaultCfg
+	}
+	must.PanicIf(Set(c))
+}
+
+var (
+	defaultCfg = Config{
+		LogComm:        false,
+		FloatPrecision: 6,
+		Hardware: Hardware{
+			Device{
+				Name:               "default",
+				Baud:               9600,
+				TimeoutGetResponse: time.Second,
+				TimeoutEndResponse: time.Millisecond * 50,
+				MaxAttemptsRead:    0,
+				Pause:              0,
+				Params: []Params{
+					{
+						Format:    "bcd",
+						ParamAddr: 0,
+						Count:     1,
+					},
+				},
+			},
+		},
+		Gas: Gas{
+			Type:               gas.Mil82,
+			Addr:               100,
+			Comport:            "COM1",
+			TimeoutGetResponse: time.Second,
+			TimeoutEndResponse: time.Millisecond * 50,
+			MaxAttemptsRead:    0,
+		},
+		Temperature: Temperature{
+			Type:               T800,
+			Comport:            "COM1",
+			TimeoutGetResponse: time.Second,
+			TimeoutEndResponse: time.Millisecond * 50,
+			MaxAttemptsRead:    1,
+			Ktx500:             ktx500.NewDefaultConfig(),
+		},
+		InactiveCoefficients: make(map[int]struct{}),
+		Coefficients: []Coefficients{
+			{
+				Range:  [2]int{0, 50},
+				Format: "float_big_endian",
+			},
+		},
+	}
+	mu  sync.Mutex
+	cfg = defaultCfg
+)

@@ -2,6 +2,7 @@ package must
 
 import (
 	"database/sql"
+	"encoding/json"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/jmoiron/sqlx"
 	"gopkg.in/yaml.v3"
@@ -45,13 +46,13 @@ func MarshalYaml(v interface{}) []byte {
 	return data
 }
 
-//func MarshalJson(v interface{}) []byte {
-//	data, err := json.Marshal(v)
-//	PanicIf(err)
-//	return data
-//}
-//
-//func UnmarshalJson(data []byte, v interface{}) {
-//	err := json.Unmarshal(data, v)
-//	PanicIf(err)
-//}
+func MarshalJson(v interface{}) []byte {
+	data, err := json.Marshal(v)
+	PanicIf(err)
+	return data
+}
+
+func UnmarshalJson(data []byte, v interface{}) {
+	err := json.Unmarshal(data, v)
+	PanicIf(err)
+}

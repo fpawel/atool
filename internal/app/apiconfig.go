@@ -3,8 +3,8 @@ package app
 import (
 	"context"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/gui"
-	"github.com/fpawel/atool/internal/cfg"
+	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/pkg/winapi"
 	"github.com/fpawel/atool/internal/thriftgen/api"
@@ -20,7 +20,7 @@ type appConfigSvc struct{}
 var _ api.AppConfigService = new(appConfigSvc)
 
 func (h *appConfigSvc) ListDevices(_ context.Context) (xs []string, err error) {
-	for _, d := range cfg.Get().Hardware {
+	for _, d := range config.Get().Hardware {
 		xs = append(xs, d.Name)
 	}
 	return
@@ -30,7 +30,7 @@ func (h *appConfigSvc) EditConfig(_ context.Context) error {
 
 	filename := filepath.Join(tmpDir, "config.yaml")
 
-	if err := ioutil.WriteFile(filename, must.MarshalYaml(cfg.Get()), 0644); err != nil {
+	if err := ioutil.WriteFile(filename, must.MarshalYaml(config.Get()), 0644); err != nil {
 		return err
 	}
 	cmd := exec.Command("./npp/notepad++.exe", filename)
@@ -47,7 +47,7 @@ func (h *appConfigSvc) EditConfig(_ context.Context) error {
 		if err != nil {
 			return err
 		}
-		return cfg.SetYaml(b)
+		return config.SetYaml(b)
 	}
 
 	go func() {
@@ -62,19 +62,19 @@ func (h *appConfigSvc) EditConfig(_ context.Context) error {
 }
 
 func (h *appConfigSvc) SetConfig(_ context.Context, c *apitypes.AppConfig) (err error) {
-	x := cfg.Get()
+	x := config.Get()
 	x.Gas.Comport = c.Gas.Comport
 	x.Gas.Type = gas.DevType(c.Gas.DeviceType)
 	x.Temperature.Comport = c.Temperature.Comport
-	x.Temperature.Type = cfg.TempDevType(c.Temperature.DeviceType)
+	x.Temperature.Type = config.TempDevType(c.Temperature.DeviceType)
 	if err := x.Validate(); err != nil {
 		return err
 	}
-	return cfg.Set(x)
+	return config.Set(x)
 }
 
 func (h *appConfigSvc) GetConfig(_ context.Context) (*apitypes.AppConfig, error) {
-	c := cfg.Get()
+	c := config.Get()
 	return &apitypes.AppConfig{
 		Gas: &apitypes.GasDeviceConfig{
 			DeviceType: int8(c.Gas.Type),

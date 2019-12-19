@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/gui"
-	"github.com/fpawel/atool/internal/cfg"
+	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/gui"
+	"github.com/fpawel/atool/internal/gui/comports"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
 	"github.com/powerman/structlog"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -27,7 +29,7 @@ func formatIDs(ids []int64) string {
 	return strings.Join(ss, ",")
 }
 
-func requestWrite32Bytes(c uint16, v float64, f cfg.FloatBitsFormat) []byte {
+func requestWrite32Bytes(c uint16, v float64, f config.FloatBitsFormat) []byte {
 	b := []byte{
 		0, 32, 0, 3, 6,
 		byte(c >> 8),
@@ -86,11 +88,11 @@ func parseHexBytes(s string) ([]byte, error) {
 }
 
 func formatFloat(v float64) string {
-	//n := cfg.Get().FloatPrecision
-	//if n > 0 {
-	//	k := math.Pow10(n)
-	//	v = math.Round(v*k)/k
-	//}
+	n := config.Get().FloatPrecision
+	if n > 0 {
+		k := math.Pow10(n)
+		v = math.Round(v*k) / k
+	}
 	return strconv.FormatFloat(v, 'g', -1, 64)
 }
 
@@ -116,18 +118,18 @@ const timeLayout = "2006-01-02 15:04:05.000"
 type commTransaction struct {
 	comportName string
 	what        string
-	device      cfg.Device
+	device      config.Device
 	req         modbus.Request
-	prs         comm.ResponseParser
+	prs         comm.ParseResponseFunc
 }
 
 func (x commTransaction) getResponse(log *structlog.Logger, ctx context.Context) ([]byte, error) {
 	startTime := time.Now()
-	rdr, err := wrk.getResponseReader(x.comportName, x.device)
+	prt, err := comports.GetComport(x.comportName, x.device.Baud)
 	if err != nil {
 		return nil, err
 	}
-	response, err := x.req.GetResponse(log, ctx, rdr, x.prs)
+	response, err := x.req.GetResponse(log, ctx, x.device.CommConfig(), prt, x.prs)
 	if merry.Is(err, context.Canceled) {
 		return response, err
 	}

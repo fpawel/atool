@@ -6,9 +6,9 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/apache/thrift/lib/go/thrift"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/gui/guiwork"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/thriftgen/api"
-	"github.com/fpawel/comm/comport"
 	"github.com/jmoiron/sqlx"
 	"github.com/powerman/structlog"
 	"net"
@@ -57,7 +57,8 @@ func Main() {
 
 	log.Debug("прервать все фоновые горутины")
 	interrupt()
-	wrk.wg.Wait()
+	guiwork.Interrupt()
+	guiwork.Wait()
 
 	log.Debug("остановка сервера")
 	stopServer()
@@ -93,7 +94,6 @@ var (
 	log    = structlog.New()
 	tmpDir = filepath.Join(filepath.Dir(os.Args[0]), "tmp")
 	db     *sqlx.DB
-	wrk    = &worker{comports: make(map[string]*comport.Port)}
 	appCtx context.Context
 )
 

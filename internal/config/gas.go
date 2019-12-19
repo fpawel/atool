@@ -1,4 +1,4 @@
-package cfg
+package config
 
 import (
 	"github.com/ansel1/merry"

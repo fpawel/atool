@@ -6,9 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/gui"
-	"github.com/fpawel/atool/internal/cfg"
+	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/gui"
+	"github.com/fpawel/atool/internal/gui/guiwork"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
@@ -17,15 +18,17 @@ import (
 	"time"
 )
 
-func runInterrogate() {
-	wrk.runWork("опрос приборов", func(ctx context.Context) (string, error) {
+var errNoInterrogateObjects = merry.New("не установлены объекты опроса")
+
+func runInterrogate() error {
+	return guiwork.RunWork(appCtx, "опрос приборов", func(ctx context.Context) (string, error) {
 		must.PanicIf(createNewChartIfUpdatedTooLong())
 		ms := new(measurements)
 		defer func() {
 			saveMeasurements(ms.xs)
 		}()
 		for {
-			if err := processProductsParams(ctx, ms); err != nil {
+			if err := readProductsParams(ctx, ms); err != nil {
 				if merry.Is(err, context.Canceled) {
 					return "", nil
 				}
@@ -35,12 +38,9 @@ func runInterrogate() {
 	})
 }
 
-func processProductsParams(ctx context.Context, ms *measurements) error {
-	return processEachActiveProduct(func(product data.Product, device cfg.Device) error {
-		rdr, err := newParamsReader(product, device)
-		if err != nil {
-			return err
-		}
+func readProductsParams(ctx context.Context, ms *measurements) error {
+	return processEachActiveProduct(func(product data.Product, device config.Device) error {
+		rdr := newParamsReader(product, device)
 		for _, prm := range device.Params {
 			if err := rdr.getResponse(ctx, prm); err != nil {
 				return err
@@ -55,14 +55,14 @@ func processProductsParams(ctx context.Context, ms *measurements) error {
 	})
 }
 
-func runReadAllCoefficients() {
-	wrk.runWork("считывание коэффициентов", func(ctx context.Context) (string, error) {
+func runReadAllCoefficients() error {
+	return guiwork.RunWork(appCtx, "считывание коэффициентов", func(ctx context.Context) (string, error) {
 		log := pkg.LogPrependSuffixKeys(log, "work", "считывание_коэффициентов")
 		var xs []gui.CoefficientValue
 		hasFormatErrors := false
-		err := processEachActiveProduct(func(product data.Product, device cfg.Device) error {
+		err := processEachActiveProduct(func(product data.Product, device config.Device) error {
 			log := pkg.LogPrependSuffixKeys(log, "product", product.String())
-			for _, k := range wrk.cfg.Coefficients {
+			for _, k := range config.Get().Coefficients {
 				count := k.Range[1] - k.Range[0] + 1
 				ct := commTransaction{
 					what:        fmt.Sprintf("read K:%d...%d,%s", k.Range[0], k.Range[1], k.Format),
@@ -86,7 +86,7 @@ func runReadAllCoefficients() {
 				d := response[3 : len(response)-2]
 				for i := 0; i < len(d); i, n = i+4, n+1 {
 					d := d[i:][:4]
-					if _, f := wrk.cfg.InactiveCoefficients[n]; f {
+					if _, f := config.Get().InactiveCoefficients[n]; f {
 						continue
 					}
 					x := gui.CoefficientValue{
@@ -123,12 +123,12 @@ func runReadAllCoefficients() {
 	})
 }
 
-func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) {
-	wrk.runWork("запись коэффициентов", func(ctx context.Context) (string, error) {
+func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
+	return guiwork.RunWork(appCtx, "запись коэффициентов", func(ctx context.Context) (string, error) {
 		log := pkg.LogPrependSuffixKeys(log, "work", "запись_коэффициентов")
 
 		for _, x := range in {
-			valFmt, err := wrk.cfg.GetCoefficientFormat(int(x.Coefficient))
+			valFmt, err := config.Get().GetCoefficientFormat(int(x.Coefficient))
 			if err != nil {
 				return "", err
 			}
@@ -136,7 +136,7 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) {
 			if err := db.Get(&product, `SELECT * FROM product WHERE product_id = ?`, x.ProductID); err != nil {
 				return "", err
 			}
-			device, okDevice := wrk.cfg.Hardware.DeviceByName(product.Device)
+			device, okDevice := config.Get().Hardware.DeviceByName(product.Device)
 			if !okDevice {
 				return "", fmt.Errorf("не найден тип проибора %q", product.Device)
 			}
@@ -164,8 +164,8 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) {
 }
 
 func runRawCommand(c modbus.ProtoCmd, b []byte) {
-	runTask(fmt.Sprintf("отправка команды XX %X % X", c, b), func() (string, error) {
-		err := processEachActiveProduct(func(p data.Product, device cfg.Device) error {
+	guiwork.RunTask(fmt.Sprintf("отправка команды XX %X % X", c, b), func() (string, error) {
+		err := processEachActiveProduct(func(p data.Product, device config.Device) error {
 			ct := commTransaction{
 				comportName: p.Comport,
 				device:      device,
@@ -194,7 +194,7 @@ func createNewChartIfUpdatedTooLong() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("last party updated at: %v, %v", t, time.Since(t))
+	//log.Printf("last party updated at: %v, %v", t, time.Since(t))
 	if time.Since(t) <= time.Hour {
 		return nil
 	}
@@ -207,5 +207,37 @@ func createNewChartIfUpdatedTooLong() error {
 	}
 	gui.NotifyCurrentPartyChanged()
 
+	return nil
+}
+
+func getActiveProducts() ([]data.Product, error) {
+	var products []data.Product
+	err := db.Select(&products,
+		`SELECT * FROM product WHERE party_id = (SELECT party_id FROM app_config) AND active`)
+	if err != nil {
+		return nil, err
+	}
+	if len(products) == 0 {
+		return nil, errNoInterrogateObjects
+	}
+	return products, nil
+}
+
+func processEachActiveProduct(work func(data.Product, config.Device) error) error {
+	products, err := getActiveProducts()
+	if err != nil {
+		return err
+	}
+	for _, p := range products {
+		d, f := config.Get().Hardware.DeviceByName(p.Device)
+		if !f {
+			return fmt.Errorf("не заданы параметры устройства %s для прибора %+v",
+				p.Device, p)
+		}
+		go gui.Popup(false, fmt.Sprintf("опрашивается прибор: %s %s адр.%d", d.Name, p.Comport, p.Addr))
+		if err := work(p, d); merry.Is(err, context.Canceled) {
+			return err
+		}
+	}
 	return nil
 }

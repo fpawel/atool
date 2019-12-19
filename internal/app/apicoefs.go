@@ -2,7 +2,7 @@ package app
 
 import (
 	"context"
-	"github.com/fpawel/atool/internal/cfg"
+	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 )
@@ -23,7 +23,7 @@ func (*coefficientsSvc) ReadAll(context.Context) error {
 }
 
 func (h *coefficientsSvc) ListCoefficients(_ context.Context) (r []*apitypes.Coefficient, err error) {
-	c := cfg.Get()
+	c := config.Get()
 	for _, i := range c.ListCoefficients() {
 		_, inactive := c.InactiveCoefficients[i]
 		r = append(r, &apitypes.Coefficient{
@@ -35,11 +35,11 @@ func (h *coefficientsSvc) ListCoefficients(_ context.Context) (r []*apitypes.Coe
 }
 
 func (h *coefficientsSvc) SetActive(_ context.Context, n int32, active bool) (err error) {
-	c := cfg.Get()
+	c := config.Get()
 	if active {
 		delete(c.InactiveCoefficients, int(n))
 	} else {
 		c.InactiveCoefficients[int(n)] = struct{}{}
 	}
-	return cfg.Set(c)
+	return config.Set(c)
 }

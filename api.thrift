@@ -4,7 +4,7 @@ include "apitypes.thrift"
 service HardwareConnectionService {
     bool connected()
     void connect()
-    void disconnect()
+    void interrupt()
     void command(1:i16 cmd; 2:string s)
     void switchGas(1:i8 valve)
 }
@@ -15,7 +15,7 @@ service CurrentFileService {
     void renameChart(1:string oldName, 2:string newName)
     void addNewProducts(1:i8 productsCount)
     void deleteProducts(1:list<i64> productIDs)
-    list<i32> listParamAddresses()
+    list<apitypes.DeviceParam> listDeviceParams()
 }
 
 service ProductService {

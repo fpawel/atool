@@ -1,14 +1,13 @@
 package app
 
 import (
-	"github.com/fpawel/atool/internal/cfg"
+	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/gui/comports"
 	"github.com/fpawel/comm"
-	"github.com/fpawel/comm/comport"
 	"github.com/fpawel/gofins/fins"
 	"github.com/fpawel/hardware/temp"
 	"github.com/fpawel/hardware/temp/ktx500"
 	"github.com/fpawel/hardware/temp/tempmil82"
-	"time"
 )
 
 var (
@@ -16,41 +15,25 @@ var (
 )
 
 func getTemperatureDevice() (temp.TemperatureDevice, error) {
-	wrk.closeTemperatureDevice()
-	c := wrk.cfg.Temperature
+	comports.CloseComport(config.Get().Temperature.Comport)
+	c := config.Get().Temperature
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
 
-	getComportReader := func() (comm.ResponseReader, error) {
-		port, err := wrk.getComport(comport.Config{
-			Name:        c.Comport,
-			Baud:        9600,
-			ReadTimeout: time.Millisecond,
-		})
-		if err != nil {
-			return comm.ResponseReader{}, err
-		}
-		return comm.NewResponseReader(port, comm.Config{
-			TimeoutGetResponse: c.TimeoutGetResponse,
-			TimeoutEndResponse: c.TimeoutEndResponse,
-			MaxAttemptsRead:    c.MaxAttemptsRead,
-			Pause:              0,
-		}, nil), nil
-	}
 	switch c.Type {
-	case cfg.T800:
-		r, err := getComportReader()
+	case config.T800:
+		rdr, err := getTemperatureComportReader()
 		if err != nil {
 			return nil, err
 		}
-		return tempmil82.NewT800(r), nil
-	case cfg.T2500:
-		r, err := getComportReader()
+		return tempmil82.NewT800(rdr), nil
+	case config.T2500:
+		rdr, err := getTemperatureComportReader()
 		if err != nil {
 			return nil, err
 		}
-		return tempmil82.NewT2500(r), nil
+		return tempmil82.NewT2500(rdr), nil
 	default:
 		if ktx500Client != nil {
 			ktx500Client.Close()
@@ -62,4 +45,21 @@ func getTemperatureDevice() (temp.TemperatureDevice, error) {
 		}
 		return ktx500.NewClient(ktx500Client, c.MaxAttemptsRead), err
 	}
+}
+
+func getTemperatureComportReader() (tempmil82.ResponseReader, error) {
+	c := config.Get().Temperature
+	port, err := comports.GetComport(c.Comport, 9600)
+	if err != nil {
+		return tempmil82.ResponseReader{}, err
+	}
+	return tempmil82.ResponseReader{
+		Wr: port,
+		C: comm.Config{
+			TimeoutGetResponse: c.TimeoutGetResponse,
+			TimeoutEndResponse: c.TimeoutEndResponse,
+			MaxAttemptsRead:    c.MaxAttemptsRead,
+			Pause:              0,
+		},
+	}, nil
 }

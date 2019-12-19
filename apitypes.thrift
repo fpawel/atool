@@ -67,3 +67,8 @@ struct ProductCoefficientValue {
     2:i32 coefficient
     3:double value
 }
+
+struct DeviceParam {
+    1:i32 ParamAddr
+    2:string name
+}

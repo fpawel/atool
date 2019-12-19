@@ -2,7 +2,7 @@ package app
 
 import (
 	"context"
-	"github.com/fpawel/atool/gui"
+	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/lxn/win"
 )

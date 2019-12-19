@@ -3,40 +3,34 @@ package app
 import (
 	"context"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/gui"
-	"github.com/fpawel/atool/internal/cfg"
+	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/comm/modbus"
 	"math"
 )
 
 type paramsReader struct {
-	p   data.Product
-	rdr modbus.ResponseReader
-	dt  []byte
-	rd  []bool
-	dv  cfg.Device
+	p  data.Product
+	dt []byte
+	rd []bool
+	dv config.Device
 }
 
-func newParamsReader(product data.Product, device cfg.Device) (paramsReader, error) {
-	rdr, err := wrk.getResponseReader(product.Comport, device)
-	if err != nil {
-		return paramsReader{}, nil
-	}
+func newParamsReader(product data.Product, device config.Device) paramsReader {
 	r := paramsReader{
-		p:   product,
-		rdr: rdr,
-		dt:  make([]byte, device.BufferSize()),
-		rd:  make([]bool, device.BufferSize()),
-		dv:  device,
+		p:  product,
+		dt: make([]byte, device.BufferSize()),
+		rd: make([]bool, device.BufferSize()),
+		dv: device,
 	}
 	for i := range r.dt {
 		r.dt[i] = 0xFF
 	}
-	return r, nil
+	return r
 }
 
-func (r paramsReader) getResponse(ctx context.Context, prm cfg.Params) error {
+func (r paramsReader) getResponse(ctx context.Context, prm config.Params) error {
 
 	regsCount := prm.Count * 2
 	bytesCount := regsCount * 2
@@ -66,7 +60,7 @@ func (r paramsReader) getResponse(ctx context.Context, prm cfg.Params) error {
 	return err
 }
 
-func (r paramsReader) processParamValueRead(p cfg.Params, i int, ms *measurements) {
+func (r paramsReader) processParamValueRead(p config.Params, i int, ms *measurements) {
 	paramAddr := p.ParamAddr + 2*i
 	offset := 2 * paramAddr
 	if !r.rd[offset] {
@@ -88,4 +82,11 @@ func (r paramsReader) processParamValueRead(p cfg.Params, i int, ms *measurement
 		ct.Value = err.Error()
 	}
 	go gui.NotifyNewProductParamValue(ct)
+}
+
+func checkResponse3(request, response []byte, bytesCount int) (s string, e error) {
+	if len(response) != bytesCount+5 {
+		return "", merry.Errorf("длина ответа %d не равна %d", len(response), bytesCount+5)
+	}
+	return "", nil
 }
