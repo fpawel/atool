@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
-	"github.com/fpawel/atool/internal/gui/comports"
 	"github.com/fpawel/atool/internal/gui/guiwork"
+	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/comm/modbus"
 )

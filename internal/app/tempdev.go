@@ -2,12 +2,12 @@ package app
 
 import (
 	"github.com/fpawel/atool/internal/config"
-	"github.com/fpawel/atool/internal/gui/comports"
+	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/gofins/fins"
 	"github.com/fpawel/hardware/temp"
 	"github.com/fpawel/hardware/temp/ktx500"
-	"github.com/fpawel/hardware/temp/tempmil82"
+	"github.com/fpawel/hardware/temp/tempcomport"
 )
 
 var (
@@ -27,13 +27,13 @@ func getTemperatureDevice() (temp.TemperatureDevice, error) {
 		if err != nil {
 			return nil, err
 		}
-		return tempmil82.NewT800(rdr), nil
+		return tempcomport.NewT800(rdr), nil
 	case config.T2500:
 		rdr, err := getTemperatureComportReader()
 		if err != nil {
 			return nil, err
 		}
-		return tempmil82.NewT2500(rdr), nil
+		return tempcomport.NewT2500(rdr), nil
 	default:
 		if ktx500Client != nil {
 			ktx500Client.Close()
@@ -47,14 +47,10 @@ func getTemperatureDevice() (temp.TemperatureDevice, error) {
 	}
 }
 
-func getTemperatureComportReader() (tempmil82.ResponseReader, error) {
+func getTemperatureComportReader() (tempcomport.ResponseReader, error) {
 	c := config.Get().Temperature
-	port, err := comports.GetComport(c.Comport, 9600)
-	if err != nil {
-		return tempmil82.ResponseReader{}, err
-	}
-	return tempmil82.ResponseReader{
-		Wr: port,
+	return tempcomport.ResponseReader{
+		Wr: comports.GetComport(c.Comport, 9600),
 		C: comm.Config{
 			TimeoutGetResponse: c.TimeoutGetResponse,
 			TimeoutEndResponse: c.TimeoutEndResponse,

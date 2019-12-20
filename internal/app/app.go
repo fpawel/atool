@@ -38,7 +38,6 @@ func Main() {
 	log.Debug("open database: " + dbFilename)
 	db, err = data.Open(dbFilename)
 	must.PanicIf(err)
-
 	// старт сервера
 	stopServer := runServer()
 

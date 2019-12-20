@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/gui"
-	"github.com/fpawel/atool/internal/gui/comports"
+	"github.com/fpawel/atool/internal/pkg/comports"
 	"sync"
 	"sync/atomic"
 )

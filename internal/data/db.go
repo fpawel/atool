@@ -28,6 +28,9 @@ func Open(filename string) (*sqlx.DB, error) {
 	if _, err := GetCurrentParty(db); err != nil {
 		return nil, err
 	}
+	if _, err := GetCurrentPartyUpdatedAt(db); err != nil {
+		return nil, err
+	}
 	return db, nil
 }
 

@@ -6,7 +6,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/gui"
-	"github.com/fpawel/atool/internal/gui/comports"
+	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
@@ -125,10 +125,7 @@ type commTransaction struct {
 
 func (x commTransaction) getResponse(log *structlog.Logger, ctx context.Context) ([]byte, error) {
 	startTime := time.Now()
-	prt, err := comports.GetComport(x.comportName, x.device.Baud)
-	if err != nil {
-		return nil, err
-	}
+	prt := comports.GetComport(x.comportName, x.device.Baud)
 	response, err := x.req.GetResponse(log, ctx, x.device.CommConfig(), prt, x.prs)
 	if merry.Is(err, context.Canceled) {
 		return response, err
