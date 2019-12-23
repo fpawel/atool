@@ -6,9 +6,11 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/apache/thrift/lib/go/thrift"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/gui/guiwork"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/thriftgen/api"
+	"github.com/fpawel/comm"
 	"github.com/jmoiron/sqlx"
 	"github.com/powerman/structlog"
 	"net"
@@ -38,6 +40,9 @@ func Main() {
 	log.Debug("open database: " + dbFilename)
 	db, err = data.Open(dbFilename)
 	must.PanicIf(err)
+
+	initNotifyComm()
+
 	// старт сервера
 	stopServer := runServer()
 
@@ -67,6 +72,28 @@ func Main() {
 
 	// записать в лог что всё хорошо
 	log.Debug("all canceled and closed")
+}
+
+func initNotifyComm() {
+	comm.SetNotify(func(x comm.Info) {
+		ct := gui.CommTransaction{
+			Port:     x.Port,
+			Request:  fmt.Sprintf("% X", x.Request),
+			Response: fmt.Sprintf("% X", x.Response),
+			Ok:       x.Err == nil,
+		}
+		if x.Err != nil {
+			if len(x.Response) > 0 {
+				ct.Response += " "
+			}
+			ct.Response += x.Err.Error()
+		}
+		ct.Response += " " + x.Duration.String()
+		if x.Attempt > 0 {
+			ct.Response += fmt.Sprintf(" попытка %d", x.Attempt+1)
+		}
+		go gui.NotifyNewCommTransaction(ct)
+	})
 }
 
 func runServer() context.CancelFunc {

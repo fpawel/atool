@@ -1,16 +1,11 @@
 package app
 
 import (
-	"context"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
-	"github.com/fpawel/atool/internal/gui"
-	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
-	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
-	"github.com/powerman/structlog"
 	"math"
 	"strconv"
 	"strings"
@@ -29,18 +24,7 @@ func formatIDs(ids []int64) string {
 	return strings.Join(ss, ",")
 }
 
-func requestWrite32Bytes(c uint16, v float64, f config.FloatBitsFormat) []byte {
-	b := []byte{
-		0, 32, 0, 3, 6,
-		byte(c >> 8),
-		byte(c),
-		0, 0, 0, 0,
-	}
-	f.PutFloat(b[7:], v)
-	return b
-}
-
-func parseDevCmdAndFloat(s string) (uint16, float64, error) {
+func parseDevCmdAndFloat(s string) (modbus.DevCmd, float64, error) {
 	s1, s2, err := parseTwoWords(s)
 	if err != nil {
 		return 0, 0, merry.Append(err, "ожидалось два слова")
@@ -53,7 +37,7 @@ func parseDevCmdAndFloat(s string) (uint16, float64, error) {
 	if err != nil {
 		return 0, 0, merry.Append(err, "значение аргумента")
 	}
-	return uint16(n), v, nil
+	return modbus.DevCmd(n), v, nil
 }
 
 func parseTwoWords(s string) (s1, s2 string, err error) {
@@ -114,40 +98,3 @@ func unixMillisToTime(m apitypes.TimeUnixMillis) time.Time {
 }
 
 const timeLayout = "2006-01-02 15:04:05.000"
-
-type commTransaction struct {
-	comportName string
-	what        string
-	device      config.Device
-	req         modbus.Request
-	prs         comm.ParseResponseFunc
-}
-
-func (x commTransaction) getResponse(log *structlog.Logger, ctx context.Context) ([]byte, error) {
-	startTime := time.Now()
-	prt := comports.GetComport(x.comportName, x.device.Baud)
-	response, err := x.req.GetResponse(log, ctx, x.device.CommConfig(), prt, x.prs)
-	if merry.Is(err, context.Canceled) {
-		return response, err
-	}
-	ct := gui.CommTransaction{
-		Addr:     x.req.Addr,
-		Comport:  x.comportName,
-		Request:  formatBytes(x.req.Bytes()),
-		Response: formatBytes(response) + " " + time.Since(startTime).String(),
-		Ok:       err == nil,
-	}
-	if len(x.what) > 0 {
-		ct.Request += " " + x.what
-	}
-
-	if err != nil {
-		if len(response) == 0 {
-			ct.Response = err.Error()
-		} else {
-			ct.Response += " " + err.Error()
-		}
-	}
-	go gui.NotifyNewCommTransaction(ct)
-	return response, err
-}

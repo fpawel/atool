@@ -2,8 +2,10 @@ package config
 
 import (
 	"fmt"
+	"github.com/fpawel/comm/modbus"
 )
 
+type FloatBitsFormat = modbus.FloatBitsFormat
 type Params struct {
 	Format    FloatBitsFormat `yaml:"format"`
 	ParamAddr int             `yaml:"reg"`

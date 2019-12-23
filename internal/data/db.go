@@ -54,6 +54,9 @@ INNER JOIN product USING (product_id)
 WHERE party_id = (SELECT q.party_id FROM q)
 ORDER BY tm DESC
 LIMIT 1`)
+	if err == sql.ErrNoRows {
+		return time.Time{}, nil
+	}
 	if err != nil {
 		return time.Time{}, err
 	}

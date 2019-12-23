@@ -35,20 +35,14 @@ func (r paramsReader) getResponse(ctx context.Context, prm config.Params) error 
 	regsCount := prm.Count * 2
 	bytesCount := regsCount * 2
 
-	req := modbus.RequestRead3(r.p.Addr, modbus.Var(prm.ParamAddr), uint16(regsCount))
-
-	ct := commTransaction{
-		req:         req,
-		device:      r.dv,
-		comportName: r.p.Comport,
-		prs: func(request, response []byte) (s string, e error) {
-			if len(response) != bytesCount+5 {
-				return "", merry.Errorf("длина ответа %d не равна %d", len(response), bytesCount+5)
-			}
-			return "", nil
-		},
+	req3 := modbus.RequestRead3{
+		Addr:           r.p.Addr,
+		FirstRegister:  modbus.Var(prm.ParamAddr),
+		RegistersCount: uint16(regsCount),
 	}
-	response, err := ct.getResponse(log, ctx)
+	cm := getCommProduct(r.p.Comport, r.dv)
+	response, err := req3.GetResponse(log, ctx, cm)
+	notifyProductConnection(r.p.ProductID, err)
 	if err == nil {
 		offset := 2 * prm.ParamAddr
 		copy(r.dt[offset:], response[3:][:bytesCount])
@@ -56,7 +50,6 @@ func (r paramsReader) getResponse(ctx context.Context, prm config.Params) error 
 			r.rd[offset+i] = true
 		}
 	}
-
 	return err
 }
 

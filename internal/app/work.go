@@ -11,6 +11,7 @@ import (
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/gui/guiwork"
 	"github.com/fpawel/atool/internal/pkg"
+	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm"
@@ -42,7 +43,9 @@ func readProductsParams(ctx context.Context, ms *measurements) error {
 	return processEachActiveProduct(func(product data.Product, device config.Device) error {
 		rdr := newParamsReader(product, device)
 		for _, prm := range device.Params {
-			if err := rdr.getResponse(ctx, prm); err != nil {
+			err := rdr.getResponse(ctx, prm)
+			notifyProductConnection(product.ProductID, err)
+			if err != nil {
 				return err
 			}
 		}
@@ -64,22 +67,17 @@ func runReadAllCoefficients() error {
 			log := pkg.LogPrependSuffixKeys(log, "product", product.String())
 			for _, k := range config.Get().Coefficients {
 				count := k.Range[1] - k.Range[0] + 1
-				ct := commTransaction{
-					what:        fmt.Sprintf("read K:%d...%d,%s", k.Range[0], k.Range[1], k.Format),
-					req:         modbus.RequestRead3(product.Addr, modbus.Var(224+k.Range[0]*2), uint16(count*2)),
-					device:      device,
-					comportName: product.Comport,
-					prs: func(request, response []byte) (s string, e error) {
-						if len(response) != count*4+5 {
-							return "", merry.Errorf("длина ответа %d не равна %d", len(response), count*4+5)
-						}
-						return "", nil
-					},
-				}
 				log := pkg.LogPrependSuffixKeys(log, "range", fmt.Sprintf("%d...%d", k.Range[0], k.Range[1]))
-				response, err := ct.getResponse(log, ctx)
+
+				req := modbus.RequestRead3{
+					Addr:           product.Addr,
+					FirstRegister:  modbus.Var(224 + k.Range[0]*2),
+					RegistersCount: uint16(count * 2),
+				}
+				cm := getCommProduct(product.Comport, device)
+				response, err := req.GetResponse(log, ctx, cm)
+				notifyProductConnection(product.ProductID, err)
 				if err != nil {
-					//go gui.PopupError(true, fmt.Errorf("%s: %w", product, err))
 					return err
 				}
 				n := k.Range[0]
@@ -132,32 +130,37 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 			if err != nil {
 				return "", err
 			}
+
 			var product data.Product
 			if err := db.Get(&product, `SELECT * FROM product WHERE product_id = ?`, x.ProductID); err != nil {
 				return "", err
 			}
-			device, okDevice := config.Get().Hardware.DeviceByName(product.Device)
-			if !okDevice {
-				return "", fmt.Errorf("не найден тип проибора %q", product.Device)
-			}
 			go gui.Popup(false, fmt.Sprintf("%s %s адр.%d K%d=%v", product.Device,
 				product.Comport, product.Addr, x.Coefficient, x.Value))
-			ct := commTransaction{
-				what: fmt.Sprintf("write K%d=%v", x.Coefficient, x.Value),
-				req: modbus.Request{
-					Addr:     product.Addr,
-					ProtoCmd: 0x10,
-					Data:     requestWrite32Bytes(uint16((0x80<<8)+x.Coefficient), x.Value, valFmt),
-				},
-				device:      device,
-				comportName: product.Comport,
+
+			device, f := config.Get().Hardware.DeviceByName(product.Device)
+			if !f {
+				return "", fmt.Errorf("не заданы параметры устройства %s для прибора %+v",
+					product.Device, product)
 			}
+
 			log := pkg.LogPrependSuffixKeys(log, "write_coefficient", x.Coefficient, "value", x.Value,
 				"product", fmt.Sprintf("%+v", product))
-			_, err = ct.getResponse(log, ctx)
+
+			req := modbus.RequestWrite32{
+				Addr:      product.Addr,
+				ProtoCmd:  0x10,
+				DeviceCmd: modbus.DevCmd((0x80 << 8) + x.Coefficient),
+				Format:    valFmt,
+				Value:     x.Value,
+			}
+			cm := getCommProduct(product.Comport, device)
+			err = req.GetResponse(log, ctx, cm)
+			notifyProductConnection(product.ProductID, err)
 			if err != nil && !merry.Is(err, comm.Err) {
 				return "", err
 			}
+
 		}
 		return "", nil
 	})
@@ -166,16 +169,13 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 func runRawCommand(c modbus.ProtoCmd, b []byte) {
 	guiwork.RunTask(fmt.Sprintf("отправка команды XX %X % X", c, b), func() (string, error) {
 		err := processEachActiveProduct(func(p data.Product, device config.Device) error {
-			ct := commTransaction{
-				comportName: p.Comport,
-				device:      device,
-				req: modbus.Request{
-					Addr:     p.Addr,
-					ProtoCmd: c,
-					Data:     b,
-				},
+			cm := getCommProduct(p.Comport, device)
+			req := modbus.Request{
+				Addr:     p.Addr,
+				ProtoCmd: c,
+				Data:     b,
 			}
-			_, err := ct.getResponse(log, context.Background())
+			_, err := req.GetResponse(log, context.Background(), cm)
 			return err
 		})
 		if err != nil {
@@ -240,4 +240,18 @@ func processEachActiveProduct(work func(data.Product, config.Device) error) erro
 		}
 	}
 	return nil
+}
+
+func getCommProduct(comportName string, device config.Device) comm.T {
+	return comm.New(comports.GetComport(comportName, device.Baud), device.CommConfig())
+}
+
+func notifyProductConnection(productID int64, err error) {
+	if merry.Is(err, context.Canceled) {
+		return
+	}
+	go gui.NotifyProductConnection(gui.ProductConnection{
+		ProductID: productID,
+		Ok:        err == nil,
+	})
 }
