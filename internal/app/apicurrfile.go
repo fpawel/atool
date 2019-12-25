@@ -2,11 +2,15 @@ package app
 
 import (
 	"context"
+	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
+	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
+	"time"
 )
 
 type currentFileSvc struct{}
@@ -14,15 +18,7 @@ type currentFileSvc struct{}
 var _ api.CurrentFileService = new(currentFileSvc)
 
 func (h *currentFileSvc) RequestChart(_ context.Context) error {
-	ns, err := getParamAddresses()
-	if err != nil {
-		return err
-	}
-	xs, err := data.GetCurrentPartyChart(db, ns)
-	if err != nil {
-		return err
-	}
-	go gui.NotifyChart(xs)
+	go getCurrentPartyChart()
 	return nil
 }
 
@@ -55,7 +51,7 @@ func (h *currentFileSvc) DeleteProducts(ctx context.Context, productIDs []int64)
 	return err
 }
 
-func (h *currentFileSvc) ListDeviceParams(ctx context.Context) ([]*apitypes.DeviceParam, error) {
+func (h *currentFileSvc) ListDeviceParams(_ context.Context) ([]*apitypes.DeviceParam, error) {
 	xs, err := getParamAddresses()
 	if err != nil {
 		return nil, err
@@ -86,4 +82,48 @@ func getParamAddresses() ([]int, error) {
 		r = append(r, n)
 	}
 	return r, nil
+}
+
+func getCurrentPartyChart() {
+
+	partyID, err := data.GetCurrentPartyID(db)
+	if err != nil {
+		err = merry.Append(err, "не удалось получить номер текущего файла")
+		log.PrintErr(err)
+		go gui.PopupError(true, err)
+	}
+
+	paramAddresses, err := getParamAddresses()
+	if err != nil {
+		err = merry.Append(err, "не удалось получить номера параметров текущего файла")
+		log.PrintErr(err)
+		go gui.PopupError(true, err)
+		return
+	}
+
+	t := time.Now()
+	log := pkg.LogPrependSuffixKeys(log, "party", partyID, "params", fmt.Sprintf("% d", paramAddresses))
+
+	printErr := func(err error) {
+		err = merry.Appendf(err, "график текущего файла %d: % d, %v", partyID, paramAddresses, time.Since(t))
+		log.PrintErr(err)
+		go gui.PopupError(true, err)
+	}
+
+	log.Debug("getting current party chart")
+
+	go gui.Popup(false, fmt.Sprintf("открывается график файла %d", partyID))
+
+	xs, err := data.GetCurrentPartyChart(db, paramAddresses)
+
+	log = pkg.LogPrependSuffixKeys(log, "duration", time.Since(t))
+
+	if err != nil {
+		printErr(err)
+		return
+	}
+	log.Debug("current party chart", "measurements_count", len(xs), "duration", time.Since(t))
+	go gui.Popup(false, fmt.Sprintf("открыт график текущего файла %d, %d точек, %v",
+		partyID, len(xs), time.Since(t)))
+	go gui.NotifyChart(xs)
 }

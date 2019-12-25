@@ -13,13 +13,11 @@ type coefficientsSvc struct {
 var _ api.CoefficientsService = new(coefficientsSvc)
 
 func (*coefficientsSvc) WriteAll(_ context.Context, in []*apitypes.ProductCoefficientValue) error {
-	runWriteAllCoefficients(in)
-	return nil
+	return runWriteAllCoefficients(in)
 }
 
 func (*coefficientsSvc) ReadAll(context.Context) error {
-	runReadAllCoefficients()
-	return nil
+	return runReadAllCoefficients()
 }
 
 func (h *coefficientsSvc) ListCoefficients(_ context.Context) (r []*apitypes.Coefficient, err error) {
