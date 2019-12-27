@@ -21,6 +21,7 @@ type Product struct {
 	ProductID      int64       `db:"product_id"`
 	PartyID        int64       `db:"party_id"`
 	PartyCreatedAt time.Time   `db:"created_at"`
+	CreatedOrder   int         `db:"created_order"`
 	Serial         int         `db:"serial"`
 	Comport        string      `db:"comport"`
 	Addr           modbus.Addr `db:"addr"`
@@ -44,4 +45,18 @@ type Measurement struct {
 	ProductID int64
 	ParamAddr int
 	Value     float64
+}
+
+type Values map[string]float64
+
+type PartyValues struct {
+	Values   Values          `yaml:"values"`
+	Products []ProductValues `yaml:"products"`
+}
+
+type ProductValues struct {
+	ProductID int64              `yaml:"product_id"`
+	Place     int                `yaml:"place"`
+	Serial    int                `yaml:"serial"`
+	Values    map[string]float64 `yaml:"values"`
 }

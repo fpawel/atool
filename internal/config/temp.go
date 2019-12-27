@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/hardware/temp/ktx500"
 	"time"
 )
 
@@ -13,7 +12,6 @@ type Temperature struct {
 	TimeoutGetResponse time.Duration `yaml:"timeout_get_response"`
 	TimeoutEndResponse time.Duration `yaml:"timeout_end_response"`
 	MaxAttemptsRead    int           `yaml:"max_attempts_read"`
-	Ktx500             ktx500.Config `yaml:"ktx500"`
 }
 
 func (c Temperature) Validate() error {

@@ -1,12 +1,16 @@
 
 include "apitypes.thrift"
 
-service HardwareConnectionService {
+service RunWorkService {
     bool connected()
     void connect()
     void interrupt()
     void command(1:i16 cmd; 2:string s)
     void switchGas(1:i8 valve)
+}
+
+service ScriptService {
+    list<string> listWorksNames()
 }
 
 service CurrentFileService {
@@ -16,6 +20,8 @@ service CurrentFileService {
     void addNewProducts(1:i8 productsCount)
     void deleteProducts(1:list<i64> productIDs)
     list<apitypes.DeviceParam> listDeviceParams()
+    void runEdit()
+    void createNewCopy()
 }
 
 service ProductService {

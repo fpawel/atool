@@ -11,15 +11,15 @@ import (
 	"github.com/fpawel/comm/modbus"
 )
 
-type hardwareConnSvc struct{}
+type runWorkSvc struct{}
 
-var _ api.HardwareConnectionService = new(hardwareConnSvc)
+var _ api.RunWorkService = new(runWorkSvc)
 
-func (h *hardwareConnSvc) Connect(_ context.Context) error {
+func (h *runWorkSvc) Connect(_ context.Context) error {
 	return runInterrogate()
 }
 
-func (h *hardwareConnSvc) Interrupt(_ context.Context) error {
+func (h *runWorkSvc) Interrupt(_ context.Context) error {
 	if !guiwork.IsConnected() {
 		return nil
 	}
@@ -28,11 +28,11 @@ func (h *hardwareConnSvc) Interrupt(_ context.Context) error {
 	return nil
 }
 
-func (h *hardwareConnSvc) Connected(_ context.Context) (bool, error) {
+func (h *runWorkSvc) Connected(_ context.Context) (bool, error) {
 	return guiwork.IsConnected(), nil
 }
 
-func (h *hardwareConnSvc) Command(_ context.Context, cmd int16, s string) error {
+func (h *runWorkSvc) Command(_ context.Context, cmd int16, s string) error {
 	b, err := parseHexBytes(s)
 	if err != nil {
 		return merry.New("ожидалась последовательность байтов HEX")
@@ -41,7 +41,7 @@ func (h *hardwareConnSvc) Command(_ context.Context, cmd int16, s string) error 
 	return nil
 }
 
-func (h *hardwareConnSvc) SwitchGas(_ context.Context, valve int8) error {
+func (h *runWorkSvc) SwitchGas(_ context.Context, valve int8) error {
 	guiwork.RunTask(fmt.Sprintf("переключение клапана газового блока: %d", valve), func() (string, error) {
 		err := switchGas(context.Background(), byte(valve))
 		comports.CloseComport(config.Get().Gas.Comport)

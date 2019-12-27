@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"sync/atomic"
+	"time"
 )
 
 type MsgCopyData = uintptr
@@ -22,7 +23,31 @@ const (
 	MsgPopup
 	MsgCoefficients
 	MsgProductConnection
+	MsgPushWork
+	MsgPopWork
+	MsgDelay
 )
+
+func NotifyBeginDelay(duration time.Duration) bool {
+	return copyData().SendJson(MsgDelay, struct {
+		Delay          bool
+		DurationMillis int64
+	}{true, int64(duration / time.Millisecond)})
+}
+
+func NotifyEndDelay() bool {
+	return copyData().SendJson(MsgDelay, struct {
+		Delay bool
+	}{false})
+}
+
+func NotifyPushWork(workName string) bool {
+	return copyData().SendString(MsgPushWork, workName)
+}
+
+func NotifyPopWork() bool {
+	return copyData().SendString(MsgPopWork, "")
+}
 
 func NotifyCoefficients(xs []CoefficientValue) bool {
 	return copyData().SendJson(MsgCoefficients, xs)

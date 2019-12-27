@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/powerman/structlog"
 	"io"
 	"os"
@@ -38,7 +39,7 @@ func (x *output) Write(p []byte) (int, error) {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	if x.done {
-		return 0, errors.New("file was closed")
+		return 0, merry.New("file was closed")
 	}
 	go func() {
 		x.mu.Lock()

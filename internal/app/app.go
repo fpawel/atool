@@ -41,6 +41,7 @@ func Main() {
 	db, err = data.Open(dbFilename)
 	must.PanicIf(err)
 
+	// инициализация отправки оповещений с посылками СОМ порта в gui
 	initNotifyComm()
 
 	// старт сервера
@@ -74,6 +75,7 @@ func Main() {
 	log.Debug("all canceled and closed")
 }
 
+// initNotifyComm инициализация отправки оповещений с посылками СОМ порта в gui
 func initNotifyComm() {
 	comm.SetNotify(func(x comm.Info) {
 		ct := gui.CommTransaction{
@@ -94,6 +96,33 @@ func initNotifyComm() {
 		}
 		go gui.NotifyNewCommTransaction(ct)
 	})
+}
+
+// newApiProcessor
+func newApiProcessor() thrift.TProcessor {
+	p := thrift.NewTMultiplexedProcessor()
+
+	p.RegisterProcessor("RunWorkService",
+		api.NewRunWorkServiceProcessor(new(runWorkSvc)))
+	p.RegisterProcessor("FilesService",
+		api.NewFilesServiceProcessor(new(filesSvc)))
+	p.RegisterProcessor("CurrentFileService",
+		api.NewCurrentFileServiceProcessor(new(currentFileSvc)))
+	p.RegisterProcessor("ProductService",
+		api.NewProductServiceProcessor(new(productSvc)))
+	p.RegisterProcessor("AppConfigService",
+		api.NewAppConfigServiceProcessor(new(appConfigSvc)))
+	p.RegisterProcessor("NotifyGuiService",
+		api.NewNotifyGuiServiceProcessor(new(notifyGuiSvc)))
+	p.RegisterProcessor("HelperService",
+		api.NewHelperServiceProcessor(new(helperSvc)))
+	p.RegisterProcessor("TemperatureDeviceService",
+		api.NewTemperatureDeviceServiceProcessor(new(tempDeviceSvc)))
+	p.RegisterProcessor("CoefficientsService",
+		api.NewCoefficientsServiceProcessor(new(coefficientsSvc)))
+	p.RegisterProcessor("ScriptService",
+		api.NewScriptServiceProcessor(new(scriptSvc)))
+	return p
 }
 
 func runServer() context.CancelFunc {
@@ -130,30 +159,6 @@ const (
 
 func envVarDevModeSet() bool {
 	return os.Getenv(envVarDevMode) == "true"
-}
-
-func newApiProcessor() thrift.TProcessor {
-	p := thrift.NewTMultiplexedProcessor()
-	p.RegisterProcessor("FilesService",
-		api.NewFilesServiceProcessor(new(filesSvc)))
-	p.RegisterProcessor("HardwareConnectionService",
-		api.NewHardwareConnectionServiceProcessor(new(hardwareConnSvc)))
-	p.RegisterProcessor("CurrentFileService",
-		api.NewCurrentFileServiceProcessor(new(currentFileSvc)))
-	p.RegisterProcessor("ProductService",
-		api.NewProductServiceProcessor(new(productSvc)))
-	p.RegisterProcessor("AppConfigService",
-		api.NewAppConfigServiceProcessor(new(appConfigSvc)))
-	p.RegisterProcessor("NotifyGuiService",
-		api.NewNotifyGuiServiceProcessor(new(notifyGuiSvc)))
-	p.RegisterProcessor("HelperService",
-		api.NewHelperServiceProcessor(new(helperSvc)))
-	p.RegisterProcessor("TemperatureDeviceService",
-		api.NewTemperatureDeviceServiceProcessor(new(tempDeviceSvc)))
-	p.RegisterProcessor("CoefficientsService",
-		api.NewCoefficientsServiceProcessor(new(coefficientsSvc)))
-
-	return p
 }
 
 func getTCPAddrApi() string {

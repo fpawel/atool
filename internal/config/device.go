@@ -1,8 +1,8 @@
 package config
 
 import (
-	"errors"
 	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/comm"
 	"regexp"
 	"sort"
@@ -42,38 +42,38 @@ func (d Device) ParamAddresses() (ps []int) {
 func (d Device) Validate() error {
 
 	if len(d.Name) < 0 {
-		return errors.New("не задано имя устройства")
+		return merry.New("не задано имя устройства")
 	}
 
 	if re := regexp.MustCompile("\\s+"); re.MatchString(d.Name) {
-		return errors.New(`имя устройства не должно содержать пробелов`)
+		return merry.New(`имя устройства не должно содержать пробелов`)
 	}
 
 	if len(d.Params) == 0 {
-		return errors.New("список групп параметров устройства не должен быть пустым")
+		return merry.New("список групп параметров устройства не должен быть пустым")
 	}
 
 	if d.Pause < 0 {
-		return fmt.Errorf(`не правильное знaчение pause=%v: должно не меньше нуля`, d.Pause)
+		return merry.Errorf(`не правильное знaчение pause=%v: должно не меньше нуля`, d.Pause)
 	}
 	if d.MaxAttemptsRead < 0 {
-		return fmt.Errorf(`не правильное знaчение max_attempts_read=%v: должно не меньше нуля`, d.MaxAttemptsRead)
+		return merry.Errorf(`не правильное знaчение max_attempts_read=%v: должно не меньше нуля`, d.MaxAttemptsRead)
 	}
 	if d.TimeoutGetResponse < 0 {
-		return fmt.Errorf(`не правильное знaчение timeout_get_response=%v: должно не меньше нуля`, d.TimeoutGetResponse)
+		return merry.Errorf(`не правильное знaчение timeout_get_response=%v: должно не меньше нуля`, d.TimeoutGetResponse)
 	}
 	if d.TimeoutEndResponse < 0 {
-		return fmt.Errorf(`не правильное знaчение timeout_end_response=%v: должно не меньше нуля`, d.TimeoutEndResponse)
+		return merry.Errorf(`не правильное знaчение timeout_end_response=%v: должно не меньше нуля`, d.TimeoutEndResponse)
 	}
 	if d.MaxAttemptsRead < 0 {
-		return fmt.Errorf(`не правильное знaчение max_attempts_read=%v: должно не меньше нуля`, d.MaxAttemptsRead)
+		return merry.Errorf(`не правильное знaчение max_attempts_read=%v: должно не меньше нуля`, d.MaxAttemptsRead)
 	}
 	if d.Baud < 0 {
 		return fmt.Errorf(`не правильное знaчение baud=%v: должно не меньше нуля`, d.Baud)
 	}
 	for i, p := range d.Params {
 		if err := p.Validate(); err != nil {
-			return fmt.Errorf(`группа параметров номер %d: %+v: %w`, i, p, err)
+			return merry.Errorf(`группа параметров номер %d: %+v: %w`, i, p, err)
 		}
 	}
 
@@ -83,7 +83,7 @@ func (d Device) Validate() error {
 				continue
 			}
 			if x.ParamAddr >= y.ParamAddr && x.ParamAddr < y.Count*2 {
-				return fmt.Errorf(`перекрываются адреса регистров групп параметров номер %d и номер %d`, i, j)
+				return merry.Errorf(`перекрываются адреса регистров групп параметров номер %d и номер %d`, i, j)
 			}
 		}
 	}

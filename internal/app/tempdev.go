@@ -16,12 +16,13 @@ var (
 
 func getTemperatureDevice() (temp.TemperatureDevice, error) {
 	comports.CloseComport(config.Get().Temperature.Comport)
-	c := config.Get().Temperature
-	if err := c.Validate(); err != nil {
+	conf := config.Get()
+	confTemp := conf.Temperature
+	if err := confTemp.Validate(); err != nil {
 		return nil, err
 	}
 
-	switch c.Type {
+	switch confTemp.Type {
 	case config.T800:
 		return tempcomport.T800(getTemperatureComportReader()), nil
 	case config.T2500:
@@ -31,11 +32,11 @@ func getTemperatureDevice() (temp.TemperatureDevice, error) {
 			ktx500Client.Close()
 		}
 		var err error
-		ktx500Client, err = c.Ktx500.NewFinsClient()
+		ktx500Client, err = conf.Ktx500.NewFinsClient()
 		if err != nil {
 			return nil, err
 		}
-		return ktx500.NewClient(ktx500Client, c.MaxAttemptsRead), err
+		return ktx500.NewClient(ktx500Client, confTemp.MaxAttemptsRead), err
 	}
 }
 

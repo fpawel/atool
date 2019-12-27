@@ -22,6 +22,7 @@ type Config struct {
 	Hardware             Hardware         `yaml:"hardware"`
 	Gas                  Gas              `yaml:"gas"`
 	Temperature          Temperature      `yaml:"temperature"`
+	Ktx500               ktx500.Config    `yaml:"ktx500"`
 	Coefficients         []Coefficients   `yaml:"coefficients"`
 	InactiveCoefficients map[int]struct{} `yaml:"inactive_coefficients"`
 	ParamsNames          map[int]string   `yaml:"params_names"`
@@ -200,8 +201,8 @@ var (
 			TimeoutGetResponse: time.Second,
 			TimeoutEndResponse: time.Millisecond * 50,
 			MaxAttemptsRead:    1,
-			Ktx500:             ktx500.NewDefaultConfig(),
 		},
+		Ktx500:               ktx500.NewDefaultConfig(),
 		InactiveCoefficients: make(map[int]struct{}),
 		Coefficients: []Coefficients{
 			{

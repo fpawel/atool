@@ -2,8 +2,6 @@ package app
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
@@ -12,18 +10,17 @@ import (
 	"github.com/fpawel/atool/internal/gui/guiwork"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/comports"
-	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
+	"github.com/powerman/structlog"
 	"time"
 )
 
 var errNoInterrogateObjects = merry.New("не установлены объекты опроса")
 
 func runInterrogate() error {
-	return guiwork.RunWork(appCtx, "опрос приборов", func(ctx context.Context) (string, error) {
-		must.PanicIf(createNewChartIfUpdatedTooLong())
+	return guiwork.RunWork(log, appCtx, "опрос приборов", func(log *structlog.Logger, ctx context.Context) (string, error) {
 		ms := new(measurements)
 		defer func() {
 			saveMeasurements(ms.xs)
@@ -59,8 +56,7 @@ func readProductsParams(ctx context.Context, ms *measurements) error {
 }
 
 func runReadAllCoefficients() error {
-	return guiwork.RunWork(appCtx, "считывание коэффициентов", func(ctx context.Context) (string, error) {
-		log := pkg.LogPrependSuffixKeys(log, "work", "считывание_коэффициентов")
+	return guiwork.RunWork(log, appCtx, "считывание коэффициентов", func(log *structlog.Logger, ctx context.Context) (string, error) {
 		var xs []gui.CoefficientValue
 		hasFormatErrors := false
 		err := processEachActiveProduct(func(product data.Product, device config.Device) error {
@@ -114,7 +110,7 @@ func runReadAllCoefficients() error {
 		}
 
 		if hasFormatErrors {
-			return "", errors.New("один или несколько к-тов имеют не верный формат")
+			return "", merry.New("один или несколько к-тов имеют не верный формат")
 		}
 		return "см. таблицу во вкладке коэффициентов", nil
 
@@ -122,9 +118,7 @@ func runReadAllCoefficients() error {
 }
 
 func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
-	return guiwork.RunWork(appCtx, "запись коэффициентов", func(ctx context.Context) (string, error) {
-		log := pkg.LogPrependSuffixKeys(log, "work", "запись_коэффициентов")
-
+	return guiwork.RunWork(log, appCtx, "запись коэффициентов", func(log *structlog.Logger, ctx context.Context) (string, error) {
 		for _, x := range in {
 			valFmt, err := config.Get().GetCoefficientFormat(int(x.Coefficient))
 			if err != nil {
@@ -185,30 +179,30 @@ func runRawCommand(c modbus.ProtoCmd, b []byte) {
 	})
 }
 
-func createNewChartIfUpdatedTooLong() error {
-	t, err := data.GetCurrentPartyUpdatedAt(db)
-	if err == sql.ErrNoRows {
-		log.Info("last party has no measurements")
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	//log.Printf("last party updated at: %v, %v", t, time.Since(t))
-	if time.Since(t) <= time.Hour {
-		return nil
-	}
-
-	go gui.Popup(true, "Для наглядности графичеких данных текущего опроса создан новый график.")
-
-	log.Info("copy current party for new chart")
-	if err := data.CopyCurrentParty(db); err != nil {
-		return err
-	}
-	gui.NotifyCurrentPartyChanged()
-
-	return nil
-}
+//func createNewChartIfUpdatedTooLong() error {
+//	t, err := data.GetCurrentPartyUpdatedAt(db)
+//	if err == sql.ErrNoRows {
+//		log.Info("last party has no measurements")
+//		return nil
+//	}
+//	if err != nil {
+//		return err
+//	}
+//	//log.Printf("last party updated at: %v, %v", t, time.Since(t))
+//	if time.Since(t) <= time.Hour {
+//		return nil
+//	}
+//
+//	go gui.Popup(true, "Для наглядности графичеких данных текущего опроса создан новый график.")
+//
+//	log.Info("copy current party for new chart")
+//	if err := data.CopyCurrentParty(db); err != nil {
+//		return err
+//	}
+//	gui.NotifyCurrentPartyChanged()
+//
+//	return nil
+//}
 
 func getActiveProducts() ([]data.Product, error) {
 	var products []data.Product
@@ -253,5 +247,13 @@ func notifyProductConnection(productID int64, err error) {
 	go gui.NotifyProductConnection(gui.ProductConnection{
 		ProductID: productID,
 		Ok:        err == nil,
+	})
+}
+
+func delay(log *structlog.Logger, ctx context.Context, duration time.Duration, name string) error {
+	// измерения, полученные в процесе опроса приборов во время данной задержки
+	ms := new(measurements)
+	return guiwork.Delay(log, ctx, duration, name, func(_ *structlog.Logger, ctx context.Context) error {
+		return readProductsParams(ctx, ms)
 	})
 }

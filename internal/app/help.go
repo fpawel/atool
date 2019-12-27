@@ -98,3 +98,16 @@ func unixMillisToTime(m apitypes.TimeUnixMillis) time.Time {
 }
 
 const timeLayout = "2006-01-02 15:04:05.000"
+
+func pause(chDone <-chan struct{}, d time.Duration) {
+	timer := time.NewTimer(d)
+	for {
+		select {
+		case <-timer.C:
+			return
+		case <-chDone:
+			timer.Stop()
+			return
+		}
+	}
+}

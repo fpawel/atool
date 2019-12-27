@@ -8,8 +8,14 @@ import (
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg"
+	"github.com/fpawel/atool/internal/pkg/must"
+	"github.com/fpawel/atool/internal/pkg/winapi"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"os/exec"
+	"path/filepath"
 	"time"
 )
 
@@ -38,8 +44,8 @@ func (h *currentFileSvc) SetName(_ context.Context, name string) error {
 }
 
 func (h *currentFileSvc) AddNewProducts(_ context.Context, productsCount int8) error {
-	for i := productsCount; i > 0; i-- {
-		if err := data.AddNewProduct(db); err != nil {
+	for i := 0; i < int(productsCount); i++ {
+		if err := data.AddNewProduct(db, i); err != nil {
 			return err
 		}
 	}
@@ -66,6 +72,62 @@ func (h *currentFileSvc) ListDeviceParams(_ context.Context) ([]*apitypes.Device
 		})
 	}
 	return r, nil
+}
+func (h *currentFileSvc) CreateNewCopy(_ context.Context) error {
+	go func() {
+		if err := data.CopyCurrentParty(db); err != nil {
+			gui.PopupError(true, merry.Append(err, "копирование текущего файла"))
+			return
+		}
+		gui.NotifyCurrentPartyChanged()
+	}()
+	return nil
+
+}
+
+func (h *currentFileSvc) RunEdit(_ context.Context) error {
+
+	var partyValues data.PartyValues
+	if err := data.GetCurrentPartyValues(db, &partyValues); err != nil {
+		return err
+	}
+
+	filename := filepath.Join(tmpDir, "party.yaml")
+	if err := ioutil.WriteFile(filename, must.MarshalYaml(partyValues), 0644); err != nil {
+		return err
+	}
+	cmd := exec.Command("./npp/notepad++.exe", filename)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	winapi.ActivateWindowByPid(cmd.Process.Pid)
+
+	save := func() error {
+		if err := cmd.Wait(); err != nil {
+			return err
+		}
+		b, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return err
+		}
+		if err := yaml.Unmarshal(b, &partyValues); err != nil {
+			return err
+		}
+		if err := data.SetCurrentPartyValues(db, partyValues); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	go func() {
+
+		if err := save(); err != nil {
+			log.PrintErr(err, "data", fmt.Sprintf("%+v", partyValues))
+			go gui.PopupError(true, merry.Append(err, "Ошибка при сохранении данных"))
+			return
+		}
+	}()
+	return nil
 }
 
 func getParamAddresses() ([]int, error) {
@@ -102,7 +164,7 @@ func getCurrentPartyChart() {
 	}
 
 	t := time.Now()
-	log := pkg.LogPrependSuffixKeys(log, "party", partyID, "params", fmt.Sprintf("% d", paramAddresses))
+	log := pkg.LogPrependSuffixKeys(log, "party", partyID, "params", fmt.Sprintf("%d", paramAddresses))
 
 	printErr := func(err error) {
 		err = merry.Appendf(err, "график текущего файла %d: % d, %v", partyID, paramAddresses, time.Since(t))
