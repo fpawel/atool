@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-type WorkFunc func(*structlog.Logger, context.Context) (string, error)
+type WorkFunc func(*structlog.Logger, context.Context) error
 
 type DelayBackgroundWorkFunc func(*structlog.Logger, context.Context) error
 
@@ -40,46 +40,42 @@ func RunWork(log *structlog.Logger, ctx context.Context, workName string, work W
 	return nil
 }
 
-func RunTask(what string, task func() (string, error)) {
+func RunTask(log *structlog.Logger, what string, task func() error) {
 	go func() {
-		gui.Popup(false, what+": выполняется")
-		str, err := task()
+		gui.Journal(log, what+": выполняется")
+		err := task()
 		if err != nil {
-			gui.PopupError(false, merry.Append(err, what))
+			gui.JournalError(log, merry.Append(err, what))
 			return
 		}
-		if len(what) == 0 {
-			gui.Popup(false, what+": "+str)
-			return
-		}
-		gui.Popup(false, what+": выполнено")
-
+		gui.Journal(log, what+": выполнено")
 	}()
 }
 
-func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName string, work WorkFunc) (string, error) {
+func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName string, work WorkFunc) error {
 	if ctx.Err() != nil {
-		return "", ctx.Err()
+		return ctx.Err()
 	}
-
 	muNamedWorksStack.Lock()
 	namedWorksStack = append(namedWorksStack, newWorkName)
 	level := len(namedWorksStack)
 	muNamedWorksStack.Unlock()
 
-	go gui.NotifyPushWork(newWorkName)
+	gui.Journal(log, newWorkName+": выполняется")
 
 	log = pkg.LogPrependSuffixKeys(log, fmt.Sprintf("work%d", level), newWorkName)
 
-	result, err := work(log, ctx)
+	err := work(log, ctx)
 
 	muNamedWorksStack.Lock()
 	namedWorksStack = namedWorksStack[:len(namedWorksStack)-1]
 	muNamedWorksStack.Unlock()
-
-	go gui.NotifyPopWork()
-
-	return result, err
+	if err == nil {
+		gui.Journal(log, newWorkName+": завершено успешно")
+	} else {
+		gui.JournalError(log, merry.New(newWorkName+": завершено с ошибкой").WithCause(err))
+	}
+	return err
 }
 
 func InterruptDelay(log *structlog.Logger) {
@@ -101,7 +97,7 @@ func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, n
 	ctx, interruptDelay = context.WithTimeout(ctx, duration)
 	muInterruptDelay.Unlock()
 
-	_, err := PerformNewNamedWork(log, ctx, fmt.Sprintf("%s: %s", name, duration), func(log *structlog.Logger, ctx context.Context) (string, error) {
+	err := PerformNewNamedWork(log, ctx, fmt.Sprintf("%s: %s", name, duration), func(log *structlog.Logger, ctx context.Context) error {
 		log.Info("delay: begin")
 		go gui.NotifyBeginDelay(duration)
 		defer func() {
@@ -117,15 +113,15 @@ func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, n
 			err := backgroundWork(log, ctx)
 			if ctxParent.Err() != nil {
 				// выполнение прервано
-				return "", ctxParent.Err()
+				return ctxParent.Err()
 			}
 			if ctx.Err() != nil {
 				// задержка истекла или прервана
-				return "", nil
+				return nil
 			}
 			if err != nil {
-				go gui.PopupError(false, err)
-				return "", nil
+				gui.JournalError(log, err)
+				return nil
 			}
 		}
 	})
@@ -134,28 +130,19 @@ func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, n
 
 func performWork(log *structlog.Logger, ctx context.Context, workName string, work WorkFunc) {
 	go gui.NotifyStartWork()
-	go gui.Popup(false, workName+": выполняется")
 
 	muNamedWorksStack.Lock()
 	namedWorksStack = nil
 	muNamedWorksStack.Unlock()
 
-	result, err := PerformNewNamedWork(log, ctx, workName, work)
-
-	muNamedWorksStack.Lock()
-	namedWorksStack = nil
-	muNamedWorksStack.Unlock()
-
-	if err != nil {
-		go gui.PopupError(false, merry.Append(err, workName))
-		log.PrintErr(err, "stack", pkg.FormatMerryStacktrace(err), "work", workName)
-	} else {
-		if len(workName) == 0 {
-			gui.Popup(false, workName+": "+result)
-			return
-		}
-		go gui.Popup(false, workName+": выполнено")
+	if err := PerformNewNamedWork(log, ctx, workName, work); err != nil {
+		pkg.PrintMerryStacktrace(log, err)
 	}
+
+	muNamedWorksStack.Lock()
+	namedWorksStack = nil
+	muNamedWorksStack.Unlock()
+
 	interrupt()
 	atomic.StoreInt32(&atomicConnected, 0)
 	comports.CloseAllComports()

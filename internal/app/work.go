@@ -20,7 +20,7 @@ import (
 var errNoInterrogateObjects = merry.New("не установлены объекты опроса")
 
 func runInterrogate() error {
-	return guiwork.RunWork(log, appCtx, "опрос приборов", func(log *structlog.Logger, ctx context.Context) (string, error) {
+	return guiwork.RunWork(log, appCtx, "опрос приборов", func(log *structlog.Logger, ctx context.Context) error {
 		ms := new(measurements)
 		defer func() {
 			saveMeasurements(ms.xs)
@@ -28,9 +28,9 @@ func runInterrogate() error {
 		for {
 			if err := readProductsParams(ctx, ms); err != nil {
 				if merry.Is(err, context.Canceled) {
-					return "", nil
+					return nil
 				}
-				return "", err
+				return err
 			}
 		}
 	})
@@ -56,7 +56,7 @@ func readProductsParams(ctx context.Context, ms *measurements) error {
 }
 
 func runReadAllCoefficients() error {
-	return guiwork.RunWork(log, appCtx, "считывание коэффициентов", func(log *structlog.Logger, ctx context.Context) (string, error) {
+	return guiwork.RunWork(log, appCtx, "считывание коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
 		var xs []gui.CoefficientValue
 		hasFormatErrors := false
 		err := processEachActiveProduct(func(product data.Product, device config.Device) error {
@@ -103,38 +103,37 @@ func runReadAllCoefficients() error {
 			return nil
 		})
 		if err != nil {
-			return "", err
+			return err
 		}
 		if len(xs) > 0 {
 			go gui.NotifyCoefficients(xs)
 		}
 
 		if hasFormatErrors {
-			return "", merry.New("один или несколько к-тов имеют не верный формат")
+			return merry.New("один или несколько к-тов имеют не верный формат")
 		}
-		return "см. таблицу во вкладке коэффициентов", nil
-
+		return nil
 	})
 }
 
 func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
-	return guiwork.RunWork(log, appCtx, "запись коэффициентов", func(log *structlog.Logger, ctx context.Context) (string, error) {
+	return guiwork.RunWork(log, appCtx, "запись коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
 		for _, x := range in {
 			valFmt, err := config.Get().GetCoefficientFormat(int(x.Coefficient))
 			if err != nil {
-				return "", err
+				return err
 			}
 
 			var product data.Product
 			if err := db.Get(&product, `SELECT * FROM product WHERE product_id = ?`, x.ProductID); err != nil {
-				return "", err
+				return err
 			}
-			go gui.Popup(false, fmt.Sprintf("%s %s адр.%d K%d=%v", product.Device,
+			gui.Journal(log, fmt.Sprintf("%s %s адр.%d K%d=%v", product.Device,
 				product.Comport, product.Addr, x.Coefficient, x.Value))
 
 			device, f := config.Get().Hardware.DeviceByName(product.Device)
 			if !f {
-				return "", fmt.Errorf("не заданы параметры устройства %s для прибора %+v",
+				return fmt.Errorf("не заданы параметры устройства %s для прибора %+v",
 					product.Device, product)
 			}
 
@@ -152,16 +151,16 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 			err = req.GetResponse(log, ctx, cm)
 			notifyProductConnection(product.ProductID, err)
 			if err != nil && !merry.Is(err, comm.Err) {
-				return "", err
+				return err
 			}
 
 		}
-		return "", nil
+		return nil
 	})
 }
 
 func runRawCommand(c modbus.ProtoCmd, b []byte) {
-	guiwork.RunTask(fmt.Sprintf("отправка команды XX %X % X", c, b), func() (string, error) {
+	guiwork.RunTask(log, fmt.Sprintf("отправка команды XX %X % X", c, b), func() error {
 		err := processEachActiveProduct(func(p data.Product, device config.Device) error {
 			cm := getCommProduct(p.Comport, device)
 			req := modbus.Request{
@@ -173,9 +172,9 @@ func runRawCommand(c modbus.ProtoCmd, b []byte) {
 			return err
 		})
 		if err != nil {
-			return "", err
+			return err
 		}
-		return "", nil
+		return nil
 	})
 }
 
@@ -228,7 +227,7 @@ func processEachActiveProduct(work func(data.Product, config.Device) error) erro
 			return fmt.Errorf("не заданы параметры устройства %s для прибора %+v",
 				p.Device, p)
 		}
-		go gui.Popup(false, fmt.Sprintf("опрашивается прибор: %s %s адр.%d", d.Name, p.Comport, p.Addr))
+		gui.Popup(log, fmt.Sprintf("опрашивается прибор: %s %s адр.%d", d.Name, p.Comport, p.Addr))
 		if err := work(p, d); merry.Is(err, context.Canceled) {
 			return err
 		}

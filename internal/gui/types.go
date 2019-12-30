@@ -21,10 +21,24 @@ type ProductParamValue struct {
 	Value     string
 }
 
-type PopupMessage struct {
-	Text    string
-	Ok      bool
-	Warning bool
+type PopupLevel int
+
+const (
+
+	// только popup, не вносить в журнал
+	LPopup PopupLevel = iota
+
+	// popup и в журнал
+	LJournal
+
+	// в отдельный popup, который нужно специально закрывать, и в журнал
+	LWarn
+)
+
+type Status struct {
+	Text       string
+	Ok         bool
+	PopupLevel PopupLevel
 }
 
 type CoefficientValue struct {

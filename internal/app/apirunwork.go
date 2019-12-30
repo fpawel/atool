@@ -42,10 +42,10 @@ func (h *runWorkSvc) Command(_ context.Context, cmd int16, s string) error {
 }
 
 func (h *runWorkSvc) SwitchGas(_ context.Context, valve int8) error {
-	guiwork.RunTask(fmt.Sprintf("переключение клапана газового блока: %d", valve), func() (string, error) {
+	guiwork.RunTask(log, fmt.Sprintf("переключение клапана газового блока: %d", valve), func() error {
 		err := switchGas(context.Background(), byte(valve))
 		comports.CloseComport(config.Get().Gas.Comport)
-		return "", err
+		return err
 	})
 	return nil
 }

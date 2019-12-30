@@ -60,7 +60,7 @@ func (h *filesSvc) GetParty(_ context.Context, partyID int64) (*apitypes.Party, 
 		party.Products = append(party.Products, &apitypes.Product{
 			ProductID:      p.ProductID,
 			PartyID:        p.PartyID,
-			PartyCreatedAt: timeUnixMillis(p.PartyCreatedAt),
+			PartyCreatedAt: timeUnixMillis(p.CreatedAt),
 			Comport:        p.Comport,
 			Addr:           int8(p.Addr),
 			Device:         p.Device,

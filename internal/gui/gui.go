@@ -20,11 +20,9 @@ const (
 	MsgNewCommTransaction MsgCopyData = iota
 	MsgNewProductParamValue
 	MsgChart
-	MsgPopup
+	MsgStatus
 	MsgCoefficients
 	MsgProductConnection
-	MsgPushWork
-	MsgPopWork
 	MsgDelay
 )
 
@@ -41,28 +39,12 @@ func NotifyEndDelay() bool {
 	}{false})
 }
 
-func NotifyPushWork(workName string) bool {
-	return copyData().SendString(MsgPushWork, workName)
-}
-
-func NotifyPopWork() bool {
-	return copyData().SendString(MsgPopWork, "")
-}
-
 func NotifyCoefficients(xs []CoefficientValue) bool {
 	return copyData().SendJson(MsgCoefficients, xs)
 }
 
 func NotifyProductConnection(x ProductConnection) bool {
 	return copyData().SendJson(MsgProductConnection, x)
-}
-
-func Popup(warning bool, x string) bool {
-	return copyData().SendJson(MsgPopup, PopupMessage{Text: x, Ok: true, Warning: warning})
-}
-
-func PopupError(warning bool, x error) bool {
-	return copyData().SendJson(MsgPopup, PopupMessage{Text: x.Error(), Ok: false, Warning: warning})
 }
 
 func NotifyNewCommTransaction(c CommTransaction) bool {

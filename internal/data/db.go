@@ -232,10 +232,14 @@ WHERE product_id = ?`, newPartyID, prevParty.PartyID); err != nil {
 		return err
 	}
 
-	for _, prevProduct := range prevParty.Products {
+	for i, p := range prevParty.Products {
+		p.CreatedAt = time.Now()
+		p.CreatedOrder = i
+		p.PartyID = newPartyID
+
 		r, err := db.NamedExec(`
-INSERT INTO product( party_id, addr, device, active, comport ) 
-VALUES (:party_id, :addr, :device, :active, :comport);`, prevProduct)
+INSERT INTO product( party_id, addr, device, active, comport, created_at, created_order ) 
+VALUES (:party_id, :addr, :device, :active, :comport, :created_at, :created_order);`, p)
 
 		if err != nil {
 			return err
@@ -248,14 +252,14 @@ VALUES (:party_id, :addr, :device, :active, :comport);`, prevProduct)
 		if _, err := db.Exec(`
 INSERT INTO product_param
 SELECT ?, param_addr, chart, series_active FROM product_param 
-WHERE product_id = ?`, newProductID, prevProduct.ProductID); err != nil {
+WHERE product_id = ?`, newProductID, p.ProductID); err != nil {
 			return err
 		}
 
 		if _, err := db.Exec(`
 INSERT INTO product_value
 SELECT ?, key, value FROM product_value 
-WHERE product_id = ?`, newProductID, prevProduct.ProductID); err != nil {
+WHERE product_id = ?`, newProductID, p.ProductID); err != nil {
 			return err
 		}
 	}
@@ -279,7 +283,7 @@ func CreateNewParty(ctx context.Context, db *sqlx.DB, productsCount int, name st
 	}
 	for i := 0; i < productsCount; i++ {
 		r, err := db.ExecContext(ctx,
-			`INSERT INTO product(party_id, addr) VALUES (?, ?);`,
+			`INSERT INTO product(party_id, addr, created_order, created_at) VALUES (?, ?, ?, ?);`,
 			newPartyID, i+1, i+1, time.Now().Add(time.Second*time.Duration(i)))
 		if err != nil {
 			return err

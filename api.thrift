@@ -11,6 +11,8 @@ service RunWorkService {
 
 service ScriptService {
     list<string> listWorksNames()
+    void run(1:list<i32> works)
+    void runFile(1:string filename)
 }
 
 service CurrentFileService {
