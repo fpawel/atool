@@ -26,11 +26,12 @@ const (
 	MsgDelay
 )
 
-func NotifyBeginDelay(duration time.Duration) bool {
+func NotifyBeginDelay(duration time.Duration, what string) bool {
 	return copyData().SendJson(MsgDelay, struct {
 		Delay          bool
 		DurationMillis int64
-	}{true, int64(duration / time.Millisecond)})
+		What           string
+	}{true, int64(duration / time.Millisecond), what})
 }
 
 func NotifyEndDelay() bool {

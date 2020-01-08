@@ -41,7 +41,6 @@ func readProductsParams(ctx context.Context, ms *measurements) error {
 		rdr := newParamsReader(product, device)
 		for _, prm := range device.Params {
 			err := rdr.getResponse(ctx, prm)
-			notifyProductConnection(product.ProductID, err)
 			if err != nil {
 				return err
 			}
@@ -72,7 +71,6 @@ func runReadAllCoefficients() error {
 				}
 				cm := getCommProduct(product.Comport, device)
 				response, err := req.GetResponse(log, ctx, cm)
-				notifyProductConnection(product.ProductID, err)
 				if err != nil {
 					return err
 				}
@@ -118,6 +116,7 @@ func runReadAllCoefficients() error {
 
 func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 	return guiwork.RunWork(log, appCtx, "запись коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
+
 		for _, x := range in {
 			valFmt, err := config.Get().GetCoefficientFormat(int(x.Coefficient))
 			if err != nil {
@@ -149,7 +148,6 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 			}
 			cm := getCommProduct(product.Comport, device)
 			err = req.GetResponse(log, ctx, cm)
-			notifyProductConnection(product.ProductID, err)
 			if err != nil && !merry.Is(err, comm.Err) {
 				return err
 			}
@@ -228,8 +226,16 @@ func processEachActiveProduct(work func(data.Product, config.Device) error) erro
 				p.Device, p)
 		}
 		gui.Popup(log, fmt.Sprintf("опрашивается прибор: %s %s адр.%d", d.Name, p.Comport, p.Addr))
-		if err := work(p, d); merry.Is(err, context.Canceled) {
+		err := work(p, d)
+		if merry.Is(err, context.Canceled) {
 			return err
+		}
+		go gui.NotifyProductConnection(gui.ProductConnection{
+			ProductID: p.ProductID,
+			Ok:        err == nil,
+		})
+		if err != nil {
+			gui.JournalError(log, merry.Errorf("ошибка связи с прибором %s %s адр.%d", d.Name, p.Comport, p.Addr).WithCause(err))
 		}
 	}
 	return nil
@@ -237,16 +243,6 @@ func processEachActiveProduct(work func(data.Product, config.Device) error) erro
 
 func getCommProduct(comportName string, device config.Device) comm.T {
 	return comm.New(comports.GetComport(comportName, device.Baud), device.CommConfig())
-}
-
-func notifyProductConnection(productID int64, err error) {
-	if merry.Is(err, context.Canceled) {
-		return
-	}
-	go gui.NotifyProductConnection(gui.ProductConnection{
-		ProductID: productID,
-		Ok:        err == nil,
-	})
 }
 
 func delay(log *structlog.Logger, ctx context.Context, duration time.Duration, name string) error {

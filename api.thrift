@@ -5,13 +5,12 @@ service RunWorkService {
     bool connected()
     void connect()
     void interrupt()
+    void interruptDelay()
     void command(1:i16 cmd; 2:string s)
     void switchGas(1:i8 valve)
 }
 
 service ScriptService {
-    list<string> listWorksNames()
-    void run(1:list<i32> works)
     void runFile(1:string filename)
 }
 

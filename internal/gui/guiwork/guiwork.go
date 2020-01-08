@@ -42,13 +42,9 @@ func RunWork(log *structlog.Logger, ctx context.Context, workName string, work W
 
 func RunTask(log *structlog.Logger, what string, task func() error) {
 	go func() {
-		gui.Journal(log, what+": выполняется")
-		err := task()
-		if err != nil {
-			gui.JournalError(log, merry.Append(err, what))
-			return
-		}
-		gui.Journal(log, what+": выполнено")
+		_ = PerformNewNamedWork(log, context.Background(), what, func(*structlog.Logger, context.Context) error {
+			return task()
+		})
 	}()
 }
 
@@ -56,7 +52,9 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
+
 	muNamedWorksStack.Lock()
+	isMainWork := len(namedWorksStack) == 0
 	namedWorksStack = append(namedWorksStack, newWorkName)
 	level := len(namedWorksStack)
 	muNamedWorksStack.Unlock()
@@ -71,9 +69,15 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 	namedWorksStack = namedWorksStack[:len(namedWorksStack)-1]
 	muNamedWorksStack.Unlock()
 	if err == nil {
-		gui.Journal(log, newWorkName+": завершено успешно")
+		gui.Journal(log, newWorkName+": выполнение окончено")
 	} else {
-		gui.JournalError(log, merry.New(newWorkName+": завершено с ошибкой").WithCause(err))
+		if isMainWork {
+			log = pkg.LogPrependSuffixKeys(log, "stack", pkg.FormatMerryStacktrace(err), "error", err)
+			err = merry.New(newWorkName + ": завершено с ошибкой").WithCause(err)
+		} else {
+			err = merry.Append(err, newWorkName)
+		}
+		gui.JournalError(log, err)
 	}
 	return err
 }
@@ -97,9 +101,11 @@ func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, n
 	ctx, interruptDelay = context.WithTimeout(ctx, duration)
 	muInterruptDelay.Unlock()
 
-	err := PerformNewNamedWork(log, ctx, fmt.Sprintf("%s: %s", name, duration), func(log *structlog.Logger, ctx context.Context) error {
+	s1 := fmt.Sprintf("%s %s", name, duration)
+
+	err := PerformNewNamedWork(log, ctx, s1, func(log *structlog.Logger, ctx context.Context) error {
 		log.Info("delay: begin")
-		go gui.NotifyBeginDelay(duration)
+		go gui.NotifyBeginDelay(duration, s1)
 		defer func() {
 			muInterruptDelay.Lock()
 			interruptDelay()
@@ -135,12 +141,12 @@ func performWork(log *structlog.Logger, ctx context.Context, workName string, wo
 	namedWorksStack = nil
 	muNamedWorksStack.Unlock()
 
-	if err := PerformNewNamedWork(log, ctx, workName, work); err != nil {
-		pkg.PrintMerryStacktrace(log, err)
-	}
+	_ = PerformNewNamedWork(log, ctx, workName, work)
 
 	muNamedWorksStack.Lock()
-	namedWorksStack = nil
+	if len(namedWorksStack) != 0 {
+		panic("len(namedWorksStack) != 0")
+	}
 	muNamedWorksStack.Unlock()
 
 	interrupt()

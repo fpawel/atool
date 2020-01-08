@@ -28,6 +28,11 @@ func (h *runWorkSvc) Interrupt(_ context.Context) error {
 	return nil
 }
 
+func (h *runWorkSvc) InterruptDelay(_ context.Context) error {
+	guiwork.InterruptDelay(log)
+	return nil
+}
+
 func (h *runWorkSvc) Connected(_ context.Context) (bool, error) {
 	return guiwork.IsConnected(), nil
 }

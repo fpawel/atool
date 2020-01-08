@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
@@ -42,7 +41,6 @@ func (r paramsReader) getResponse(ctx context.Context, prm config.Params) error 
 	}
 	cm := getCommProduct(r.p.Comport, r.dv)
 	response, err := req3.GetResponse(log, ctx, cm)
-	notifyProductConnection(r.p.ProductID, err)
 	if err == nil {
 		offset := 2 * prm.ParamAddr
 		copy(r.dt[offset:], response[3:][:bytesCount])
@@ -75,11 +73,4 @@ func (r paramsReader) processParamValueRead(p config.Params, i int, ms *measurem
 		ct.Value = err.Error()
 	}
 	go gui.NotifyNewProductParamValue(ct)
-}
-
-func checkResponse3(request, response []byte, bytesCount int) (s string, e error) {
-	if len(response) != bytesCount+5 {
-		return "", merry.Errorf("длина ответа %d не равна %d", len(response), bytesCount+5)
-	}
-	return "", nil
 }

@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"syscall"
+	"time"
 )
 
 func Main() {
@@ -37,7 +38,7 @@ func Main() {
 
 	// соединение с базой данных
 	dbFilename := filepath.Join(filepath.Dir(os.Args[0]), "atool.sqlite")
-	log.Debug("open database: " + dbFilename)
+	log.Debug("open database: "+dbFilename, structlog.KeyTime, time.Now().Format("15:04:05"))
 	db, err = data.Open(dbFilename)
 	must.PanicIf(err)
 
@@ -68,7 +69,7 @@ func Main() {
 	log.Debug("остановка сервера")
 	stopServer()
 
-	log.Debug("закрыть соединение с базой данных")
+	log.Debug("закрыть соединение с базой данных", structlog.KeyTime, time.Now().Format("15:04:05"))
 	log.ErrIfFail(db.Close)
 
 	// записать в лог что всё хорошо
