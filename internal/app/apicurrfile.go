@@ -7,6 +7,7 @@ import (
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
+	"github.com/fpawel/atool/internal/journal"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/pkg/winapi"
@@ -76,7 +77,7 @@ func (h *currentFileSvc) ListDeviceParams(_ context.Context) ([]*apitypes.Device
 func (h *currentFileSvc) CreateNewCopy(_ context.Context) error {
 	go func() {
 		if err := data.CopyCurrentParty(db); err != nil {
-			gui.JournalError(log, merry.Append(err, "копирование текущего файла"))
+			journal.Err(log, merry.Append(err, "копирование текущего файла"))
 			return
 		}
 		gui.NotifyCurrentPartyChanged()
@@ -122,7 +123,7 @@ func (h *currentFileSvc) RunEdit(_ context.Context) error {
 	go func() {
 
 		if err := save(); err != nil {
-			gui.JournalError(log, merry.Append(err, "Ошибка при сохранении данных"))
+			journal.Err(log, merry.Append(err, "Ошибка при сохранении данных"))
 			return
 		}
 	}()
@@ -151,14 +152,14 @@ func getCurrentPartyChart() {
 	if err != nil {
 		err = merry.Append(err, "не удалось получить номер текущего файла")
 		log.PrintErr(err)
-		gui.JournalError(log, err)
+		journal.Err(log, err)
 	}
 
 	paramAddresses, err := getParamAddresses()
 	if err != nil {
 		err = merry.Append(err, "не удалось получить номера параметров текущего файла")
 		log.PrintErr(err)
-		gui.JournalError(log, err)
+		journal.Err(log, err)
 		return
 	}
 
@@ -166,12 +167,10 @@ func getCurrentPartyChart() {
 	log := pkg.LogPrependSuffixKeys(log, "party", partyID, "params", fmt.Sprintf("%d", paramAddresses))
 
 	printErr := func(err error) {
-		gui.WarnError(log, merry.Appendf(err, "график текущего файла %d: % d, %v", partyID, paramAddresses, time.Since(t)))
+		journal.WarnError(log, merry.Appendf(err, "график текущего файла %d: % d, %v", partyID, paramAddresses, time.Since(t)))
 	}
 
-	//log.Debug("getting current party chart")
-
-	gui.Popup(log, fmt.Sprintf("открывается график файла %d", partyID))
+	gui.Popupf("открывается график файла %d", partyID)
 
 	xs, err := data.GetCurrentPartyChart(db, paramAddresses)
 
@@ -182,7 +181,6 @@ func getCurrentPartyChart() {
 		return
 	}
 	//log.Debug("current party chart", "measurements_count", len(xs), "duration", time.Since(t))
-	gui.Popup(log, fmt.Sprintf("открыт график текущего файла %d, %d точек, %v",
-		partyID, len(xs), time.Since(t)))
+	gui.Popupf("открыт график текущего файла %d, %d точек, %v", partyID, len(xs), time.Since(t))
 	go gui.NotifyChart(xs)
 }

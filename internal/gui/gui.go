@@ -26,6 +26,18 @@ const (
 	MsgDelay
 )
 
+func NotifyStatus(x Status) bool {
+	return copyData().SendJson(MsgStatus, x)
+}
+
+func Popup(x string) bool {
+	return NotifyStatus(Status{Text: x, Ok: true, PopupLevel: LPopup})
+}
+
+func Popupf(format string, a ...interface{}) bool {
+	return Popup(fmt.Sprintf(format, a...))
+}
+
 func NotifyBeginDelay(duration time.Duration, what string) bool {
 	return copyData().SendJson(MsgDelay, struct {
 		Delay          bool
@@ -117,8 +129,9 @@ func copyData() copydata.W {
 }
 
 var (
-	hWndSourceSendMessage                           = winapi.NewWindowWithClassName(os.Args[0] + "33BCE8B6-E14D-4060-97C9-2B7E79719195")
-	hWndTargetSendMessage, setHWndTargetSendMessage = func() (func() win.HWND, func(win.HWND)) {
+	hWndSourceSendMessage = winapi.NewWindowWithClassName(os.Args[0] + "33BCE8B6-E14D-4060-97C9-2B7E79719195")
+	hWndTargetSendMessage,
+	setHWndTargetSendMessage = func() (func() win.HWND, func(win.HWND)) {
 		hWnd := int64(win.HWND_TOP)
 		return func() win.HWND {
 				return win.HWND(atomic.LoadInt64(&hWnd))

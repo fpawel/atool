@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/data"
-	"github.com/fpawel/atool/internal/gui/guiwork"
+	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 )

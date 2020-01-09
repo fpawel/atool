@@ -1,13 +1,17 @@
 package app
 
 import (
+	"context"
+	"fmt"
 	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/journal"
 	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/gofins/fins"
 	"github.com/fpawel/hardware/temp"
 	"github.com/fpawel/hardware/temp/ktx500"
 	"github.com/fpawel/hardware/temp/tempcomport"
+	"math"
 )
 
 var (
@@ -50,4 +54,38 @@ func getTemperatureComportReader() comm.T {
 			MaxAttemptsRead:    c.MaxAttemptsRead,
 			Pause:              0,
 		})
+}
+
+func setupTemperature(log logger, ctx context.Context, destinationTemperature float64) error {
+	dev, err := getTemperatureDevice()
+	if err != nil {
+		return err
+	}
+	if err := dev.Setup(log, ctx, destinationTemperature); err != nil {
+		return err
+	}
+
+	// измерения, полученные в процесе опроса приборов во время данной задержки
+	ms := new(measurements)
+
+	defer func() {
+		saveMeasurements(ms.xs)
+	}()
+
+	for {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		currentTemperature, err := dev.Read(log, ctx)
+		if err != nil {
+			return err
+		}
+		if math.Abs(currentTemperature-destinationTemperature) < 2 {
+			journal.Info(log, fmt.Sprintf("термокамера вышла на температуру %v⁰C: %v⁰C", destinationTemperature, currentTemperature))
+			return nil
+		}
+		if err := readProductsParams(ctx, ms); err != nil {
+			journal.Err(log, err)
+		}
+	}
 }

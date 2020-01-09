@@ -7,7 +7,8 @@ import (
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
-	"github.com/fpawel/atool/internal/gui/guiwork"
+	"github.com/fpawel/atool/internal/guiwork"
+	"github.com/fpawel/atool/internal/journal"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
@@ -127,7 +128,7 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 			if err := db.Get(&product, `SELECT * FROM product WHERE product_id = ?`, x.ProductID); err != nil {
 				return err
 			}
-			gui.Journal(log, fmt.Sprintf("%s %s адр.%d K%d=%v", product.Device,
+			journal.Info(log, fmt.Sprintf("%s %s адр.%d K%d=%v", product.Device,
 				product.Comport, product.Addr, x.Coefficient, x.Value))
 
 			device, f := config.Get().Hardware.DeviceByName(product.Device)
@@ -174,6 +175,26 @@ func runRawCommand(c modbus.ProtoCmd, b []byte) {
 		}
 		return nil
 	})
+}
+
+func readAndSaveProductValue(log logger, ctx context.Context, product data.Product, device config.Device, param modbus.Var, format modbus.FloatBitsFormat, dbKey string) error {
+	wrapErr := func(err error) error {
+		return merry.Appendf(err, "%s,рег.%d", product, param)
+	}
+	cm := getCommProduct(product.Comport, device)
+	value, err := modbus.Read3Value(log, ctx, cm, product.Addr, modbus.Var(param), format)
+	if err != nil {
+		journal.Err(log, wrapErr(err))
+		return nil
+	}
+	journal.Info(log, fmt.Sprintf("сохранить: %s,рег.%d,%s = %v", product, param, dbKey, value))
+	const query = `
+INSERT INTO product_value
+VALUES (?, ?, ?)
+ON CONFLICT (product_id,key) DO UPDATE
+    SET value = ?`
+	_, err = db.Exec(query, product.ProductID, dbKey, value, value)
+	return wrapErr(err)
 }
 
 //func createNewChartIfUpdatedTooLong() error {
@@ -225,7 +246,7 @@ func processEachActiveProduct(work func(data.Product, config.Device) error) erro
 			return fmt.Errorf("не заданы параметры устройства %s для прибора %+v",
 				p.Device, p)
 		}
-		gui.Popup(log, fmt.Sprintf("опрашивается прибор: %s %s адр.%d", d.Name, p.Comport, p.Addr))
+		gui.Popupf("опрашивается прибор: %s %s адр.%d", d.Name, p.Comport, p.Addr)
 		err := work(p, d)
 		if merry.Is(err, context.Canceled) {
 			return err
@@ -235,7 +256,7 @@ func processEachActiveProduct(work func(data.Product, config.Device) error) erro
 			Ok:        err == nil,
 		})
 		if err != nil {
-			gui.JournalError(log, merry.Errorf("ошибка связи с прибором %s %s адр.%d", d.Name, p.Comport, p.Addr).WithCause(err))
+			journal.Err(log, merry.Errorf("ошибка связи с прибором %s %s адр.%d", d.Name, p.Comport, p.Addr).WithCause(err))
 		}
 	}
 	return nil
@@ -248,6 +269,9 @@ func getCommProduct(comportName string, device config.Device) comm.T {
 func delay(log *structlog.Logger, ctx context.Context, duration time.Duration, name string) error {
 	// измерения, полученные в процесе опроса приборов во время данной задержки
 	ms := new(measurements)
+	defer func() {
+		saveMeasurements(ms.xs)
+	}()
 	return guiwork.Delay(log, ctx, duration, name, func(_ *structlog.Logger, ctx context.Context) error {
 		return readProductsParams(ctx, ms)
 	})

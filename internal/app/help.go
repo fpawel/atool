@@ -6,11 +6,14 @@ import (
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm/modbus"
+	"github.com/powerman/structlog"
 	"math"
 	"strconv"
 	"strings"
 	"time"
 )
+
+type logger = *structlog.Logger
 
 func formatBytes(xs []byte) string {
 	return fmt.Sprintf("% X", xs)
@@ -86,8 +89,11 @@ func formatTimeAsQuery(t time.Time) string {
 }
 
 func timeUnixMillis(t time.Time) apitypes.TimeUnixMillis {
-
 	return apitypes.TimeUnixMillis(t.UnixNano() / int64(time.Millisecond))
+}
+
+func formatError1(err error) string {
+	return strings.Replace(err.Error(), ":", "\n\t", -1)
 }
 
 func unixMillisToTime(m apitypes.TimeUnixMillis) time.Time {

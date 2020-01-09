@@ -18,6 +18,8 @@ import (
 
 type Config struct {
 	LogComm              bool             `yaml:"log_comm"`
+	BlowGas              time.Duration    `yaml:"blow_gas"`
+	HoldTemperature      time.Duration    `yaml:"hold_temperature"`
 	FloatPrecision       int              `yaml:"float_precision"`
 	Hardware             Hardware         `yaml:"hardware"`
 	Gas                  Gas              `yaml:"gas"`
@@ -168,8 +170,10 @@ func init() {
 
 var (
 	defaultCfg = Config{
-		LogComm:        false,
-		FloatPrecision: 6,
+		LogComm:         false,
+		BlowGas:         5 * time.Minute,
+		HoldTemperature: 2 * time.Hour,
+		FloatPrecision:  6,
 		Hardware: Hardware{
 			Device{
 				Name:               "default",

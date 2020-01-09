@@ -7,7 +7,9 @@ import (
 	"github.com/apache/thrift/lib/go/thrift"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
-	"github.com/fpawel/atool/internal/gui/guiwork"
+	"github.com/fpawel/atool/internal/guiwork"
+	"github.com/fpawel/atool/internal/journal"
+	"github.com/fpawel/atool/internal/pkg/logfile"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/comm"
@@ -42,8 +44,12 @@ func Main() {
 	db, err = data.Open(dbFilename)
 	must.PanicIf(err)
 
+	// журнал СОМ порта
+	comportLogfile, err := logfile.New(".comport")
+	must.PanicIf(err)
+
 	// инициализация отправки оповещений с посылками СОМ порта в gui
-	initNotifyComm()
+	initNotifyComm(comportLogfile)
 
 	// старт сервера
 	stopServer := runServer()
@@ -72,12 +78,18 @@ func Main() {
 	log.Debug("закрыть соединение с базой данных", structlog.KeyTime, time.Now().Format("15:04:05"))
 	log.ErrIfFail(db.Close)
 
+	log.Debug("закрыть журнал СОМ порта")
+	log.ErrIfFail(comportLogfile.Close)
+
+	log.Debug("закрыть журнал")
+	log.ErrIfFail(journal.Close)
+
 	// записать в лог что всё хорошо
 	log.Debug("all canceled and closed")
 }
 
 // initNotifyComm инициализация отправки оповещений с посылками СОМ порта в gui
-func initNotifyComm() {
+func initNotifyComm(file *os.File) {
 	comm.SetNotify(func(x comm.Info) {
 		ct := gui.CommTransaction{
 			Port:     x.Port,
@@ -95,6 +107,14 @@ func initNotifyComm() {
 		if x.Attempt > 0 {
 			ct.Response += fmt.Sprintf(" попытка %d", x.Attempt+1)
 		}
+		_, err := fmt.Fprintf(file, "%s %s % X -> % X", time.Now().Format("15:04:05.000"), x.Port, x.Request, x.Response)
+		must.PanicIf(err)
+		if x.Err != nil {
+			_, err := fmt.Fprintf(file, " %s", x.Err)
+			must.PanicIf(err)
+		}
+		_, err = file.WriteString("\n")
+		must.PanicIf(err)
 		go gui.NotifyNewCommTransaction(ct)
 	})
 }

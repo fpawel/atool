@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/gui"
+	"github.com/fpawel/atool/internal/journal"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/powerman/structlog"
@@ -59,7 +60,7 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 	level := len(namedWorksStack)
 	muNamedWorksStack.Unlock()
 
-	gui.Journal(log, newWorkName+": выполняется")
+	journal.Info(log, newWorkName+": выполняется")
 
 	log = pkg.LogPrependSuffixKeys(log, fmt.Sprintf("work%d", level), newWorkName)
 
@@ -69,7 +70,7 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 	namedWorksStack = namedWorksStack[:len(namedWorksStack)-1]
 	muNamedWorksStack.Unlock()
 	if err == nil {
-		gui.Journal(log, newWorkName+": выполнение окончено")
+		journal.Info(log, newWorkName+": выполнение окончено")
 	} else {
 		if isMainWork {
 			log = pkg.LogPrependSuffixKeys(log, "stack", pkg.FormatMerryStacktrace(err), "error", err)
@@ -77,7 +78,7 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 		} else {
 			err = merry.Append(err, newWorkName)
 		}
-		gui.JournalError(log, err)
+		journal.Err(log, err)
 	}
 	return err
 }
@@ -86,10 +87,15 @@ func InterruptDelay(log *structlog.Logger) {
 	muInterruptDelay.Lock()
 	interruptDelay()
 	muInterruptDelay.Unlock()
-	log.Info("delay: skipped by user")
+	journal.Warn(log, "текущая задаржка прервана пользователем")
 }
 
 func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, name string, backgroundWork DelayBackgroundWorkFunc) error {
+
+	if duration == 0 {
+		return nil
+	}
+
 	startTime := time.Now()
 	log = pkg.LogPrependSuffixKeys(log, "delay_start", startTime.Format("15:04:05"))
 
@@ -126,7 +132,7 @@ func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, n
 				return nil
 			}
 			if err != nil {
-				gui.JournalError(log, err)
+				journal.Err(log, err)
 				return nil
 			}
 		}

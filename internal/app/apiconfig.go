@@ -5,6 +5,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/gui"
+	"github.com/fpawel/atool/internal/journal"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/pkg/winapi"
 	"github.com/fpawel/atool/internal/thriftgen/api"
@@ -53,7 +54,7 @@ func (h *appConfigSvc) EditConfig(_ context.Context) error {
 	go func() {
 		if err := applyConfig(); err != nil {
 			log.PrintErr(err)
-			gui.JournalError(log, merry.Append(err, "Ошибка при сохранении конфигурации"))
+			journal.Err(log, merry.Append(err, "Ошибка при сохранении конфигурации"))
 			return
 		}
 		gui.NotifyCurrentPartyChanged()
