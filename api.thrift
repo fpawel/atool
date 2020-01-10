@@ -16,13 +16,14 @@ service ScriptService {
 
 service CurrentFileService {
     void requestChart()
-    void setName(1:string name)
     void renameChart(1:string oldName, 2:string newName)
     void addNewProducts(1:i8 productsCount)
     void deleteProducts(1:list<i64> productIDs)
     list<apitypes.DeviceParam> listDeviceParams()
     void runEdit()
     void createNewCopy()
+    list<apitypes.PartyParamValue> getParamValues()
+    void setParamValues(1:list<apitypes.PartyParamValue> xs)
 }
 
 service ProductService {

@@ -17,6 +17,8 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -29,6 +31,89 @@ func (h *currentFileSvc) RequestChart(_ context.Context) error {
 	return nil
 }
 
+func (h *currentFileSvc) SetParamValues(_ context.Context, xs []*apitypes.PartyParamValue) error {
+
+	var err error
+	appendErr := func(e error) {
+		if e == nil {
+			return
+		}
+		if err == nil {
+			err = e
+			return
+		}
+		err = merry.WithCause(err, e)
+	}
+
+	for _, x := range xs {
+		x := x
+		appendErr := func(err error) {
+			appendErr(merry.Appendf(err, "%s: %q = %q", x.Name, x.Key, x.Value))
+		}
+		switch x.Key {
+		case "product_type":
+			_, err := db.Exec(`UPDATE party SET product_type = ? WHERE party_id = (SELECT party_id FROM app_config)`, x.Value)
+			appendErr(err)
+		case "name":
+			_, err := db.Exec(`UPDATE party SET name = ? WHERE party_id = (SELECT party_id FROM app_config)`, x.Value)
+			appendErr(err)
+		default:
+			value, err := strconv.ParseFloat(strings.ReplaceAll(x.Value, ",", "."), 64)
+			if err != nil {
+				appendErr(err)
+				continue
+			}
+			_, err = db.Exec(`
+INSERT INTO party_value (party_id, key, value)
+  VALUES ((SELECT party_id FROM app_config), ?, ?)
+  ON CONFLICT (party_id,key) DO UPDATE SET value = ?`, x.Key, value, value)
+			appendErr(err)
+		}
+	}
+	return err
+}
+
+func (h *currentFileSvc) GetParamValues(_ context.Context) ([]*apitypes.PartyParamValue, error) {
+	p, err := data.GetCurrentParty(db)
+	if err != nil {
+		return nil, err
+	}
+	xs := []*apitypes.PartyParamValue{
+		{
+			Key:   "name",
+			Name:  "Имя файла",
+			Value: p.Name,
+		},
+		{
+			Key:   "product_type",
+			Name:  "Исполнение",
+			Value: p.ProductType,
+		},
+	}
+	var dxs []struct {
+		Key   string `db:"key"`
+		Value string `db:"value"`
+	}
+	const q1 = `SELECT key, value FROM party_value WHERE party_id = (SELECT party_id FROM app_config)`
+	if err := db.Select(&dxs, q1); err != nil {
+		return nil, err
+	}
+	for key, x := range config.Get().PartyParams {
+		y := &apitypes.PartyParamValue{
+			Key:  key,
+			Name: x.Name,
+		}
+		for _, z := range dxs {
+			if z.Key == key {
+				y.Value = z.Value
+			}
+		}
+		xs = append(xs, y)
+	}
+	return xs, nil
+
+}
+
 func (h *currentFileSvc) RenameChart(_ context.Context, oldName, newName string) error {
 	_, err := db.Exec(`
 UPDATE product_param
@@ -36,11 +121,6 @@ SET chart = ?
 WHERE chart = ?
   AND product_id IN (SELECT product_id FROM product WHERE party_id = (SELECT party_id FROM app_config))
 `, newName, oldName)
-	return err
-}
-
-func (h *currentFileSvc) SetName(_ context.Context, name string) error {
-	_, err := db.Exec(`UPDATE party SET name = ? WHERE party_id = (SELECT party_id FROM app_config)`, name)
 	return err
 }
 

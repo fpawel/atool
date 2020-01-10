@@ -7,9 +7,10 @@ import (
 )
 
 type PartyInfo struct {
-	PartyID   int64     `db:"party_id"`
-	CreatedAt time.Time `db:"created_at"`
-	Name      string    `db:"name"`
+	PartyID     int64     `db:"party_id"`
+	CreatedAt   time.Time `db:"created_at"`
+	Name        string    `db:"name"`
+	ProductType string    `db:"product_type"`
 }
 
 type Party struct {

@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/comm"
-	"regexp"
 	"sort"
 	"time"
 )
 
 type Device struct {
-	Name               string        `yaml:"name"`
+	//Name               string        `yaml:"name"`
 	Baud               int           `yaml:"baud"`
 	TimeoutGetResponse time.Duration `yaml:"timeout_get_response"` // таймаут получения ответа
 	TimeoutEndResponse time.Duration `yaml:"timeout_end_response"` // таймаут окончания ответа
@@ -41,32 +40,32 @@ func (d Device) ParamAddresses() (ps []int) {
 
 func (d Device) Validate() error {
 
-	if len(d.Name) < 0 {
-		return merry.New("не задано имя устройства")
-	}
-
-	if re := regexp.MustCompile("\\s+"); re.MatchString(d.Name) {
-		return merry.New(`имя устройства не должно содержать пробелов`)
-	}
+	//if len(d.Name) < 0 {
+	//	return merry.New("не задано имя устройства")
+	//}
+	//
+	//if re := regexp.MustCompile("\\s+"); re.MatchString(d.Name) {
+	//	return merry.New(`имя устройства не должно содержать пробелов`)
+	//}
 
 	if len(d.Params) == 0 {
 		return merry.New("список групп параметров устройства не должен быть пустым")
 	}
 
 	if d.Pause < 0 {
-		return merry.Errorf(`не правильное знaчение pause=%v: должно не меньше нуля`, d.Pause)
+		return merry.Errorf(`не правильное значение pause=%v: должно не меньше нуля`, d.Pause)
 	}
 	if d.MaxAttemptsRead < 0 {
-		return merry.Errorf(`не правильное знaчение max_attempts_read=%v: должно не меньше нуля`, d.MaxAttemptsRead)
+		return merry.Errorf(`не правильное значение max_attempts_read=%v: должно не меньше нуля`, d.MaxAttemptsRead)
 	}
 	if d.TimeoutGetResponse < 0 {
-		return merry.Errorf(`не правильное знaчение timeout_get_response=%v: должно не меньше нуля`, d.TimeoutGetResponse)
+		return merry.Errorf(`не правильное значение timeout_get_response=%v: должно не меньше нуля`, d.TimeoutGetResponse)
 	}
 	if d.TimeoutEndResponse < 0 {
-		return merry.Errorf(`не правильное знaчение timeout_end_response=%v: должно не меньше нуля`, d.TimeoutEndResponse)
+		return merry.Errorf(`не правильное значение timeout_end_response=%v: должно не меньше нуля`, d.TimeoutEndResponse)
 	}
 	if d.MaxAttemptsRead < 0 {
-		return merry.Errorf(`не правильное знaчение max_attempts_read=%v: должно не меньше нуля`, d.MaxAttemptsRead)
+		return merry.Errorf(`не правильное значение max_attempts_read=%v: должно не меньше нуля`, d.MaxAttemptsRead)
 	}
 	if d.Baud < 0 {
 		return fmt.Errorf(`не правильное знaчение baud=%v: должно не меньше нуля`, d.Baud)

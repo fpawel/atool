@@ -26,6 +26,12 @@ struct PartyInfo {
     3: TimeUnixMillis createdAt
 }
 
+struct PartyParamValue {
+    1: string key
+    2: string name
+    3: string value
+}
+
 struct ProductParam {
     1: i64 productID
     2: i16 ParamAddr

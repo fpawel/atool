@@ -131,7 +131,7 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 			journal.Info(log, fmt.Sprintf("%s %s адр.%d K%d=%v", product.Device,
 				product.Comport, product.Addr, x.Coefficient, x.Value))
 
-			device, f := config.Get().Hardware.DeviceByName(product.Device)
+			device, f := config.Get().Hardware[product.Device]
 			if !f {
 				return fmt.Errorf("не заданы параметры устройства %s для прибора %+v",
 					product.Device, product)
@@ -241,12 +241,12 @@ func processEachActiveProduct(work func(data.Product, config.Device) error) erro
 		return err
 	}
 	for _, p := range products {
-		d, f := config.Get().Hardware.DeviceByName(p.Device)
+		d, f := config.Get().Hardware[p.Device]
 		if !f {
 			return fmt.Errorf("не заданы параметры устройства %s для прибора %+v",
 				p.Device, p)
 		}
-		gui.Popupf("опрашивается прибор: %s %s адр.%d", d.Name, p.Comport, p.Addr)
+		gui.Popupf("опрашивается прибор: %s %s адр.%d", p.Device, p.Comport, p.Addr)
 		err := work(p, d)
 		if merry.Is(err, context.Canceled) {
 			return err
@@ -256,7 +256,7 @@ func processEachActiveProduct(work func(data.Product, config.Device) error) erro
 			Ok:        err == nil,
 		})
 		if err != nil {
-			journal.Err(log, merry.Errorf("ошибка связи с прибором %s %s адр.%d", d.Name, p.Comport, p.Addr).WithCause(err))
+			journal.Err(log, merry.Errorf("ошибка связи с прибором %s %s адр.%d", p.Device, p.Comport, p.Addr).WithCause(err))
 		}
 	}
 	return nil

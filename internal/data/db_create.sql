@@ -3,9 +3,10 @@ PRAGMA encoding = 'UTF-8';
 
 CREATE TABLE IF NOT EXISTS party
 (
-    party_id   INTEGER PRIMARY KEY NOT NULL,
-    created_at TIMESTAMP           NOT NULL DEFAULT (datetime('now')) UNIQUE,
-    name       TEXT                NOT NULL DEFAULT '(без имени)'
+    party_id     INTEGER PRIMARY KEY NOT NULL,
+    created_at   TIMESTAMP           NOT NULL DEFAULT (datetime('now')) UNIQUE,
+    name         TEXT                NOT NULL DEFAULT '(без имени)',
+    product_type TEXT                NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS product

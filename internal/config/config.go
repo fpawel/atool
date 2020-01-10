@@ -5,7 +5,6 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/comm"
-	"github.com/fpawel/hardware/gas"
 	"github.com/fpawel/hardware/temp/ktx500"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -21,6 +20,9 @@ type Config struct {
 	BlowGas              time.Duration    `yaml:"blow_gas"`
 	HoldTemperature      time.Duration    `yaml:"hold_temperature"`
 	FloatPrecision       int              `yaml:"float_precision"`
+	ProductTypes         []string         `yaml:"product_types"`
+	PartyParams          PartyParams      `yaml:"party_params"`
+	ProductParams        ProductParams    `yaml:"product_params"`
 	Hardware             Hardware         `yaml:"hardware"`
 	Gas                  Gas              `yaml:"gas"`
 	Temperature          Temperature      `yaml:"temperature"`
@@ -28,6 +30,16 @@ type Config struct {
 	Coefficients         []Coefficients   `yaml:"coefficients"`
 	InactiveCoefficients map[int]struct{} `yaml:"inactive_coefficients"`
 	ParamsNames          map[int]string   `yaml:"params_names"`
+}
+
+type ProductParams = map[string]map[string]string
+
+type PartyParams = map[string]PartyParam
+
+type PartyParam struct {
+	Name     string  `yaml:"name"`
+	Positive bool    `yaml:"positive"`
+	Def      float64 `yaml:"def"`
 }
 
 func SetYaml(strYaml []byte) error {
@@ -86,6 +98,27 @@ func (c Config) Validate() error {
 			return merry.Appendf(err, "диапазон к-тов номер %d", i)
 		}
 	}
+
+	if len(c.ProductTypes) == 0 {
+		return merry.New("список исполнений партии не должен быть пустым")
+	}
+
+	if len(c.PartyParams) == 0 {
+		return merry.New("список параметров партии не должен быть пустым")
+	}
+
+	if len(c.ProductParams) == 0 {
+		return merry.New("список параметров приборов не должен быть пустым")
+	}
+
+	m := make(map[string]struct{})
+	for _, x := range c.ProductTypes {
+		if _, f := m[x]; f {
+			return merry.Errorf("дублирование исполнения партии %q", x)
+		}
+		m[x] = struct{}{}
+	}
+
 	return nil
 }
 
@@ -134,6 +167,18 @@ func readFile() (Config, error) {
 }
 
 func (c *Config) validate() {
+	if len(c.ProductTypes) == 0 {
+		c.ProductTypes = []string{"00.01", "00.02"}
+	}
+
+	if len(c.PartyParams) == 0 {
+		c.PartyParams = defaultPartyParams()
+	}
+
+	if len(c.ProductParams) == 0 {
+		c.ProductParams = defaultProductParams()
+	}
+
 	if len(c.Coefficients) == 0 {
 		c.Coefficients = []Coefficients{
 			{
@@ -158,63 +203,17 @@ func init() {
 	c, err := readFile()
 	if err != nil {
 		fmt.Println(err, "file:", filename())
-		c = defaultCfg
+		c = defaultConfig()
 	}
 	c.validate()
 	if err := c.Validate(); err != nil {
 		fmt.Println(err)
-		c = defaultCfg
+		c = defaultConfig()
 	}
 	must.PanicIf(Set(c))
 }
 
 var (
-	defaultCfg = Config{
-		LogComm:         false,
-		BlowGas:         5 * time.Minute,
-		HoldTemperature: 2 * time.Hour,
-		FloatPrecision:  6,
-		Hardware: Hardware{
-			Device{
-				Name:               "default",
-				Baud:               9600,
-				TimeoutGetResponse: time.Second,
-				TimeoutEndResponse: time.Millisecond * 50,
-				MaxAttemptsRead:    0,
-				Pause:              0,
-				Params: []Params{
-					{
-						Format:    "bcd",
-						ParamAddr: 0,
-						Count:     1,
-					},
-				},
-			},
-		},
-		Gas: Gas{
-			Type:               gas.Mil82,
-			Addr:               100,
-			Comport:            "COM1",
-			TimeoutGetResponse: time.Second,
-			TimeoutEndResponse: time.Millisecond * 50,
-			MaxAttemptsRead:    0,
-		},
-		Temperature: Temperature{
-			Type:               T800,
-			Comport:            "COM1",
-			TimeoutGetResponse: time.Second,
-			TimeoutEndResponse: time.Millisecond * 50,
-			MaxAttemptsRead:    1,
-		},
-		Ktx500:               ktx500.NewDefaultConfig(),
-		InactiveCoefficients: make(map[int]struct{}),
-		Coefficients: []Coefficients{
-			{
-				Range:  [2]int{0, 50},
-				Format: "float_big_endian",
-			},
-		},
-	}
 	mu  sync.Mutex
-	cfg = defaultCfg
+	cfg = defaultConfig()
 )

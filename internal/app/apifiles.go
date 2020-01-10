@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/thriftgen/api"
@@ -75,5 +76,11 @@ func (h *filesSvc) CreateNewParty(ctx context.Context, productsCount int8, name 
 	if guiwork.IsConnected() {
 		return merry.New("нельзя создать новую партию пока выполняется опрос")
 	}
-	return data.CreateNewParty(ctx, db, int(productsCount), name)
+
+	var productType string
+	xs := config.Get().ProductTypes
+	if len(xs) > 0 {
+		productType = xs[0]
+	}
+	return data.CreateNewParty(ctx, db, int(productsCount), name, productType)
 }

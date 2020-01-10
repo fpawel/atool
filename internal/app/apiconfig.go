@@ -20,11 +20,8 @@ type appConfigSvc struct{}
 
 var _ api.AppConfigService = new(appConfigSvc)
 
-func (h *appConfigSvc) ListDevices(_ context.Context) (xs []string, err error) {
-	for _, d := range config.Get().Hardware {
-		xs = append(xs, d.Name)
-	}
-	return
+func (h *appConfigSvc) ListDevices(_ context.Context) ([]string, error) {
+	return config.Get().Hardware.ListDevices(), nil
 }
 
 func (h *appConfigSvc) EditConfig(_ context.Context) error {
