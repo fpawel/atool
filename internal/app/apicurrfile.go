@@ -31,46 +31,37 @@ func (h *currentFileSvc) RequestChart(_ context.Context) error {
 	return nil
 }
 
-func (h *currentFileSvc) SetParamValues(_ context.Context, xs []*apitypes.PartyParamValue) error {
+type apiProductsValuesMap = map[int64]*apitypes.StringBool
 
-	var err error
-	appendErr := func(e error) {
-		if e == nil {
-			return
-		}
-		if err == nil {
-			err = e
-			return
-		}
-		err = merry.WithCause(err, e)
-	}
+type apiParamsProductsValuesMap = map[string]apiProductsValuesMap
 
-	for _, x := range xs {
-		x := x
-		appendErr := func(err error) {
-			appendErr(merry.Appendf(err, "%s: %q = %q", x.Name, x.Key, x.Value))
-		}
-		switch x.Key {
-		case "product_type":
-			_, err := db.Exec(`UPDATE party SET product_type = ? WHERE party_id = (SELECT party_id FROM app_config)`, x.Value)
-			appendErr(err)
-		case "name":
-			_, err := db.Exec(`UPDATE party SET name = ? WHERE party_id = (SELECT party_id FROM app_config)`, x.Value)
-			appendErr(err)
-		default:
-			value, err := strconv.ParseFloat(strings.ReplaceAll(x.Value, ",", "."), 64)
-			if err != nil {
-				appendErr(err)
-				continue
-			}
-			_, err = db.Exec(`
-INSERT INTO party_value (party_id, key, value)
-  VALUES ((SELECT party_id FROM app_config), ?, ?)
-  ON CONFLICT (party_id,key) DO UPDATE SET value = ?`, x.Key, value, value)
-			appendErr(err)
+func (h *currentFileSvc) GetProductsParamsValues(_ context.Context) (r apiParamsProductsValuesMap, err error) {
+	r = make(apiParamsProductsValuesMap)
+	var params []string
+	for _, m := range config.Get().ProductParams {
+		for k := range m {
+			params = append(params, k)
 		}
 	}
-	return err
+	var productIDs []string
+	const q1 = `SELECT product_id FROM product WHERE party_id IN (SELECT party_id FROM app_config)`
+	if err := db.Select(&productIDs, q1); err != nil {
+		return nil, err
+	}
+
+	const q2 = `
+SELECT product_id, key, value
+FROM product_value
+WHERE product_id IN (SELECT product_id FROM product WHERE party_id IN (SELECT party_id FROM app_config));
+`
+	var pvs []struct {
+		ProductID int64  `yaml:"product_id"`
+		Key       string `yaml:"key"`
+		Value     string `yaml:"value"`
+	}
+	if err := db.Select(&pvs, q2); err != nil {
+		return nil, err
+	}
 }
 
 func (h *currentFileSvc) GetParamValues(_ context.Context) ([]*apitypes.PartyParamValue, error) {
@@ -112,6 +103,36 @@ func (h *currentFileSvc) GetParamValues(_ context.Context) ([]*apitypes.PartyPar
 	}
 	return xs, nil
 
+}
+
+func (h *currentFileSvc) GetParamValue(ctx context.Context, key string) (r string, err error) {
+	const q1 = `SELECT value FROM party_value WHERE party_id = (SELECT party_id FROM app_config) AND key = ?`
+	err = db.Select(&r, q1)
+	return
+}
+
+func (h *currentFileSvc) SetParamValue(_ context.Context, key string, value string) error {
+	wrapErr := func(err error) error {
+		return merry.Appendf(err, "%q = %q", key, value)
+	}
+	switch key {
+	case "product_type":
+		_, err := db.Exec(`UPDATE party SET product_type = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)
+		return wrapErr(err)
+	case "name":
+		_, err := db.Exec(`UPDATE party SET name = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)
+		return wrapErr(err)
+	default:
+		value, err := strconv.ParseFloat(strings.ReplaceAll(value, ",", "."), 64)
+		if err != nil {
+			return wrapErr(err)
+		}
+		_, err = db.Exec(`
+INSERT INTO party_value (party_id, key, value)
+  VALUES ((SELECT party_id FROM app_config), ?, ?)
+  ON CONFLICT (party_id,key) DO UPDATE SET value = ?`, key, value, value)
+		return wrapErr(err)
+	}
 }
 
 func (h *currentFileSvc) RenameChart(_ context.Context, oldName, newName string) error {

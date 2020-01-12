@@ -23,7 +23,10 @@ service CurrentFileService {
     void runEdit()
     void createNewCopy()
     list<apitypes.PartyParamValue> getParamValues()
-    void setParamValues(1:list<apitypes.PartyParamValue> xs)
+    void setParamValue(1:string key, 2:string value)
+    string getParamValue(1:string key)
+
+    map<string,map<i64,apitypes.StringBool>> getProductsParamsValues()
 }
 
 service ProductService {
@@ -32,8 +35,8 @@ service ProductService {
    void setProductsDevice(1:list<i64> productIDs, 2:string device)
    void setProductAddr(1:i64 productID, 2:i16 addr)
    void setProductActive(1:i64 productID, 2:bool active)
-   void setProductParam(1:apitypes.ProductParam productParam)
-   apitypes.ProductParam getProductParam(1:i64 productID, 2:i16 paramAddr)
+   void setProductParamSeries(1:apitypes.ProductParamSeries productParam)
+   apitypes.ProductParamSeries getProductParamSeries(1:i64 productID, 2:i16 paramAddr)
    void deleteChartPoints(1:apitypes.DeleteChartPointsRequest r)
 }
 
@@ -56,6 +59,7 @@ service AppConfigService {
     apitypes.AppConfig getConfig()
     void setConfig(1:apitypes.AppConfig config)
 
+    list<list<apitypes.NameKey>> GetProductParamsKeysNames()
 }
 
 service HelperService {

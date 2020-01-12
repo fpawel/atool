@@ -41,7 +41,7 @@ func (h *productSvc) SetProductActive(_ context.Context, productID int64, active
 	return err
 }
 
-func (h *productSvc) SetProductParam(_ context.Context, p *apitypes.ProductParam) error {
+func (h *productSvc) SetProductParamSeries(_ context.Context, p *apitypes.ProductParamSeries) error {
 	if p.Chart == "" {
 		_, err := db.Exec(`DELETE FROM product_param WHERE product_id = ? AND param_addr = ?`, p.ProductID, p.ParamAddr)
 		return err
@@ -54,13 +54,13 @@ func (h *productSvc) SetProductParam(_ context.Context, p *apitypes.ProductParam
 	})
 }
 
-func (h *productSvc) GetProductParam(ctx context.Context, productID int64, paramAddr int16) (*apitypes.ProductParam, error) {
+func (h *productSvc) GetProductParamSeries(ctx context.Context, productID int64, paramAddr int16) (*apitypes.ProductParamSeries, error) {
 	var d data.ProductParam
 	err := db.Get(&d, `SELECT * FROM product_param WHERE product_id=? AND param_addr=?`, productID, paramAddr)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
-	return &apitypes.ProductParam{
+	return &apitypes.ProductParamSeries{
 		ProductID:    productID,
 		ParamAddr:    paramAddr,
 		Chart:        d.Chart,

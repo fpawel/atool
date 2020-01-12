@@ -32,13 +32,22 @@ struct PartyParamValue {
     3: string value
 }
 
-struct ProductParam {
+struct ProductParamSeries {
     1: i64 productID
     2: i16 ParamAddr
     3: string chart
     4: bool seriesActive
 }
 
+struct StringBool {
+    1: string value
+    2: bool ok
+}
+
+struct NameKey {
+    1: string name
+    2: string key
+}
 
 struct DeleteChartPointsRequest {
     1: string chart
