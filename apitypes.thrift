@@ -39,14 +39,14 @@ struct ProductParamSeries {
     4: bool seriesActive
 }
 
-struct StringBool {
-    1: string value
-    2: bool ok
-}
+const i8 NoValidate = 0;
+const i8 Valid = 1;
+const i8 Invalid = 2;
 
-struct NameKey {
-    1: string name
-    2: string key
+struct SectionProductParamsValues {
+    1: string section
+    2: list<string> keys
+    3: list<list<string>> values
 }
 
 struct DeleteChartPointsRequest {

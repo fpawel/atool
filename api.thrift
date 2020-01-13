@@ -26,7 +26,7 @@ service CurrentFileService {
     void setParamValue(1:string key, 2:string value)
     string getParamValue(1:string key)
 
-    map<string,map<i64,apitypes.StringBool>> getProductsParamsValues()
+    list<apitypes.SectionProductParamsValues> getSectionsProductsParamsValues()
 }
 
 service ProductService {
@@ -58,8 +58,6 @@ service AppConfigService {
     list<string> listDevices()
     apitypes.AppConfig getConfig()
     void setConfig(1:apitypes.AppConfig config)
-
-    list<list<apitypes.NameKey>> GetProductParamsKeysNames()
 }
 
 service HelperService {

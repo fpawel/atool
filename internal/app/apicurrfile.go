@@ -17,6 +17,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -31,37 +32,70 @@ func (h *currentFileSvc) RequestChart(_ context.Context) error {
 	return nil
 }
 
-type apiProductsValuesMap = map[int64]*apitypes.StringBool
-
-type apiParamsProductsValuesMap = map[string]apiProductsValuesMap
-
-func (h *currentFileSvc) GetProductsParamsValues(_ context.Context) (r apiParamsProductsValuesMap, err error) {
-	r = make(apiParamsProductsValuesMap)
-	var params []string
-	for _, m := range config.Get().ProductParams {
-		for k := range m {
-			params = append(params, k)
-		}
-	}
-	var productIDs []string
-	const q1 = `SELECT product_id FROM product WHERE party_id IN (SELECT party_id FROM app_config)`
-	if err := db.Select(&productIDs, q1); err != nil {
-		return nil, err
-	}
-
+func (h *currentFileSvc) GetSectionsProductsParamsValues(_ context.Context) ([]*apitypes.SectionProductParamsValues, error) {
 	const q2 = `
 SELECT product_id, key, value
 FROM product_value
-WHERE product_id IN (SELECT product_id FROM product WHERE party_id IN (SELECT party_id FROM app_config));
-`
-	var pvs []struct {
-		ProductID int64  `yaml:"product_id"`
-		Key       string `yaml:"key"`
-		Value     string `yaml:"value"`
+WHERE product_id IN (SELECT product_id FROM product WHERE party_id IN (SELECT party_id FROM app_config))`
+	var values1 []struct {
+		ProductID int64   `db:"product_id"`
+		Key       string  `db:"key"`
+		Value     float64 `db:"value"`
 	}
-	if err := db.Select(&pvs, q2); err != nil {
+	if err := db.Select(&values1, q2); err != nil {
 		return nil, err
 	}
+
+	type mapIntFloat map[int64]float64
+
+	values := map[string]mapIntFloat{}
+
+	for _, x := range values1 {
+		if values[x.Key] == nil {
+			values[x.Key] = mapIntFloat{}
+		}
+		values[x.Key][x.ProductID] = x.Value
+	}
+
+	var result []*apitypes.SectionProductParamsValues
+
+	party, err := data.GetCurrentParty(db)
+	if err != nil {
+		return nil, err
+	}
+
+	for section, m := range config.Get().ProductParams {
+		y := &apitypes.SectionProductParamsValues{Section: section, Values: [][]string{{"Номер"}}}
+
+		for key := range m {
+			y.Keys = append(y.Keys, key)
+		}
+		sort.Slice(y.Keys, func(i, j int) bool {
+			return m[y.Keys[i]] < m[y.Keys[j]]
+		})
+
+		for _, p := range party.Products {
+			y.Values[0] = append(y.Values[0], fmt.Sprintf("%d", p.ProductID))
+		}
+		for _, key := range y.Keys {
+			xs := []string{m[key]}
+			for _, p := range party.Products {
+				var s string
+				if m, f := values[key]; f {
+					if v, f := m[p.ProductID]; f {
+						s = fmt.Sprintf("%v", v)
+					}
+				}
+				xs = append(xs, s)
+			}
+			y.Values = append(y.Values, xs)
+		}
+		result = append(result, y)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Section < result[j].Section
+	})
+	return result, nil
 }
 
 func (h *currentFileSvc) GetParamValues(_ context.Context) ([]*apitypes.PartyParamValue, error) {
@@ -105,9 +139,9 @@ func (h *currentFileSvc) GetParamValues(_ context.Context) ([]*apitypes.PartyPar
 
 }
 
-func (h *currentFileSvc) GetParamValue(ctx context.Context, key string) (r string, err error) {
+func (h *currentFileSvc) GetParamValue(_ context.Context, key string) (r string, err error) {
 	const q1 = `SELECT value FROM party_value WHERE party_id = (SELECT party_id FROM app_config) AND key = ?`
-	err = db.Select(&r, q1)
+	err = db.Select(&r, q1, key)
 	return
 }
 
