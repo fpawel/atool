@@ -32,6 +32,29 @@ func (h *currentFileSvc) RequestChart(_ context.Context) error {
 	return nil
 }
 
+func (h *currentFileSvc) SetProductParamValue(_ context.Context, key string, productID int64, valueStr string) error {
+
+	value, err := strconv.ParseFloat(strings.ReplaceAll(valueStr, ",", "."), 64)
+	if err != nil {
+		return err
+	}
+
+	r, err := db.Exec(`
+INSERT INTO product_value(product_id, key, value) VALUES (?,?,?)
+ON CONFLICT (product_id,key) DO UPDATE SET value = ? `, productID, key, value, value)
+	if err != nil {
+		return err
+	}
+	n, err := r.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return fmt.Errorf("n=%d, expected 1", n)
+	}
+	return nil
+}
+
 func (h *currentFileSvc) GetSectionsProductsParamsValues(_ context.Context) ([]*apitypes.SectionProductParamsValues, error) {
 	const q2 = `
 SELECT product_id, key, value
@@ -75,7 +98,7 @@ WHERE product_id IN (SELECT product_id FROM product WHERE party_id IN (SELECT pa
 		})
 
 		for _, p := range party.Products {
-			y.Values[0] = append(y.Values[0], fmt.Sprintf("%d", p.ProductID))
+			y.Values[0] = append(y.Values[0], fmt.Sprintf("№%d ID%d", p.Serial, p.ProductID))
 		}
 		for _, key := range y.Keys {
 			xs := []string{m[key]}
@@ -93,7 +116,7 @@ WHERE product_id IN (SELECT product_id FROM product WHERE party_id IN (SELECT pa
 		result = append(result, y)
 	}
 	sort.Slice(result, func(i, j int) bool {
-		return result[i].Section < result[j].Section
+		return result[i].Section > result[j].Section
 	})
 	return result, nil
 }
