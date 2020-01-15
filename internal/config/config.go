@@ -34,13 +34,7 @@ type Config struct {
 
 type ProductParams = map[string]map[string]string
 
-type PartyParams = map[string]PartyParam
-
-type PartyParam struct {
-	Name     string  `yaml:"name"`
-	Positive bool    `yaml:"positive"`
-	Def      float64 `yaml:"def"`
-}
+type PartyParams = map[string]string
 
 func SetYaml(strYaml []byte) error {
 	var c Config

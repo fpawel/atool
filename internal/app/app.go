@@ -143,6 +143,8 @@ func newApiProcessor() thrift.TProcessor {
 		api.NewCoefficientsServiceProcessor(new(coefficientsSvc)))
 	p.RegisterProcessor("ScriptService",
 		api.NewScriptServiceProcessor(new(scriptSvc)))
+	p.RegisterProcessor("ProductParamService",
+		api.NewProductParamServiceProcessor(new(prodPrmSvc)))
 	return p
 }
 

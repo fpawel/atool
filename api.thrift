@@ -27,7 +27,12 @@ service CurrentFileService {
     string getParamValue(1:string key)
 
     list<apitypes.SectionProductParamsValues> getSectionsProductsParamsValues()
-    void setProductParamValue(1:string key, 2:i64 productID, 3:string value)
+
+}
+
+service ProductParamService {
+    void setValue(1:string key, 2:i64 productID, 3:string value)
+    string getValue(1:string key, 2:i64 productID)
 }
 
 service ProductService {

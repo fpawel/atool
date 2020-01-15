@@ -14,6 +14,7 @@ import (
 	"github.com/lxn/win"
 	"github.com/powerman/structlog"
 	lua "github.com/yuin/gopher-lua"
+	luar "layeh.com/gopher-luar"
 	"path/filepath"
 	"time"
 )
@@ -31,8 +32,92 @@ func (_ *scriptSvc) RunFile(_ context.Context, filename string) error {
 		L.SetGlobal("gas", L.NewFunction(luaGas(log)))
 		L.SetGlobal("temperature", L.NewFunction(luaTemperature(log)))
 		L.SetGlobal("read_save", L.NewFunction(luaReadSave(log)))
+		if err := luaImportParty(log, L); err != nil {
+			return err
+		}
 		return L.DoFile(filename)
 	})
+}
+
+func luaImportParty(log logger, L *lua.LState) error {
+	m, err := getCurrentPartyValues()
+	if err != nil {
+		return err
+	}
+
+	impParty := dynamic{}
+	for k, name := range config.Get().PartyParams {
+		if v, f := m[k]; !f {
+			return fmt.Errorf("не задано значение параметра файла: %q", name)
+		} else {
+			impParty[k] = v
+		}
+	}
+
+	party, err := data.GetCurrentParty(db)
+	if err != nil {
+		return err
+	}
+	impParty["product_type"] = party.ProductType
+
+	impProducts := L.NewTable()
+
+	for _, p := range party.Products {
+		if !p.Active {
+			continue
+		}
+		impP, err := luaImportProduct(log, L, p)
+		if err != nil {
+			return err
+		}
+		impProducts.Append(luar.New(L, impP))
+	}
+
+	impParty["products"] = impProducts
+
+	L.SetGlobal("party", luar.New(L, impParty))
+	return nil
+}
+
+func luaImportProduct(log logger, L *lua.LState, p data.Product) (dynamic, error) {
+	device, okDevice := config.Get().Hardware[p.Device]
+	if !okDevice {
+		return nil, fmt.Errorf("%s: не заданы параметры устройства", p)
+	}
+	cm := getCommProduct(p.Comport, device)
+
+	m, err := getProductValues(p.ProductID)
+	if err != nil {
+		return nil, err
+	}
+	impP := dynamic{}
+	for k, v := range m {
+		impP[k] = v
+	}
+	readReg := func(reg modbus.Var, format modbus.FloatBitsFormat) (float64, bool) {
+		if err := format.Validate(); err != nil {
+			L.ArgError(2, err.Error())
+		}
+		v, err := modbus.Read3Value(log, L.Context(), cm, p.Addr, reg, format)
+		if err != nil {
+			journal.Err(log, merry.Appendf(err, "считать %s,рег.%d", p, reg))
+			return 0, false
+		}
+		journal.Info(log, fmt.Sprintf("считатно %s,рег.%d = %v", p, reg, v))
+		return v, true
+	}
+	save := func(key string, value float64) {
+		journal.Info(log, fmt.Sprintf("сохранить %s %q=%v", p, key, value))
+		luaCheck(L, saveProductValue(p.ProductID, key, value))
+	}
+	impP["read_reg"] = readReg
+	impP["save"] = save
+	impP["read_reg_save"] = func(reg modbus.Var, format modbus.FloatBitsFormat, key string) {
+		if v, ok := readReg(reg, format); ok {
+			save(key, v)
+		}
+	}
+	return impP, nil
 }
 
 func luaCheck(L *lua.LState, err error) {

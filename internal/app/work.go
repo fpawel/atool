@@ -179,7 +179,7 @@ func runRawCommand(c modbus.ProtoCmd, b []byte) {
 
 func readAndSaveProductValue(log logger, ctx context.Context, product data.Product, device config.Device, param modbus.Var, format modbus.FloatBitsFormat, dbKey string) error {
 	wrapErr := func(err error) error {
-		return merry.Appendf(err, "%s,рег.%d", product, param)
+		return merry.Appendf(err, "%s, считать рег.%d %s, сохранить %q", product, param, format, dbKey)
 	}
 	cm := getCommProduct(product.Comport, device)
 	value, err := modbus.Read3Value(log, ctx, cm, product.Addr, modbus.Var(param), format)

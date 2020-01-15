@@ -9,6 +9,7 @@ import (
 	"github.com/fpawel/atool/internal/pkg/winapi/copydata"
 	"github.com/lxn/win"
 	"os"
+	"runtime/debug"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -70,14 +71,30 @@ func NotifyNewProductParamValue(x ProductParamValue) bool {
 
 func NotifyChart(xs []data.Measurement) bool {
 	buf := new(bytes.Buffer)
-	writeBinary(buf, int64(len(xs)))
-	for _, m := range xs {
-		writeBinary(buf, m.Time.UnixNano()/1000000) // количество миллисекунд метки времени
-		writeBinary(buf, m.ProductID)
-		writeBinary(buf, uint64(m.ParamAddr))
-		writeBinary(buf, m.Value)
+
+	for n := 0; n < len(xs); {
+		p := xs[n:]
+		offset := len(p)
+		if offset > 10000 {
+			offset = 10000
+		}
+		p = p[:offset]
+		n += offset
+
+		writeBinary(buf, int64(len(p)))
+		for _, m := range p {
+			writeBinary(buf, m.Time.UnixNano()/1000000) // количество миллисекунд метки времени
+			writeBinary(buf, m.ProductID)
+			writeBinary(buf, uint64(m.ParamAddr))
+			writeBinary(buf, m.Value)
+		}
+		if !copyData().SendMessage(MsgChart, buf.Bytes()) {
+			return false
+		}
+		buf.Reset()
+		debug.FreeOSMemory()
 	}
-	return copyData().SendMessage(MsgChart, buf.Bytes())
+	return true
 }
 
 func MsgBox(title, message string, style int) int {

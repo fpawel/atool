@@ -97,22 +97,10 @@ func defaultProductParams() ProductParams {
 	}
 }
 
-func defaultPartyParams() map[string]PartyParam {
-	return map[string]PartyParam{
-		"c1": {
-			Name:     "ПГС1",
-			Positive: true,
-			Def:      0,
-		},
-		"c2": {
-			Name:     "ПГС2",
-			Positive: true,
-			Def:      50,
-		},
-		"c3": {
-			Name:     "ПГС3",
-			Positive: true,
-			Def:      100,
-		},
+func defaultPartyParams() map[string]string {
+	return map[string]string{
+		"c1": "ПГС1",
+		"c2": "ПГС2",
+		"c3": "ПГС3",
 	}
 }

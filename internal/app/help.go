@@ -15,6 +15,8 @@ import (
 
 type logger = *structlog.Logger
 
+type dynamic = map[string]interface{}
+
 func formatBytes(xs []byte) string {
 	return fmt.Sprintf("% X", xs)
 }
@@ -116,4 +118,46 @@ func pause(chDone <-chan struct{}, d time.Duration) {
 			return
 		}
 	}
+}
+
+func getCurrentPartyValues() (map[string]float64, error) {
+	var xs []struct {
+		Key   string  `db:"key"`
+		Value float64 `db:"value"`
+	}
+	const q1 = `SELECT key, value FROM party_value WHERE party_id = (SELECT party_id FROM app_config)`
+	if err := db.Select(&xs, q1); err != nil {
+		return nil, merry.Append(err, q1)
+	}
+	m := map[string]float64{}
+	for _, x := range xs {
+		m[x.Key] = x.Value
+	}
+	return m, nil
+}
+
+func saveProductValue(productID int64, key string, value float64) error {
+	const q1 = `
+INSERT INTO product_value
+VALUES (?, ?, ?)
+ON CONFLICT (product_id,key) DO UPDATE
+    SET value = ?`
+	_, err := db.Exec(q1, productID, key, value, value)
+	return merry.Appendf(err, "%s, %s: %v", q1, key, value)
+}
+
+func getProductValues(productID int64) (map[string]float64, error) {
+	var xs []struct {
+		Key   string  `db:"key"`
+		Value float64 `db:"value"`
+	}
+	const q1 = `SELECT key, value FROM product_value WHERE product_id = ?`
+	if err := db.Select(&xs, q1, productID); err != nil {
+		return nil, merry.Append(err, q1)
+	}
+	m := map[string]float64{}
+	for _, x := range xs {
+		m[x.Key] = x.Value
+	}
+	return m, nil
 }

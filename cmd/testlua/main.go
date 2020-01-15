@@ -11,17 +11,23 @@ import (
 )
 
 type User struct {
-	Name  string
-	Age   int
-	token string
+	Name   string
+	Age    int
+	token  string
+	token2 int
 }
 
-func (u *User) SetToken(t string) {
+func (u *User) SetToken(t string, t2 int) {
 	u.token = t
+	u.token2 = t2
 }
 
 func (u *User) Token() string {
 	return u.token
+}
+
+func (u *User) Func2() (string, int) {
+	return "str", 155
 }
 
 func main() {
@@ -58,7 +64,7 @@ func main() {
 		fmt.Printf("%+v\n", err)
 	}
 
-	fmt.Println("Lua set your token to:", u.Token())
+	fmt.Println("Lua set your token to:", u.Token(), u.token2)
 	fmt.Printf("%+v\n", u)
 
 	L.SetContext(context.Background())

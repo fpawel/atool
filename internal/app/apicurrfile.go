@@ -17,6 +17,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,29 +30,6 @@ var _ api.CurrentFileService = new(currentFileSvc)
 
 func (h *currentFileSvc) RequestChart(_ context.Context) error {
 	go getCurrentPartyChart()
-	return nil
-}
-
-func (h *currentFileSvc) SetProductParamValue(_ context.Context, key string, productID int64, valueStr string) error {
-
-	value, err := strconv.ParseFloat(strings.ReplaceAll(valueStr, ",", "."), 64)
-	if err != nil {
-		return err
-	}
-
-	r, err := db.Exec(`
-INSERT INTO product_value(product_id, key, value) VALUES (?,?,?)
-ON CONFLICT (product_id,key) DO UPDATE SET value = ? `, productID, key, value, value)
-	if err != nil {
-		return err
-	}
-	n, err := r.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if n != 1 {
-		return fmt.Errorf("n=%d, expected 1", n)
-	}
 	return nil
 }
 
@@ -88,7 +66,7 @@ WHERE product_id IN (SELECT product_id FROM product WHERE party_id IN (SELECT pa
 	}
 
 	for section, m := range config.Get().ProductParams {
-		y := &apitypes.SectionProductParamsValues{Section: section, Values: [][]string{{"Номер"}}}
+		y := &apitypes.SectionProductParamsValues{Section: section, Values: [][]string{{"Прибор"}}}
 
 		for key := range m {
 			y.Keys = append(y.Keys, key)
@@ -138,26 +116,23 @@ func (h *currentFileSvc) GetParamValues(_ context.Context) ([]*apitypes.PartyPar
 			Value: p.ProductType,
 		},
 	}
-	var dxs []struct {
-		Key   string `db:"key"`
-		Value string `db:"value"`
-	}
-	const q1 = `SELECT key, value FROM party_value WHERE party_id = (SELECT party_id FROM app_config)`
-	if err := db.Select(&dxs, q1); err != nil {
+	m, err := getCurrentPartyValues()
+	if err != nil {
 		return nil, err
 	}
-	for key, x := range config.Get().PartyParams {
+	for key, name := range config.Get().PartyParams {
 		y := &apitypes.PartyParamValue{
 			Key:  key,
-			Name: x.Name,
+			Name: name,
 		}
-		for _, z := range dxs {
-			if z.Key == key {
-				y.Value = z.Value
-			}
+		if v, f := m[key]; f {
+			y.Value = formatFloat(v)
 		}
 		xs = append(xs, y)
 	}
+	sort.Slice(xs, func(i, j int) bool {
+		return xs[i].Name < xs[j].Name
+	})
 	return xs, nil
 
 }
@@ -232,6 +207,7 @@ func (h *currentFileSvc) ListDeviceParams(_ context.Context) ([]*apitypes.Device
 	}
 	return r, nil
 }
+
 func (h *currentFileSvc) CreateNewCopy(_ context.Context) error {
 	go func() {
 		if err := data.CopyCurrentParty(db); err != nil {
@@ -321,24 +297,29 @@ func getCurrentPartyChart() {
 		return
 	}
 
-	t := time.Now()
-	log := pkg.LogPrependSuffixKeys(log, "party", partyID, "params", fmt.Sprintf("%d", paramAddresses))
+	go func() {
+		t := time.Now()
+		log := pkg.LogPrependSuffixKeys(log, "party", partyID, "params", fmt.Sprintf("%d", paramAddresses))
 
-	printErr := func(err error) {
-		journal.WarnError(log, merry.Appendf(err, "график текущего файла %d: % d, %v", partyID, paramAddresses, time.Since(t)))
-	}
+		printErr := func(err error) {
+			journal.WarnError(log, merry.Appendf(err, "график текущего файла %d: % d, %v", partyID, paramAddresses, time.Since(t)))
+		}
 
-	gui.Popupf("открывается график файла %d", partyID)
+		gui.Popupf("открывается график файла %d", partyID)
 
-	xs, err := data.GetCurrentPartyChart(db, paramAddresses)
+		xs, err := data.GetCurrentPartyChart(db, paramAddresses)
 
-	log = pkg.LogPrependSuffixKeys(log, "duration", time.Since(t))
+		log = pkg.LogPrependSuffixKeys(log, "duration", time.Since(t))
 
-	if err != nil {
-		printErr(err)
-		return
-	}
-	//log.Debug("current party chart", "measurements_count", len(xs), "duration", time.Since(t))
-	gui.Popupf("открыт график текущего файла %d, %d точек, %v", partyID, len(xs), time.Since(t))
-	go gui.NotifyChart(xs)
+		if err != nil {
+			printErr(err)
+			return
+		}
+		log.Debug("open chart", "measurements_count", len(xs), "duration", time.Since(t))
+		t2 := time.Now()
+		gui.NotifyChart(xs)
+		gui.Popupf("открыт график текущего файла %d, %d точек, %v", partyID, len(xs), time.Since(t))
+		log.Debug("load chart", "measurements_count", len(xs), "duration", time.Since(t2), "total_duration", time.Since(t))
+		debug.FreeOSMemory()
+	}()
 }
