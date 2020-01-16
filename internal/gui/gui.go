@@ -9,7 +9,6 @@ import (
 	"github.com/fpawel/atool/internal/pkg/winapi/copydata"
 	"github.com/lxn/win"
 	"os"
-	"runtime/debug"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -70,30 +69,33 @@ func NotifyNewProductParamValue(x ProductParamValue) bool {
 }
 
 func NotifyChart(xs []data.Measurement) bool {
-	buf := new(bytes.Buffer)
-
+	var maxLen int
+	bufBytes := make([]byte, 0, 3300000)
 	for n := 0; n < len(xs); {
 		p := xs[n:]
 		offset := len(p)
-		if offset > 10000 {
-			offset = 10000
+		if offset > 100000 {
+			offset = 100000
 		}
 		p = p[:offset]
 		n += offset
 
+		buf := bytes.NewBuffer(bufBytes)
 		writeBinary(buf, int64(len(p)))
 		for _, m := range p {
-			writeBinary(buf, m.Time.UnixNano()/1000000) // количество миллисекунд метки времени
+			writeBinary(buf, m.Time().UnixNano()/1000000) // количество миллисекунд метки времени
 			writeBinary(buf, m.ProductID)
 			writeBinary(buf, uint64(m.ParamAddr))
 			writeBinary(buf, m.Value)
 		}
+		if maxLen < buf.Len() {
+			maxLen = buf.Len()
+		}
 		if !copyData().SendMessage(MsgChart, buf.Bytes()) {
 			return false
 		}
-		buf.Reset()
-		debug.FreeOSMemory()
 	}
+	fmt.Println("max len:", maxLen)
 	return true
 }
 

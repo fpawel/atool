@@ -7,14 +7,10 @@ import (
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/comm/modbus"
 	"github.com/jmoiron/sqlx"
-	"strconv"
-	"strings"
 	"time"
 )
 
 //go:generate go run github.com/fpawel/gotools/cmd/sqlstr/...
-
-const TimeLayout = "2006-01-02 15:04:05.000"
 
 func Open(filename string) (*sqlx.DB, error) {
 	db, err := pkg.OpenSqliteDBx(filename)
@@ -62,41 +58,6 @@ func GetCurrentParty(db *sqlx.DB) (Party, error) {
 		return Party{}, err
 	}
 	return GetParty(db, partyID)
-}
-
-func GetCurrentPartyChart(db *sqlx.DB, paramAddresses []int) ([]Measurement, error) {
-	var xs []struct {
-		Tm        string  `db:"tm"`
-		ProductID int64   `db:"product_id"`
-		ParamAddr int     `db:"param_addr"`
-		Value     float64 `db:"value"`
-	}
-
-	var sQs []string
-	for _, n := range paramAddresses {
-		sQs = append(sQs, strconv.Itoa(n))
-	}
-	sQ := fmt.Sprintf("(%s)", strings.Join(sQs, ","))
-
-	err := db.Select(&xs, `
-WITH xs AS ( SELECT product_id FROM product WHERE party_id = (SELECT party_id FROM app_config))
-SELECT STRFTIME('%Y-%m-%d %H:%M:%f', tm) AS tm,
-       product_id, param_addr, value
-FROM measurement
-WHERE product_id IN (SELECT * FROM xs) AND param_addr IN `+sQ)
-	if err != nil {
-		return nil, err
-	}
-	var r []Measurement
-	for _, x := range xs {
-		r = append(r, Measurement{
-			Time:      parseTime(x.Tm),
-			ProductID: x.ProductID,
-			ParamAddr: x.ParamAddr,
-			Value:     x.Value,
-		})
-	}
-	return r, nil
 }
 
 func GetParty(db *sqlx.DB, partyID int64) (Party, error) {

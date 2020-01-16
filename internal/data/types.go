@@ -41,13 +41,6 @@ type ProductParam struct {
 	SeriesActive bool       `db:"series_active"`
 }
 
-type Measurement struct {
-	Time      time.Time
-	ProductID int64
-	ParamAddr int
-	Value     float64
-}
-
 type Values map[string]float64
 
 type PartyValues struct {

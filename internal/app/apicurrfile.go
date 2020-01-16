@@ -29,7 +29,10 @@ type currentFileSvc struct{}
 var _ api.CurrentFileService = new(currentFileSvc)
 
 func (h *currentFileSvc) RequestChart(_ context.Context) error {
-	go getCurrentPartyChart()
+	go func() {
+		processCurrentPartyChart()
+		debug.FreeOSMemory()
+	}()
 	return nil
 }
 
@@ -280,7 +283,9 @@ func getParamAddresses() ([]int, error) {
 	return r, nil
 }
 
-func getCurrentPartyChart() {
+func processCurrentPartyChart() {
+
+	t := time.Now()
 
 	partyID, err := data.GetCurrentPartyID(db)
 	if err != nil {
@@ -297,29 +302,26 @@ func getCurrentPartyChart() {
 		return
 	}
 
-	go func() {
-		t := time.Now()
-		log := pkg.LogPrependSuffixKeys(log, "party", partyID, "params", fmt.Sprintf("%d", paramAddresses))
+	log := pkg.LogPrependSuffixKeys(log, "party", partyID, "params", fmt.Sprintf("%d", paramAddresses))
 
-		printErr := func(err error) {
-			journal.WarnError(log, merry.Appendf(err, "график текущего файла %d: % d, %v", partyID, paramAddresses, time.Since(t)))
-		}
+	printErr := func(err error) {
+		journal.WarnError(log, merry.Appendf(err, "график текущего файла %d: % d, %v", partyID, paramAddresses, time.Since(t)))
+	}
 
-		gui.Popupf("открывается график файла %d", partyID)
+	gui.Popupf("открывается график файла %d", partyID)
 
-		xs, err := data.GetCurrentPartyChart(db, paramAddresses)
+	xs, err := data.GetPartyChart(db, partyID, paramAddresses)
 
-		log = pkg.LogPrependSuffixKeys(log, "duration", time.Since(t))
+	log = pkg.LogPrependSuffixKeys(log, "duration", time.Since(t))
 
-		if err != nil {
-			printErr(err)
-			return
-		}
-		log.Debug("open chart", "measurements_count", len(xs), "duration", time.Since(t))
-		t2 := time.Now()
-		gui.NotifyChart(xs)
-		gui.Popupf("открыт график текущего файла %d, %d точек, %v", partyID, len(xs), time.Since(t))
-		log.Debug("load chart", "measurements_count", len(xs), "duration", time.Since(t2), "total_duration", time.Since(t))
-		debug.FreeOSMemory()
-	}()
+	if err != nil {
+		printErr(err)
+		return
+	}
+	log.Debug("open chart", "measurements_count", len(xs), "duration", time.Since(t))
+	t2 := time.Now()
+	gui.NotifyChart(xs)
+	gui.Popupf("открыт график текущего файла %d, %d точек, %v", partyID, len(xs), time.Since(t))
+	log.Debug("load chart", "measurements_count", len(xs), "duration", time.Since(t2), "total_duration", time.Since(t))
+
 }

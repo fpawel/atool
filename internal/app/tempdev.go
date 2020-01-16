@@ -68,9 +68,7 @@ func setupTemperature(log logger, ctx context.Context, destinationTemperature fl
 	// измерения, полученные в процесе опроса приборов во время данной задержки
 	ms := new(measurements)
 
-	defer func() {
-		saveMeasurements(ms.xs)
-	}()
+	defer ms.Save()
 
 	for {
 		if ctx.Err() != nil {

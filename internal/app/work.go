@@ -23,9 +23,7 @@ var errNoInterrogateObjects = merry.New("не установлены объек�
 func runInterrogate() error {
 	return guiwork.RunWork(log, appCtx, "опрос приборов", func(log *structlog.Logger, ctx context.Context) error {
 		ms := new(measurements)
-		defer func() {
-			saveMeasurements(ms.xs)
-		}()
+		defer ms.Save()
 		for {
 			if err := readProductsParams(ctx, ms); err != nil {
 				if merry.Is(err, context.Canceled) {
@@ -269,9 +267,8 @@ func getCommProduct(comportName string, device config.Device) comm.T {
 func delay(log *structlog.Logger, ctx context.Context, duration time.Duration, name string) error {
 	// измерения, полученные в процесе опроса приборов во время данной задержки
 	ms := new(measurements)
-	defer func() {
-		saveMeasurements(ms.xs)
-	}()
+	defer ms.Save()
+
 	return guiwork.Delay(log, ctx, duration, name, func(_ *structlog.Logger, ctx context.Context) error {
 		return readProductsParams(ctx, ms)
 	})
