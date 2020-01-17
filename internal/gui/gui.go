@@ -70,7 +70,6 @@ func NotifyNewProductParamValue(x ProductParamValue) bool {
 
 func NotifyChart(xs []data.Measurement) bool {
 	var maxLen int
-	bufBytes := make([]byte, 0, 3300000)
 	for n := 0; n < len(xs); {
 		p := xs[n:]
 		offset := len(p)
@@ -80,7 +79,7 @@ func NotifyChart(xs []data.Measurement) bool {
 		p = p[:offset]
 		n += offset
 
-		buf := bytes.NewBuffer(bufBytes)
+		buf := bytes.NewBuffer(make([]byte, 0, 3300000))
 		writeBinary(buf, int64(len(p)))
 		for _, m := range p {
 			writeBinary(buf, m.Time().UnixNano()/1000000) // количество миллисекунд метки времени

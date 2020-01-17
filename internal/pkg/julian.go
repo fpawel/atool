@@ -1,6 +1,8 @@
 package pkg
 
-import "time"
+import (
+	"time"
+)
 
 //calculate the Julian  date, provided it's within 209 years of Jan 2, 2006.
 func TimeToJulian(t time.Time) float64 {
@@ -18,9 +20,10 @@ func TimeToJulian(t time.Time) float64 {
 
 	hour := float64(t.Hour())
 	minute := float64(t.Minute())
-	second := float64(t.Second()) + float64(t.Nanosecond())/1e9
 
-	jf := (hour-12.)/24. + minute/1440. + second/86400.
+	second := float64(t.Second())
+
+	jf := (hour-12.)/24. + minute/1440. + second/86400. + float64(t.Nanosecond())/86400_000_000_000.
 
 	return float64(julianDay) + jf
 }
