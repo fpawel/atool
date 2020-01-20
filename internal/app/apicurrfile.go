@@ -19,8 +19,6 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"sort"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -36,6 +34,8 @@ func (h *currentFileSvc) RequestChart(_ context.Context) error {
 	return nil
 }
 
+type mapIntFloat map[int64]float64
+
 func (h *currentFileSvc) GetSectionsProductsParamsValues(_ context.Context) ([]*apitypes.SectionProductParamsValues, error) {
 	const q2 = `
 SELECT product_id, key, value
@@ -49,8 +49,6 @@ WHERE product_id IN (SELECT product_id FROM product WHERE party_id IN (SELECT pa
 	if err := db.Select(&values1, q2); err != nil {
 		return nil, err
 	}
-
-	type mapIntFloat map[int64]float64
 
 	values := map[string]mapIntFloat{}
 
@@ -68,7 +66,9 @@ WHERE product_id IN (SELECT product_id FROM product WHERE party_id IN (SELECT pa
 		return nil, err
 	}
 
-	for section, m := range config.Get().ProductParams {
+	cfg := config.Get()
+
+	for section, m := range cfg.ProductParams {
 		y := &apitypes.SectionProductParamsValues{Section: section, Values: [][]string{{"Прибор"}}}
 
 		for key := range m {
@@ -96,78 +96,13 @@ WHERE product_id IN (SELECT product_id FROM product WHERE party_id IN (SELECT pa
 		}
 		result = append(result, y)
 	}
+
+	addAdditionalProductParamsSectionValues(party, values, &result)
+
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Section > result[j].Section
 	})
 	return result, nil
-}
-
-func (h *currentFileSvc) GetParamValues(_ context.Context) ([]*apitypes.PartyParamValue, error) {
-	p, err := data.GetCurrentParty(db)
-	if err != nil {
-		return nil, err
-	}
-	xs := []*apitypes.PartyParamValue{
-		{
-			Key:   "name",
-			Name:  "Имя файла",
-			Value: p.Name,
-		},
-		{
-			Key:   "product_type",
-			Name:  "Исполнение",
-			Value: p.ProductType,
-		},
-	}
-	m, err := getCurrentPartyValues()
-	if err != nil {
-		return nil, err
-	}
-	for key, name := range config.Get().PartyParams {
-		y := &apitypes.PartyParamValue{
-			Key:  key,
-			Name: name,
-		}
-		if v, f := m[key]; f {
-			y.Value = formatFloat(v)
-		}
-		xs = append(xs, y)
-	}
-	sort.Slice(xs, func(i, j int) bool {
-		return xs[i].Name < xs[j].Name
-	})
-	return xs, nil
-
-}
-
-func (h *currentFileSvc) GetParamValue(_ context.Context, key string) (r string, err error) {
-	const q1 = `SELECT value FROM party_value WHERE party_id = (SELECT party_id FROM app_config) AND key = ?`
-	err = db.Select(&r, q1, key)
-	return
-}
-
-func (h *currentFileSvc) SetParamValue(_ context.Context, key string, value string) error {
-	wrapErr := func(err error) error {
-		return merry.Appendf(err, "%q = %q", key, value)
-	}
-	switch key {
-	case "product_type":
-		_, err := db.Exec(`UPDATE party SET product_type = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)
-		return wrapErr(err)
-	case "name":
-		_, err := db.Exec(`UPDATE party SET name = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)
-		return wrapErr(err)
-	default:
-		value, err := strconv.ParseFloat(strings.ReplaceAll(value, ",", "."), 64)
-		if err != nil {
-			return wrapErr(err)
-		}
-		_, err = db.Exec(`
-INSERT INTO party_value (party_id, key, value)
-  VALUES ((SELECT party_id FROM app_config), ?, ?)
-  ON CONFLICT (party_id,key) DO UPDATE SET value = ?`, key, value, value)
-		return wrapErr(err)
-	}
 }
 
 func (h *currentFileSvc) RenameChart(_ context.Context, oldName, newName string) error {
@@ -265,6 +200,46 @@ func (h *currentFileSvc) RunEdit(_ context.Context) error {
 		}
 	}()
 	return nil
+}
+
+func addAdditionalProductParamsSectionValues(party data.Party, values map[string]mapIntFloat, result *[]*apitypes.SectionProductParamsValues) {
+	sect := &apitypes.SectionProductParamsValues{
+		Values:  [][]string{{"Прибор"}},
+		Section: fmt.Sprintf("%d. Дополнительно", len(*result)+1),
+	}
+	cfgProductParamsKeys := config.Get().ListProductParamKeys()
+
+	for _, p := range party.Products {
+		sect.Values[0] = append(sect.Values[0], fmt.Sprintf("№%d ID%d", p.Serial, p.ProductID))
+	}
+	for k, m := range values {
+		if _, f := cfgProductParamsKeys[k]; f {
+			continue
+		}
+		xs := []string{k}
+		for _, p := range party.Products {
+			s := ""
+			if v, f := m[p.ProductID]; f {
+				s = fmt.Sprintf("%v", v)
+			}
+			xs = append(xs, s)
+		}
+		if len(xs) > 1 {
+			sect.Values = append(sect.Values, xs)
+			sect.Keys = append(sect.Keys, k)
+		}
+	}
+
+	if len(sect.Values) > 1 {
+		sort.Slice(sect.Keys, func(i, j int) bool {
+			return sect.Keys[i] < sect.Keys[j]
+		})
+		vs := sect.Values[1:]
+		sort.Slice(vs, func(i, j int) bool {
+			return vs[i][0] < vs[j][0]
+		})
+		*result = append(*result, sect)
+	}
 }
 
 func getParamAddresses() ([]int, error) {

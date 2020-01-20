@@ -22,9 +22,7 @@ service CurrentFileService {
     list<apitypes.DeviceParam> listDeviceParams()
     void runEdit()
     void createNewCopy()
-    list<apitypes.PartyParamValue> getParamValues()
-    void setParamValue(1:string key, 2:string value)
-    string getParamValue(1:string key)
+
 
     list<apitypes.SectionProductParamsValues> getSectionsProductsParamsValues()
 
@@ -64,6 +62,10 @@ service AppConfigService {
     list<string> listDevices()
     apitypes.AppConfig getConfig()
     void setConfig(1:apitypes.AppConfig config)
+
+    list<apitypes.ConfigParamValue> getParamValues()
+    void setParamValue(1:string key, 2:string value)
+    string getParamValue(1:string key)
 }
 
 service HelperService {

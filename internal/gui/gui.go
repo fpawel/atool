@@ -69,7 +69,7 @@ func NotifyNewProductParamValue(x ProductParamValue) bool {
 }
 
 func NotifyChart(xs []data.Measurement) bool {
-	var maxLen int
+
 	for n := 0; n < len(xs); {
 		p := xs[n:]
 		offset := len(p)
@@ -87,14 +87,10 @@ func NotifyChart(xs []data.Measurement) bool {
 			writeBinary(buf, uint64(m.ParamAddr))
 			writeBinary(buf, m.Value)
 		}
-		if maxLen < buf.Len() {
-			maxLen = buf.Len()
-		}
 		if !copyData().SendMessage(MsgChart, buf.Bytes()) {
 			return false
 		}
 	}
-	fmt.Println("max len:", maxLen)
 	return true
 }
 

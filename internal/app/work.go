@@ -177,7 +177,8 @@ func runRawCommand(c modbus.ProtoCmd, b []byte) {
 
 func readAndSaveProductValue(log logger, ctx context.Context, product data.Product, device config.Device, param modbus.Var, format modbus.FloatBitsFormat, dbKey string) error {
 	wrapErr := func(err error) error {
-		return merry.Appendf(err, "%s, считать рег.%d %s, сохранить %q", product, param, format, dbKey)
+		return merry.Appendf(err, "прибор %d.%d: считать рег.%d %s: сохранить %q",
+			product.Serial, product.ProductID, param, format, dbKey)
 	}
 	cm := getCommProduct(product.Comport, device)
 	value, err := modbus.Read3Value(log, ctx, cm, product.Addr, modbus.Var(param), format)
@@ -185,7 +186,8 @@ func readAndSaveProductValue(log logger, ctx context.Context, product data.Produ
 		journal.Err(log, wrapErr(err))
 		return nil
 	}
-	journal.Info(log, fmt.Sprintf("сохранить: %s,рег.%d,%s = %v", product, param, dbKey, value))
+	journal.Info(log, fmt.Sprintf("прибор %d.%d: сохранить рег.%d,%s = %v",
+		product.Serial, product.ProductID, param, dbKey, value))
 	const query = `
 INSERT INTO product_value
 VALUES (?, ?, ?)

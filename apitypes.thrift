@@ -26,10 +26,12 @@ struct PartyInfo {
     3: TimeUnixMillis createdAt
 }
 
-struct PartyParamValue {
+struct ConfigParamValue {
     1: string key
     2: string name
-    3: string value
+    3: string type
+    4: list<string> valuesList
+    5: string value
 }
 
 struct ProductParamSeries {

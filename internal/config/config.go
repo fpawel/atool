@@ -142,6 +142,25 @@ func (c Config) ListCoefficients() (xs []int) {
 	return
 }
 
+func (c Config) IsProductParamKeyExists(k string) bool {
+	for _, m := range c.ProductParams {
+		if _, f := m[k]; f {
+			return true
+		}
+	}
+	return false
+}
+
+func (c Config) ListProductParamKeys() map[string]struct{} {
+	r := make(map[string]struct{})
+	for _, m := range c.ProductParams {
+		for k := range m {
+			r[k] = struct{}{}
+		}
+	}
+	return r
+}
+
 func writeFile(b []byte) error {
 	return ioutil.WriteFile(filename(), b, 0666)
 }
