@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"github.com/ansel1/merry"
 	"time"
 )
 
@@ -21,20 +20,7 @@ func (c Temperature) Validate() error {
 	return nil
 }
 
-type TempDevType byte
-
-func (c TempDevType) String() string {
-	switch c {
-	case T800:
-		return "T800"
-	case T2500:
-		return "T2500"
-	case Ktx500:
-		return "KTX500"
-	default:
-		return fmt.Sprintf("%d", c)
-	}
-}
+type TempDevType string
 
 func (c TempDevType) Validate() error {
 	switch c {
@@ -45,12 +31,12 @@ func (c TempDevType) Validate() error {
 	case Ktx500:
 		return nil
 	default:
-		return merry.Errorf("не правильный тип термокамеры: %d", c)
+		return fmt.Errorf("не правильный тип термокамеры: %s", c)
 	}
 }
 
 const (
-	T800 TempDevType = iota
-	T2500
-	Ktx500
+	T800   TempDevType = "T800"
+	T2500  TempDevType = "T2500"
+	Ktx500 TempDevType = "КТХ-500"
 )

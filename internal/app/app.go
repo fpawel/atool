@@ -55,7 +55,7 @@ func Main() {
 	stopServer := runServer()
 
 	if envVarDevModeSet() {
-		log.Printf("waiting system signal because of %s=%s", envVarDevMode, os.Getenv(envVarDevMode))
+		log.Printf("waiting system signal because of %s=%s", EnvVarDevMode, os.Getenv(EnvVarDevMode))
 		done := make(chan os.Signal, 1)
 		signal.Notify(done, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 		sig := <-done
@@ -176,16 +176,16 @@ var (
 )
 
 const (
-	envVarApiPort = "ATOOL_API_PORT"
-	envVarDevMode = "ATOOL_DEV_MODE"
+	EnvVarApiPort = "ATOOL_API_PORT"
+	EnvVarDevMode = "ATOOL_DEV_MODE"
 )
 
 func envVarDevModeSet() bool {
-	return os.Getenv(envVarDevMode) == "true"
+	return os.Getenv(EnvVarDevMode) == "true"
 }
 
 func getTCPAddrApi() string {
-	port, errPort := strconv.Atoi(os.Getenv(envVarApiPort))
+	port, errPort := strconv.Atoi(os.Getenv(EnvVarApiPort))
 	if errPort != nil {
 		log.Debug("search free port to serve api")
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -193,7 +193,7 @@ func getTCPAddrApi() string {
 			panic(err)
 		}
 		port = ln.Addr().(*net.TCPAddr).Port
-		must.PanicIf(os.Setenv(envVarApiPort, strconv.Itoa(port)))
+		must.PanicIf(os.Setenv(EnvVarApiPort, strconv.Itoa(port)))
 		must.PanicIf(ln.Close())
 	}
 	return fmt.Sprintf("127.0.0.1:%d", port)

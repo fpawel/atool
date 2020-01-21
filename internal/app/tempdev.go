@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/journal"
 	"github.com/fpawel/atool/internal/pkg/comports"
@@ -57,12 +58,20 @@ func getTemperatureComportReader() comm.T {
 }
 
 func setupTemperature(log logger, ctx context.Context, destinationTemperature float64) error {
+
+	wrapErr := func(err error) error {
+		if err == nil {
+			return nil
+		}
+		return merry.Appendf(err, "термокамера: перевод на %v⁰C", destinationTemperature)
+	}
+
 	dev, err := getTemperatureDevice()
 	if err != nil {
-		return err
+		return wrapErr(err)
 	}
 	if err := dev.Setup(log, ctx, destinationTemperature); err != nil {
-		return err
+		return wrapErr(err)
 	}
 
 	// измерения, полученные в процесе опроса приборов во время данной задержки
@@ -76,6 +85,8 @@ func setupTemperature(log logger, ctx context.Context, destinationTemperature fl
 		}
 		currentTemperature, err := dev.Read(log, ctx)
 		if err != nil {
+			err = wrapErr(merry.Append(err, "считывание температуры"))
+			journal.Err(log, err)
 			return err
 		}
 		if math.Abs(currentTemperature-destinationTemperature) < 2 {
@@ -83,7 +94,7 @@ func setupTemperature(log logger, ctx context.Context, destinationTemperature fl
 			return nil
 		}
 		if err := readProductsParams(ctx, ms); err != nil {
-			journal.Err(log, err)
+			journal.Err(log, wrapErr(err))
 		}
 	}
 }

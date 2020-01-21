@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
@@ -64,32 +63,6 @@ func (h *appConfigSvc) EditConfig(_ context.Context) error {
 		gui.NotifyCurrentPartyChanged()
 	}()
 	return nil
-}
-
-func (h *appConfigSvc) SetConfig(_ context.Context, c *apitypes.AppConfig) (err error) {
-	x := config.Get()
-	x.Gas.Comport = c.Gas.Comport
-	x.Gas.Type = gas.DevType(c.Gas.DeviceType)
-	x.Temperature.Comport = c.Temperature.Comport
-	x.Temperature.Type = config.TempDevType(c.Temperature.DeviceType)
-	if err := x.Validate(); err != nil {
-		return err
-	}
-	return config.Set(x)
-}
-
-func (h *appConfigSvc) GetConfig(_ context.Context) (*apitypes.AppConfig, error) {
-	c := config.Get()
-	return &apitypes.AppConfig{
-		Gas: &apitypes.GasDeviceConfig{
-			DeviceType: int8(c.Gas.Type),
-			Comport:    c.Gas.Comport,
-		},
-		Temperature: &apitypes.TemperatureDeviceConfig{
-			DeviceType: int8(c.Temperature.Type),
-			Comport:    c.Temperature.Comport,
-		},
-	}, nil
 }
 
 func (h *appConfigSvc) GetParamValues(_ context.Context) ([]*apitypes.ConfigParamValue, error) {
@@ -171,9 +144,11 @@ func (h *appConfigSvc) SetParamValue(_ context.Context, key string, value string
 	}
 
 	switch key {
+
 	case "product_type":
 		_, err := db.Exec(`UPDATE party SET product_type = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)
 		return wrapErr(err)
+
 	case "name":
 		_, err := db.Exec(`UPDATE party SET name = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)
 		return wrapErr(err)
@@ -200,22 +175,34 @@ type configParam struct {
 }
 
 func (x configParam) List() []string {
+	if x.Type == "comport" {
+		comports, _ := comport.Ports()
+		return comports
+	}
 	if x.list == nil {
 		return make([]string, 0)
 	}
 	return x.list()
 }
 
-func listComportsNames() []string {
-	comports, _ := comport.Ports()
-	return comports
-}
-
 var configParams = map[string]configParam{
+
+	"config_temperature_type": {
+		Name: "Термокамера: тип",
+		list: func() []string {
+			return []string{string(config.T800), string(config.T2500), string(config.Ktx500)}
+		},
+		get: func(c config.Config) string {
+			return string(c.Temperature.Type)
+		},
+		set: func(c *config.Config, s string) error {
+			c.Temperature.Type = config.TempDevType(s)
+			return nil
+		},
+	},
 	"config_temperature_comport": {
 		Name: "Термокамера: СОМ порт",
 		Type: "comport",
-		list: listComportsNames,
 		set: func(c *config.Config, s string) error {
 			c.Temperature.Comport = s
 			return nil
@@ -243,7 +230,6 @@ var configParams = map[string]configParam{
 	"config_gas_comport": {
 		Name: "Газовый блок: СОМ порт",
 		Type: "comport",
-		list: listComportsNames,
 		set: func(c *config.Config, s string) error {
 			c.Gas.Comport = s
 			return nil
@@ -255,20 +241,13 @@ var configParams = map[string]configParam{
 	"config_gas_type": {
 		Name: "Газовый блок: тип",
 		list: func() []string {
-			return []string{gas.Mil82.String(), gas.Lab73CO.String()}
+			return []string{string(gas.Mil82), string(gas.Lab73CO)}
 		},
 		get: func(c config.Config) string {
-			return c.Gas.Type.String()
+			return string(c.Gas.Type)
 		},
 		set: func(c *config.Config, s string) error {
-			switch s {
-			case gas.Mil82.String():
-				c.Gas.Type = gas.Mil82
-			case gas.Lab73CO.String():
-				c.Gas.Type = gas.Lab73CO
-			default:
-				return fmt.Errorf("wrong gas type: %q", s)
-			}
+			c.Gas.Type = gas.DevType(s)
 			return nil
 		},
 	},

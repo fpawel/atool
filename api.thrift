@@ -11,6 +11,7 @@ service RunWorkService {
 }
 
 service ScriptService {
+    void runFileAsync(1:string filename)
     void runFile(1:string filename)
 }
 
@@ -60,8 +61,6 @@ service NotifyGuiService {
 service AppConfigService {
     void editConfig()
     list<string> listDevices()
-    apitypes.AppConfig getConfig()
-    void setConfig(1:apitypes.AppConfig config)
 
     list<apitypes.ConfigParamValue> getParamValues()
     void setParamValue(1:string key, 2:string value)

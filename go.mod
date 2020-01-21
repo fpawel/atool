@@ -8,7 +8,7 @@ require (
 	github.com/fpawel/comm v0.0.0-20191223111435-ed746751e6a5
 	github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8
 	github.com/fpawel/gotools v0.0.0-20191030125146-1d6c7465834c // indirect
-	github.com/fpawel/hardware v0.0.0-20191230124932-056561e614c0
+	github.com/fpawel/hardware v0.0.0-20200121052835-14f26f485b22
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/lxn/win v0.0.0-20191128105842-2da648fda5b4
 	github.com/mattn/go-sqlite3 v2.0.1+incompatible

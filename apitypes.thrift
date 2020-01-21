@@ -59,21 +59,6 @@ struct DeleteChartPointsRequest {
     5: double valueTo
 }
 
-struct AppConfig {
-    1: GasDeviceConfig gas
-    2: TemperatureDeviceConfig temperature
-}
-
-struct GasDeviceConfig {
-    1:i8 deviceType
-    2:string comport
-}
-
-struct TemperatureDeviceConfig {
-    1:i8 deviceType
-    2:string comport
-}
-
 struct Coefficient {
     1:i32 n
     2:bool active
