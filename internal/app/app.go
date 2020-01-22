@@ -164,7 +164,15 @@ func runServer() context.CancelFunc {
 	go log.ErrIfFail(server.Serve, "problem", "`failed to serve`")
 
 	return func() {
-		log.ErrIfFail(server.Stop, "problem", "`failed to stop server`")
+		log.ErrIfFail(func() error {
+			if err := server.Stop(); err != nil {
+				return fmt.Errorf("server.Stop(): %w", err)
+			}
+			if err := transport.Close(); err != nil {
+				return fmt.Errorf("transport.Close(): %w", err)
+			}
+			return nil
+		}, "problem", "`failed to stop server`")
 	}
 }
 
