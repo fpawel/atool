@@ -4,20 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/lxn/win"
+	"github.com/powerman/structlog"
 	"reflect"
 	"unicode/utf16"
 	"unsafe"
 )
-
-func SendMessage(hWndSrc, hWndDest win.HWND, wParam uintptr, b []byte) uintptr {
-	header := *(*reflect.SliceHeader)(unsafe.Pointer(&b))
-	cd := copyData{
-		CbData: uint32(header.Len),
-		LpData: header.Data,
-		DwData: uintptr(hWndSrc),
-	}
-	return win.SendMessage(hWndDest, win.WM_COPYDATA, wParam, uintptr(unsafe.Pointer(&cd)))
-}
 
 type W struct {
 	HWndSrc, HWndDest win.HWND
@@ -31,7 +22,24 @@ func New(HWndSrc, HWndDest win.HWND) W {
 }
 
 func (x W) SendString(msg uintptr, s string) bool {
-	return x.SendMessage(msg, utf16FromString(s))
+
+	if x.HWndDest == win.HWND_TOP {
+		log.PrintErr("WM_COPYDATA: destination must be set",
+			"window_source", x.HWndSrc,
+			"msg_copy_data", msg,
+			"copy_data", s)
+		return false
+	}
+
+	if sendMessage(x.HWndSrc, x.HWndDest, msg, utf16FromString(s)) == 0 {
+		log.PrintErr("WM_COPYDATA failed",
+			"window_source", x.HWndSrc,
+			"window_destination", x.HWndDest,
+			"msg_copy_data", msg,
+			"copy_data", s)
+		return false
+	}
+	return true
 }
 
 func (x W) SendJson(msg uintptr, param interface{}) bool {
@@ -42,8 +50,25 @@ func (x W) SendJson(msg uintptr, param interface{}) bool {
 	return x.SendString(msg, string(b))
 }
 
-func (x W) SendMessage(msg uintptr, b []byte) bool {
-	return SendMessage(x.HWndSrc, x.HWndDest, msg, b) != 0
+func (x W) SendBytes(msg uintptr, b []byte) bool {
+
+	if x.HWndDest == win.HWND_TOP {
+		log.PrintErr("WM_COPYDATA: destination must be set",
+			"window_source", x.HWndSrc,
+			"msg_copy_data", msg,
+			"copy_data_length", len(b))
+		return false
+	}
+
+	if sendMessage(x.HWndSrc, x.HWndDest, msg, b) == 0 {
+		log.PrintErr("WM_COPYDATA failed",
+			"window_source", x.HWndSrc,
+			"window_destination", x.HWndDest,
+			"msg_copy_data", msg,
+			"copy_data_length", len(b))
+		return false
+	}
+	return true
 }
 
 type copyData struct {
@@ -63,3 +88,15 @@ func utf16FromString(s string) (b []byte) {
 	}
 	return
 }
+
+func sendMessage(hWndSrc, hWndDest win.HWND, wParam uintptr, b []byte) uintptr {
+	header := *(*reflect.SliceHeader)(unsafe.Pointer(&b))
+	cd := copyData{
+		CbData: uint32(header.Len),
+		LpData: header.Data,
+		DwData: uintptr(hWndSrc),
+	}
+	return win.SendMessage(hWndDest, win.WM_COPYDATA, wParam, uintptr(unsafe.Pointer(&cd)))
+}
+
+var log = structlog.New()
