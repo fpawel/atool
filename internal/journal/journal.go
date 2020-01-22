@@ -2,12 +2,10 @@ package journal
 
 import (
 	"fmt"
-	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/logfile"
 	"github.com/fpawel/atool/internal/pkg/must"
-	"github.com/lxn/win"
 	"github.com/powerman/structlog"
 	"time"
 )
@@ -49,16 +47,7 @@ func status(log *structlog.Logger, x gui.Status) {
 	}
 	must.PanicIf(err)
 
-	go func() {
-		if gui.NotifyStatus(x) {
-			return
-		}
-		err := merry.Errorf("can't send status message %+v", x)
-		if errno := win.GetLastError(); errno != win.ERROR_SUCCESS {
-			err = err.Appendf("windows error code: %d", errno)
-		}
-		log.PrintErr(err)
-	}()
+	go gui.NotifyStatus(x)
 }
 
 var file = logfile.MustNew(".journal")
