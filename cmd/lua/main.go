@@ -41,10 +41,11 @@ func main() {
 	}
 	defer transport.Close()
 
-	iProto := thrift.NewTMultiplexedProtocol(protocolFactory.GetProtocol(transport), "ScriptService")
-	oProto := thrift.NewTMultiplexedProtocol(protocolFactory.GetProtocol(transport), "ScriptService")
+	proto := func() thrift.TProtocol {
+		return thrift.NewTMultiplexedProtocol(protocolFactory.GetProtocol(transport), "ScriptService")
+	}
 
-	client := api.NewScriptServiceClient(thrift.NewTStandardClient(iProto, oProto))
+	client := api.NewScriptServiceClient(thrift.NewTStandardClient(proto(), proto()))
 
 	if len(os.Args) > 1 && os.Args[1] == "run" {
 		filename := strings.Join(os.Args[2:], "")
