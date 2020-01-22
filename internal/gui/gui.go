@@ -87,7 +87,7 @@ func NotifyChart(xs []data.Measurement) bool {
 			writeBinary(buf, uint64(m.ParamAddr))
 			writeBinary(buf, m.Value)
 		}
-		if !copyData().SendMessage(MsgChart, buf.Bytes()) {
+		if !copyData().SendBytes(MsgChart, buf.Bytes()) {
 			return false
 		}
 	}
