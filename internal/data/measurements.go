@@ -3,26 +3,30 @@ package data
 import (
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/internal/pkg"
 	"github.com/jmoiron/sqlx"
 	"strings"
 	"time"
 )
 
 type Measurement struct {
-	Tm        float64 `db:"tm"`
+	//Tm        float64 `db:"tm"`
+
+	Tm        int64   `db:"tm"`
 	ProductID int64   `db:"product_id"`
 	ParamAddr int     `db:"param_addr"`
 	Value     float64 `db:"value"`
 }
 
 func (x Measurement) Time() time.Time {
-	return pkg.JulianToTime(x.Tm)
+	//return pkg.JulianToTime(x.Tm)
+	return time.Unix(0, x.Tm)
 }
 
 func NewMeasurement(ProductID int64, ParamAddr int, Value float64) Measurement {
 	return Measurement{
-		Tm:        pkg.TimeToJulian(time.Now()),
+		//Tm:        pkg.TimeToJulian(time.Now()),
+
+		Tm:        time.Now().UnixNano(),
 		ProductID: ProductID,
 		ParamAddr: ParamAddr,
 		Value:     Value,
@@ -35,6 +39,7 @@ func SaveMeasurements(db *sqlx.DB, measurements []Measurement) error {
 	}
 	var xs []string
 	for _, m := range measurements {
+		time.Now().UnixNano()
 		xs = append(xs, fmt.Sprintf("(%v,%d,%d,%v)", m.Tm, m.ProductID, m.ParamAddr, m.Value))
 	}
 	strQueryInsert := `INSERT INTO measurement(tm, product_id, param_addr, value) VALUES ` + "  " + strings.Join(xs, ",")

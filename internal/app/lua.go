@@ -14,49 +14,110 @@ import (
 	"github.com/powerman/structlog"
 	lua "github.com/yuin/gopher-lua"
 	luar "layeh.com/gopher-luar"
+	"strconv"
 	"time"
 )
 
-func luaImportParty(L *lua.LState) error {
-	m, err := getCurrentPartyValues()
+func luaImportGlobals(L *lua.LState) error {
+	imp := new(luaImport)
+	if err := imp.init(L); err != nil {
+		return err
+	}
+	L.SetGlobal("go", luar.New(L, imp))
+	return nil
+}
+
+type luaImport struct {
+	Config   *lua.LTable
+	Products *lua.LTable
+	l        *lua.LState
+}
+
+func (x *luaImport) init(L *lua.LState) error {
+	x.l = L
+	x.Products = L.NewTable()
+	x.Config = L.NewTable()
+	xs, err := getConfigParamsValues()
 	if err != nil {
 		return err
 	}
-
-	impParty := dynamic{}
+	for _, p := range xs {
+		if p.Type == "int" || p.Type == "float" {
+			v, err := strconv.ParseFloat(p.Value, 64)
+			if err != nil {
+				return fmt.Errorf("%q=%v: %w", p.Name, p.Value, err)
+			}
+			x.Config.RawSetString(p.Key, luar.New(x.l, v))
+		} else {
+			x.Config.RawSetString(p.Key, luar.New(x.l, p.Value))
+		}
+	}
 
 	party, err := data.GetCurrentParty(db)
 	if err != nil {
 		return err
 	}
-	impParty["product_type"] = party.ProductType
-
-	for k, name := range config.Get().PartyParams {
-		if v, f := m[k]; !f {
-			return fmt.Errorf("не задано значение параметра файла: %q", name)
-		} else {
-			impParty[k] = v
-		}
-	}
-
-	impProducts := L.NewTable()
 
 	for _, p := range party.Products {
 		p := p
 		if !p.Active {
 			continue
 		}
-		impP, err := newLuaProduct(L, p)
-		if err != nil {
+		impP := new(luaProduct)
+		if err := impP.init(L, p); err != nil {
 			return err
 		}
-		impProducts.Append(luar.New(L, impP))
+		x.Products.Append(luar.New(L, impP))
 	}
-
-	impParty["products"] = impProducts
-
-	L.SetGlobal("party", luar.New(L, impParty))
 	return nil
+}
+
+func (x *luaImport) Temperature(destinationTemperature float64) {
+	luaWithGuiWarn(x.l, guiwork.PerformNewNamedWork(x.log(), x.l.Context(),
+		fmt.Sprintf("перевод термокамеры на %v⁰C", destinationTemperature),
+		func(log logger, ctx context.Context) error {
+			return setupTemperature(log, ctx, destinationTemperature)
+		}))
+	x.pause(config.Get().HoldTemperature, fmt.Sprintf("выдержка на температуре %v⁰C", destinationTemperature))
+}
+
+func (x *luaImport) Gas(gas byte) {
+
+	luaWithGuiWarn(x.l, switchGas(x.l.Context(), gas))
+	if gas != 0 {
+		x.pause(config.Get().BlowGas, fmt.Sprintf("продувка газа %d", gas))
+	}
+}
+
+func (x *luaImport) ReadSave(reg modbus.Var, format modbus.FloatBitsFormat, dbKey string) {
+	if err := format.Validate(); err != nil {
+		x.l.ArgError(2, err.Error())
+	}
+	luaCheck(x.l, guiwork.PerformNewNamedWork(x.log(), x.l.Context(),
+		fmt.Sprintf("считать из СОМ и сохранить: рег.%d,%s", reg, dbKey),
+		func(log *structlog.Logger, ctx context.Context) error {
+			return processEachActiveProduct(func(product data.Product, device config.Device) error {
+				return readAndSaveProductValue(x.log(), x.l.Context(),
+					product, device, reg, format, dbKey)
+			})
+		}))
+}
+
+func (x *luaImport) PauseSec(sec int64, what string) {
+	dur := time.Second * time.Duration(sec)
+	luaCheck(x.l, delay(x.log(), x.l.Context(), dur, what))
+}
+
+func (x *luaImport) log() logger {
+	return luaLog(x.l)
+}
+
+func (x *luaImport) pause(dur time.Duration, what string) {
+	luaCheck(x.l, delay(x.log(), x.l.Context(), dur, what))
+}
+
+func luaLog(L *lua.LState) logger {
+	return L.Context().Value("log").(logger)
 }
 
 func luaCheckNumberOrNil(L *lua.LState, n int) {
@@ -86,79 +147,5 @@ func luaWithGuiWarn(L *lua.LState, err error) {
 	) != win.IDOK {
 		L.RaiseError("%s", err)
 	}
-	journal.Err(log, merry.New("проигнорирована ошибка сценария").WithCause(err))
-}
-
-func luaReadSave(log logger) lua.LGFunction {
-	return func(L *lua.LState) int {
-		param := L.CheckInt(1)
-		format := modbus.FloatBitsFormat(L.CheckString(2))
-		dbKey := L.CheckString(3)
-		if err := format.Validate(); err != nil {
-			L.ArgError(2, err.Error())
-		}
-		luaCheck(L, guiwork.PerformNewNamedWork(log, L.Context(),
-			fmt.Sprintf("считать из СОМ и сохранить: рег.%d,%s", param, dbKey),
-			func(log *structlog.Logger, ctx context.Context) error {
-				return processEachActiveProduct(func(product data.Product, device config.Device) error {
-					return readAndSaveProductValue(log, L.Context(),
-						product, device, modbus.Var(param), format, dbKey)
-				})
-			}))
-		return 0
-	}
-}
-
-func luaPause(log logger) lua.LGFunction {
-	return func(L *lua.LState) int {
-		sec := L.ToInt64(1)
-		what := L.ToString(2)
-		dur := time.Second * time.Duration(sec)
-		luaCheck(L, delay(log, L.Context(), dur, what))
-		return 0
-	}
-}
-
-func luaGas(log logger) lua.LGFunction {
-	return func(L *lua.LState) int {
-		gas := L.CheckInt(1)
-		dur := luaGetDuration(L, 2, config.Get().BlowGas)
-		luaWithGuiWarn(L, switchGas(L.Context(), byte(gas)))
-		if gas != 0 {
-			luaCheck(L, delay(log, L.Context(), dur, fmt.Sprintf("продувка газа %d", gas)))
-		}
-		return 0
-	}
-}
-
-func luaTemperature(log logger) lua.LGFunction {
-	return func(L *lua.LState) int {
-		destinationTemperature := float64(L.CheckNumber(1))
-		dur := luaGetDuration(L, 2, config.Get().HoldTemperature)
-		luaWithGuiWarn(L, guiwork.PerformNewNamedWork(log, L.Context(),
-			fmt.Sprintf("перевод термокамеры на %v⁰C", destinationTemperature),
-			func(log logger, ctx context.Context) error {
-				return setupTemperature(log, ctx, destinationTemperature)
-			}))
-		luaCheck(L, delay(log, L.Context(), dur,
-			fmt.Sprintf("выдержка на температуре %v⁰C", destinationTemperature)))
-		return 0
-	}
-}
-
-func luaGetDuration(L *lua.LState, nArg int, def time.Duration) time.Duration {
-	arg := L.Get(nArg)
-	if arg == lua.LNil {
-		return def
-	}
-
-	if minutes, ok := arg.(lua.LNumber); ok {
-		return time.Minute * time.Duration(minutes)
-	}
-	strDur := L.CheckString(nArg)
-	dur, err := time.ParseDuration(strDur)
-	if err != nil {
-		L.ArgError(nArg, err.Error())
-	}
-	return dur
+	journal.Err(luaLog(L), merry.New("проигнорирована ошибка сценария").WithCause(err))
 }

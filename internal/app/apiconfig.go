@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
@@ -66,68 +68,11 @@ func (h *appConfigSvc) EditConfig(_ context.Context) error {
 }
 
 func (h *appConfigSvc) GetParamValues(_ context.Context) ([]*apitypes.ConfigParamValue, error) {
-
-	p, err := data.GetCurrentParty(db)
-	if err != nil {
-		return nil, err
-	}
-
-	cfg := config.Get()
-
-	xs := []*apitypes.ConfigParamValue{
-		{
-			Key:   "name",
-			Name:  "Имя файла",
-			Value: p.Name,
-		},
-		{
-			Key:        "product_type",
-			Name:       "Исполнение",
-			Value:      p.ProductType,
-			ValuesList: cfg.ProductTypes,
-		},
-	}
-
-	for k, x := range configParams {
-		xs = append(xs, &apitypes.ConfigParamValue{
-			Key:        k,
-			Name:       x.Name,
-			Type:       x.Type,
-			ValuesList: x.List(),
-			Value:      x.get(cfg),
-		})
-	}
-
-	m, err := getCurrentPartyValues()
-	if err != nil {
-		return nil, err
-	}
-	for key, name := range config.Get().PartyParams {
-		y := &apitypes.ConfigParamValue{
-			Key:  key,
-			Name: name,
-			Type: "float",
-		}
-		if v, f := m[key]; f {
-			y.Value = formatFloat(v)
-		}
-		xs = append(xs, y)
-	}
-	sort.Slice(xs, func(i, j int) bool {
-		return xs[i].Name < xs[j].Name
-	})
-	return xs, nil
+	return getConfigParamsValues()
 }
 
-func (h *appConfigSvc) GetParamValue(_ context.Context, key string) (r string, err error) {
-	if v, f := configParams[key]; f {
-		c := config.Get()
-		r = v.get(c)
-		return
-	}
-	const q1 = `SELECT value FROM party_value WHERE party_id = (SELECT party_id FROM app_config) AND key = ?`
-	err = db.Select(&r, q1, key)
-	return
+func (h *appConfigSvc) GetParamValue(_ context.Context, key string) (string, error) {
+	return getConfigParamValue(key)
 }
 
 func (h *appConfigSvc) SetParamValue(_ context.Context, key string, value string) error {
@@ -174,6 +119,20 @@ type configParam struct {
 	get  func(config.Config) string
 }
 
+func getConfigParamValue(key string) (string, error) {
+	if v, f := configParams[key]; f {
+		c := config.Get()
+		return v.get(c), nil
+	}
+	const q1 = `SELECT value FROM party_value WHERE party_id = (SELECT party_id FROM app_config) AND key = ?`
+	var r string
+	err := db.Get(&r, q1, key)
+	if err == sql.ErrNoRows {
+		err = fmt.Errorf("значение ключа партии %q не задано", key)
+	}
+	return r, err
+}
+
 func (x configParam) List() []string {
 	if x.Type == "comport" {
 		comports, _ := comport.Ports()
@@ -185,9 +144,77 @@ func (x configParam) List() []string {
 	return x.list()
 }
 
+func getConfigParamsValues() ([]*apitypes.ConfigParamValue, error) {
+	p, err := data.GetCurrentParty(db)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := config.Get()
+
+	xs := []*apitypes.ConfigParamValue{
+		{
+			Key:   "name",
+			Name:  "Имя файла",
+			Value: p.Name,
+		},
+		{
+			Key:        "product_type",
+			Name:       "Исполнение",
+			Value:      p.ProductType,
+			ValuesList: cfg.ProductTypes,
+		},
+	}
+
+	checkKey := func(k string) error {
+		for _, x := range xs {
+			if x.Key == k {
+				return fmt.Errorf("дублирование значений ключа %q", k)
+			}
+		}
+		return nil
+	}
+
+	for k, x := range configParams {
+		if err := checkKey(k); err != nil {
+			return nil, err
+		}
+		xs = append(xs, &apitypes.ConfigParamValue{
+			Key:        k,
+			Name:       x.Name,
+			Type:       x.Type,
+			ValuesList: x.List(),
+			Value:      x.get(cfg),
+		})
+	}
+
+	m, err := getCurrentPartyValues()
+	if err != nil {
+		return nil, err
+	}
+	for key, name := range config.Get().PartyParams {
+		if err := checkKey(key); err != nil {
+			return nil, err
+		}
+		y := &apitypes.ConfigParamValue{
+			Key:  key,
+			Name: name,
+			Type: "float",
+		}
+		if v, f := m[key]; f {
+			y.Value = formatFloat(v)
+		}
+		xs = append(xs, y)
+	}
+	sort.Slice(xs, func(i, j int) bool {
+		return xs[i].Name < xs[j].Name
+	})
+	return xs, nil
+}
+
 var configParams = map[string]configParam{
 
-	"config_temperature_type": {
+	"temperature_type": {
 		Name: "Термокамера: тип",
 		list: func() []string {
 			return []string{string(config.T800), string(config.T2500), string(config.Ktx500)}
@@ -200,7 +227,7 @@ var configParams = map[string]configParam{
 			return nil
 		},
 	},
-	"config_temperature_comport": {
+	"temperature_comport": {
 		Name: "Термокамера: СОМ порт",
 		Type: "comport",
 		set: func(c *config.Config, s string) error {
@@ -212,7 +239,7 @@ var configParams = map[string]configParam{
 		},
 	},
 
-	"config_gas_address": {
+	"gas_address": {
 		Name: "Газовый блок: адрес",
 		Type: "int",
 		set: func(c *config.Config, s string) error {
@@ -227,7 +254,7 @@ var configParams = map[string]configParam{
 			return strconv.Itoa(int(c.Gas.Addr))
 		},
 	},
-	"config_gas_comport": {
+	"gas_comport": {
 		Name: "Газовый блок: СОМ порт",
 		Type: "comport",
 		set: func(c *config.Config, s string) error {
@@ -238,7 +265,7 @@ var configParams = map[string]configParam{
 			return c.Gas.Comport
 		},
 	},
-	"config_gas_type": {
+	"gas_type": {
 		Name: "Газовый блок: тип",
 		list: func() []string {
 			return []string{string(gas.Mil82), string(gas.Lab73CO)}

@@ -11,7 +11,6 @@ service RunWorkService {
 }
 
 service ScriptService {
-    void runFileAsync(1:string filename)
     void runFile(1:string filename)
 }
 

@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS product_param
 
 CREATE TABLE IF NOT EXISTS measurement
 (
-    tm         REAL     NOT NULL,
+    tm         INTEGER  NOT NULL,
     product_id INTEGER  NOT NULL,
     param_addr SMALLINT NOT NULL,
     value      REAL     NOT NULL,
@@ -88,9 +88,9 @@ CREATE TABLE IF NOT EXISTS measurement
 );
 
 CREATE VIEW IF NOT EXISTS measurement_ext AS
-SELECT STRFTIME('%Y-%m-%d %H:%M:%f', tm)   AS stored_at,
-       cast(strftime('%Y', tm) AS INTEGER) AS year,
-       cast(strftime('%m', tm) AS INTEGER) AS month,
+SELECT STRFTIME('%Y-%m-%d %H:%M:%f', tm / 1e9, 'unixepoch')   AS stored_at,
+       cast(strftime('%Y', tm / 1e9, 'unixepoch') AS INTEGER) AS year,
+       cast(strftime('%m', tm / 1e9, 'unixepoch') AS INTEGER) AS month,
        *
 FROM measurement;
 

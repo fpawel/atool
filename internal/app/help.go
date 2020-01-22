@@ -136,6 +136,12 @@ func getCurrentPartyValues() (map[string]float64, error) {
 	return m, nil
 }
 
+func deleteProductKey(productID int64, key string) error {
+	const q1 = `DELETE FROM product_value WHERE product_id = ? AND key = ?`
+	_, err := db.Exec(q1, productID, key)
+	return merry.Appendf(err, "%s, %s", q1, key)
+}
+
 func saveProductValue(productID int64, key string, value float64) error {
 	const q1 = `
 INSERT INTO product_value

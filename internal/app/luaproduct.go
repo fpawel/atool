@@ -9,7 +9,6 @@ import (
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
 	lua "github.com/yuin/gopher-lua"
-	luar "layeh.com/gopher-luar"
 )
 
 type luaProduct struct {
@@ -20,20 +19,19 @@ type luaProduct struct {
 	Device config.Device
 }
 
-func newLuaProduct(l *lua.LState, p data.Product) (lua.LValue, error) {
+func (x *luaProduct) init(l *lua.LState, p data.Product) error {
 	device, okDevice := config.Get().Hardware[p.Device]
 	if !okDevice {
-		return nil, fmt.Errorf("%s: не заданы параметры устройства", p)
+		return fmt.Errorf("%s: не заданы параметры устройства", p)
 	}
-	return luar.New(l, luaProduct{
-		p:      p,
-		l:      l,
-		Serial: p.Serial,
-		Device: device,
-	}), nil
+	x.p = p
+	x.l = l
+	x.Serial = p.Serial
+	x.Device = device
+	return nil
 }
 
-func (x luaProduct) WriteKef(k modbus.DevCmd, format modbus.FloatBitsFormat, pv lua.LValue) {
+func (x *luaProduct) WriteKef(k modbus.DevCmd, format modbus.FloatBitsFormat, pv lua.LValue) {
 	if err := format.Validate(); err != nil {
 		x.l.ArgError(2, err.Error())
 	}
@@ -54,7 +52,7 @@ func (x luaProduct) WriteKef(k modbus.DevCmd, format modbus.FloatBitsFormat, pv 
 		}.GetResponse(log, x.l.Context(), x.comm()))
 }
 
-func (x luaProduct) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, pv lua.LValue) {
+func (x *luaProduct) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, pv lua.LValue) {
 	if err := format.Validate(); err != nil {
 		x.l.ArgError(2, err.Error())
 	}
@@ -75,7 +73,7 @@ func (x luaProduct) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, pv
 		}.GetResponse(log, x.l.Context(), x.comm()))
 }
 
-func (x luaProduct) ReadReg(reg modbus.Var, format modbus.FloatBitsFormat) lua.LValue {
+func (x *luaProduct) ReadReg(reg modbus.Var, format modbus.FloatBitsFormat) lua.LValue {
 	if err := format.Validate(); err != nil {
 		x.l.ArgError(2, err.Error())
 	}
@@ -88,7 +86,7 @@ func (x luaProduct) ReadReg(reg modbus.Var, format modbus.FloatBitsFormat) lua.L
 	return lua.LNumber(v)
 }
 
-func (x luaProduct) ReadKef(k modbus.Var, format modbus.FloatBitsFormat) lua.LValue {
+func (x *luaProduct) ReadKef(k modbus.Var, format modbus.FloatBitsFormat) lua.LValue {
 	if err := format.Validate(); err != nil {
 		x.l.ArgError(2, err.Error())
 	}
@@ -101,7 +99,12 @@ func (x luaProduct) ReadKef(k modbus.Var, format modbus.FloatBitsFormat) lua.LVa
 	return lua.LNumber(v)
 }
 
-func (x luaProduct) SetValue(key string, pv lua.LValue) {
+func (x *luaProduct) DeleteKey(key string) {
+	x.Info(fmt.Sprintf("удалить ключ %q", key))
+	luaCheck(x.l, deleteProductKey(x.p.ProductID, key))
+}
+
+func (x *luaProduct) SetValue(key string, pv lua.LValue) {
 	if !config.Get().IsProductParamKeyExists(key) {
 		x.Err(fmt.Sprintf("%q: параметр приборов не задан в настройках", key))
 	}
@@ -114,7 +117,7 @@ func (x luaProduct) SetValue(key string, pv lua.LValue) {
 	luaCheck(x.l, saveProductValue(x.p.ProductID, key, v))
 }
 
-func (x luaProduct) Value(key string) lua.LValue {
+func (x *luaProduct) Value(key string) lua.LValue {
 	var v float64
 	err := db.Get(&v,
 		`SELECT value FROM product_value WHERE product_id = ? AND key = ?`,
@@ -129,15 +132,15 @@ func (x luaProduct) Value(key string) lua.LValue {
 	return lua.LNumber(v)
 }
 
-func (x luaProduct) Info(s string) {
+func (x *luaProduct) Info(s string) {
 	journal.Info(log, fmt.Sprintf("прибор %d.%d: %s", x.p.Serial, x.p.ProductID, s))
 }
 
-func (x luaProduct) Err(s string) {
+func (x *luaProduct) Err(s string) {
 	journal.Err(log, fmt.Errorf("прибор %d.%d: %s", x.p.Serial, x.p.ProductID, s))
 }
 
-func (x luaProduct) journalResult(s string, err error) {
+func (x *luaProduct) journalResult(s string, err error) {
 	if err != nil {
 		x.Err(fmt.Sprintf("%s: %s", s, err))
 		return
@@ -145,6 +148,6 @@ func (x luaProduct) journalResult(s string, err error) {
 	x.Info(fmt.Sprintf("%s: успешно", s))
 }
 
-func (x luaProduct) comm() comm.T {
+func (x *luaProduct) comm() comm.T {
 	return getCommProduct(x.p.Comport, x.Device)
 }
