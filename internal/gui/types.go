@@ -1,6 +1,8 @@
 package gui
 
-import "github.com/fpawel/comm/modbus"
+import (
+	"github.com/fpawel/comm/modbus"
+)
 
 type CommTransaction struct {
 	Port     string
@@ -43,8 +45,15 @@ type Status struct {
 
 type CoefficientValue struct {
 	ProductID   int64
-	What        string
+	Read        bool
 	Coefficient int
 	Result      string
 	Ok          bool
+}
+
+type ConfigParam struct {
+	Name  string
+	Type  string
+	List  []string
+	Value string
 }

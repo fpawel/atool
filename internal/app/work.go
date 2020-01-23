@@ -24,8 +24,14 @@ func runInterrogate() error {
 	return guiwork.RunWork(log, appCtx, "опрос приборов", func(log *structlog.Logger, ctx context.Context) error {
 		ms := new(measurements)
 		defer ms.Save()
+
+		products, err := getActiveProducts()
+		if err != nil {
+			return err
+		}
+
 		for {
-			if err := readProductsParams(ctx, ms); err != nil {
+			if err := readProductsParams(ctx, ms, products); err != nil {
 				if merry.Is(err, context.Canceled) {
 					return nil
 				}
@@ -35,8 +41,8 @@ func runInterrogate() error {
 	})
 }
 
-func readProductsParams(ctx context.Context, ms *measurements) error {
-	return processEachActiveProduct(func(product data.Product, device config.Device) error {
+func readProductsParams(ctx context.Context, ms *measurements, products []productHardware) error {
+	return processEachActiveProductHardware(func(product data.Product, device config.Device) error {
 		rdr := newParamsReader(product, device)
 		for _, prm := range device.Params {
 			err := rdr.getResponse(ctx, prm)
@@ -53,11 +59,48 @@ func readProductsParams(ctx context.Context, ms *measurements) error {
 	})
 }
 
+func notifyReadCoefficient(p data.Product, n int, value float64, err error) {
+	x := gui.CoefficientValue{
+		ProductID:   p.ProductID,
+		Read:        true,
+		Coefficient: n,
+	}
+	if err == nil {
+		x.Result = formatFloat(value)
+		x.Ok = true
+		journal.Info(log, fmt.Sprintf("считано: №%d K%d=%v", p.Serial, n, value))
+	} else {
+		err = fmt.Errorf("считывание №%d K%d: %w", p.Serial, n, err)
+		x.Result = err.Error()
+		journal.Err(log, err)
+		x.Ok = false
+	}
+	go gui.NotifyCoefficient(x)
+}
+
+func notifyWriteCoefficient(p data.Product, n int, value float64, err error) {
+	x := gui.CoefficientValue{
+		ProductID:   p.ProductID,
+		Read:        false,
+		Coefficient: n,
+	}
+	if err == nil {
+		x.Result = formatFloat(value)
+		x.Ok = true
+		journal.Info(log, fmt.Sprintf("записано: №%d K%d=%v", p.Serial, n, value))
+	} else {
+		err = fmt.Errorf("запись №%d K%d=%v: %w", p.Serial, n, value, err)
+		x.Result = err.Error()
+		journal.Err(log, err)
+		x.Ok = false
+	}
+	go gui.NotifyCoefficient(x)
+}
+
 func runReadAllCoefficients() error {
 	return guiwork.RunWork(log, appCtx, "считывание коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
-		var xs []gui.CoefficientValue
-		hasFormatErrors := false
-		err := processEachActiveProduct(func(product data.Product, device config.Device) error {
+
+		err := processEachActiveProductHardware(func(product data.Product, device config.Device) error {
 			log := pkg.LogPrependSuffixKeys(log, "product", product.String())
 			for _, k := range config.Get().Coefficients {
 				count := k.Range[1] - k.Range[0] + 1
@@ -80,36 +123,13 @@ func runReadAllCoefficients() error {
 					if _, f := config.Get().InactiveCoefficients[n]; f {
 						continue
 					}
-					x := gui.CoefficientValue{
-						ProductID:   product.ProductID,
-						What:        "read",
-						Coefficient: n,
-					}
-
-					if v, err := k.Format.ParseFloat(d); err == nil {
-						x.Result = formatFloat(v)
-						x.Ok = true
-					} else {
-						x.Result = fmt.Sprintf("% X: %v", d, err)
-						x.Ok = false
-						hasFormatErrors = true
-					}
-					xs = append(xs, x)
+					v, err := k.Format.ParseFloat(d)
+					notifyReadCoefficient(product, n, v, err)
 				}
 			}
 			return nil
 		})
-		if err != nil {
-			return err
-		}
-		if len(xs) > 0 {
-			go gui.NotifyCoefficients(xs)
-		}
-
-		if hasFormatErrors {
-			return merry.New("один или несколько к-тов имеют не верный формат")
-		}
-		return nil
+		return err
 	})
 }
 
@@ -126,8 +146,6 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 			if err := db.Get(&product, `SELECT * FROM product WHERE product_id = ?`, x.ProductID); err != nil {
 				return err
 			}
-			journal.Info(log, fmt.Sprintf("%s %s адр.%d K%d=%v", product.Device,
-				product.Comport, product.Addr, x.Coefficient, x.Value))
 
 			device, f := config.Get().Hardware[product.Device]
 			if !f {
@@ -147,6 +165,9 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 			}
 			cm := getCommProduct(product.Comport, device)
 			err = req.GetResponse(log, ctx, cm)
+
+			notifyWriteCoefficient(product, int(x.Coefficient), x.Value, err)
+
 			if err != nil && !merry.Is(err, comm.Err) {
 				return err
 			}
@@ -158,7 +179,7 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 
 func runRawCommand(c modbus.ProtoCmd, b []byte) {
 	guiwork.RunTask(log, fmt.Sprintf("отправка команды XX %X % X", c, b), func() error {
-		err := processEachActiveProduct(func(p data.Product, device config.Device) error {
+		err := processEachActiveProductHardware(func(p data.Product, device config.Device) error {
 			cm := getCommProduct(p.Comport, device)
 			req := modbus.Request{
 				Addr:     p.Addr,
@@ -222,41 +243,24 @@ ON CONFLICT (product_id,key) DO UPDATE
 //	return nil
 //}
 
-func getActiveProducts() ([]data.Product, error) {
-	var products []data.Product
-	err := db.Select(&products,
-		`SELECT * FROM product WHERE party_id = (SELECT party_id FROM app_config) AND active`)
-	if err != nil {
-		return nil, err
-	}
-	if len(products) == 0 {
-		return nil, errNoInterrogateObjects
-	}
-	return products, nil
-}
-
-func processEachActiveProduct(work func(data.Product, config.Device) error) error {
+func processEachActiveProductHardware(work func(data.Product, config.Device) error) error {
 	products, err := getActiveProducts()
 	if err != nil {
 		return err
 	}
 	for _, p := range products {
-		d, f := config.Get().Hardware[p.Device]
-		if !f {
-			return fmt.Errorf("не заданы параметры устройства %s для прибора %+v",
-				p.Device, p)
-		}
-		gui.Popupf("опрашивается прибор: %s %s адр.%d", p.Device, p.Comport, p.Addr)
-		err := work(p, d)
+		gui.Popupf("опрашивается прибор: %s %s адр.%d", p.product.Device, p.product.Comport, p.product.Addr)
+		err := work(p.product, p.device)
 		if merry.Is(err, context.Canceled) {
 			return err
 		}
 		go gui.NotifyProductConnection(gui.ProductConnection{
-			ProductID: p.ProductID,
+			ProductID: p.product.ProductID,
 			Ok:        err == nil,
 		})
 		if err != nil {
-			journal.Err(log, merry.Errorf("ошибка связи с прибором %s %s адр.%d", p.Device, p.Comport, p.Addr).WithCause(err))
+			journal.Err(log, merry.Errorf("ошибка связи с прибором %s %s адр.%d",
+				p.product.Device, p.product.Comport, p.product.Addr).WithCause(err))
 		}
 	}
 	return nil
@@ -271,7 +275,12 @@ func delay(log *structlog.Logger, ctx context.Context, duration time.Duration, n
 	ms := new(measurements)
 	defer ms.Save()
 
+	products, err := getActiveProducts()
+	if err != nil {
+		return err
+	}
+
 	return guiwork.Delay(log, ctx, duration, name, func(_ *structlog.Logger, ctx context.Context) error {
-		return readProductsParams(ctx, ms)
+		return readProductsParams(ctx, ms, products)
 	})
 }

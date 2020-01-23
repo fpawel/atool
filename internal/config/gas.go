@@ -14,6 +14,7 @@ type Gas struct {
 	TimeoutGetResponse time.Duration `yaml:"timeout_get_response"` // таймаут получения ответа
 	TimeoutEndResponse time.Duration `yaml:"timeout_end_response"` // таймаут окончания ответа
 	MaxAttemptsRead    int           `yaml:"max_attempts_read"`    //число попыток получения ответа
+	BlowDuration       time.Duration `yaml:"blow_duration"`
 }
 
 func (c Gas) Validate() error {

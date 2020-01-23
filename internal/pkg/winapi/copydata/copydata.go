@@ -3,8 +3,10 @@ package copydata
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/fpawel/atool/internal"
 	"github.com/lxn/win"
 	"github.com/powerman/structlog"
+	"os"
 	"reflect"
 	"unicode/utf16"
 	"unsafe"
@@ -24,10 +26,12 @@ func New(HWndSrc, HWndDest win.HWND) W {
 func (x W) SendString(msg uintptr, s string) bool {
 
 	if x.HWndDest == win.HWND_TOP {
-		log.PrintErr("WM_COPYDATA: destination must be set",
-			"window_source", x.HWndSrc,
-			"msg_copy_data", msg,
-			"copy_data", s)
+		if os.Getenv(internal.EnvVarDevMode) != "true" {
+			log.Debug("WM_COPYDATA: destination must be set",
+				"window_source", x.HWndSrc,
+				"msg_copy_data", msg,
+				"copy_data", s)
+		}
 		return false
 	}
 

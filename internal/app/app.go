@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/apache/thrift/lib/go/thrift"
+	"github.com/fpawel/atool/internal"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/guiwork"
@@ -55,7 +56,7 @@ func Main() {
 	stopServer := runServer()
 
 	if envVarDevModeSet() {
-		log.Printf("waiting system signal because of %s=%s", EnvVarDevMode, os.Getenv(EnvVarDevMode))
+		log.Printf("waiting system signal because of %s=%s", internal.EnvVarDevMode, os.Getenv(internal.EnvVarDevMode))
 		done := make(chan os.Signal, 1)
 		signal.Notify(done, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 		sig := <-done
@@ -183,17 +184,12 @@ var (
 	appCtx context.Context
 )
 
-const (
-	EnvVarApiPort = "ATOOL_API_PORT"
-	EnvVarDevMode = "ATOOL_DEV_MODE"
-)
-
 func envVarDevModeSet() bool {
-	return os.Getenv(EnvVarDevMode) == "true"
+	return os.Getenv(internal.EnvVarDevMode) == "true"
 }
 
 func getTCPAddrApi() string {
-	port, errPort := strconv.Atoi(os.Getenv(EnvVarApiPort))
+	port, errPort := strconv.Atoi(os.Getenv(internal.EnvVarApiPort))
 	if errPort != nil {
 		log.Debug("search free port to serve api")
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -201,7 +197,7 @@ func getTCPAddrApi() string {
 			panic(err)
 		}
 		port = ln.Addr().(*net.TCPAddr).Port
-		must.PanicIf(os.Setenv(EnvVarApiPort, strconv.Itoa(port)))
+		must.PanicIf(os.Setenv(internal.EnvVarApiPort, strconv.Itoa(port)))
 		must.PanicIf(ln.Close())
 	}
 	return fmt.Sprintf("127.0.0.1:%d", port)

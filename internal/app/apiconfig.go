@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type appConfigSvc struct{}
@@ -116,13 +117,13 @@ type configParam struct {
 	Type string
 	list func() []string
 	set  func(*config.Config, string) error
-	get  func(config.Config) string
+	get  func(*config.Config) string
 }
 
 func getConfigParamValue(key string) (string, error) {
 	if v, f := configParams[key]; f {
 		c := config.Get()
-		return v.get(c), nil
+		return v.get(&c), nil
 	}
 	const q1 = `SELECT value FROM party_value WHERE party_id = (SELECT party_id FROM app_config) AND key = ?`
 	var r string
@@ -184,7 +185,7 @@ func getConfigParamsValues() ([]*apitypes.ConfigParamValue, error) {
 			Name:       x.Name,
 			Type:       x.Type,
 			ValuesList: x.List(),
-			Value:      x.get(cfg),
+			Value:      x.get(&cfg),
 		})
 	}
 
@@ -219,7 +220,7 @@ var configParams = map[string]configParam{
 		list: func() []string {
 			return []string{string(config.T800), string(config.T2500), string(config.Ktx500)}
 		},
-		get: func(c config.Config) string {
+		get: func(c *config.Config) string {
 			return string(c.Temperature.Type)
 		},
 		set: func(c *config.Config, s string) error {
@@ -227,6 +228,7 @@ var configParams = map[string]configParam{
 			return nil
 		},
 	},
+
 	"temperature_comport": {
 		Name: "Термокамера: СОМ порт",
 		Type: "comport",
@@ -234,10 +236,30 @@ var configParams = map[string]configParam{
 			c.Temperature.Comport = s
 			return nil
 		},
-		get: func(c config.Config) string {
+		get: func(c *config.Config) string {
 			return c.Temperature.Comport
 		},
 	},
+
+	"temperature_hold_duration": configParamFloatDuration("Термокамера: длительность выдержки",
+		func(c *config.Config) *time.Duration {
+			return &c.Temperature.HoldDuration
+		}),
+
+	"temperature_temp_norm": configParamFloat("Термокамера: норамльная температура",
+		func(c *config.Config) *float64 {
+			return &c.Temperature.TempNorm
+		}),
+
+	"temperature_temp_low": configParamFloat("Термокамера: низкая температура",
+		func(c *config.Config) *float64 {
+			return &c.Temperature.TempLow
+		}),
+
+	"temperature_temp_high": configParamFloat("Термокамера: высокая температура",
+		func(c *config.Config) *float64 {
+			return &c.Temperature.TempHigh
+		}),
 
 	"gas_address": {
 		Name: "Газовый блок: адрес",
@@ -250,10 +272,11 @@ var configParams = map[string]configParam{
 			c.Gas.Addr = modbus.Addr(n)
 			return nil
 		},
-		get: func(c config.Config) string {
+		get: func(c *config.Config) string {
 			return strconv.Itoa(int(c.Gas.Addr))
 		},
 	},
+
 	"gas_comport": {
 		Name: "Газовый блок: СОМ порт",
 		Type: "comport",
@@ -261,16 +284,17 @@ var configParams = map[string]configParam{
 			c.Gas.Comport = s
 			return nil
 		},
-		get: func(c config.Config) string {
+		get: func(c *config.Config) string {
 			return c.Gas.Comport
 		},
 	},
+
 	"gas_type": {
 		Name: "Газовый блок: тип",
 		list: func() []string {
 			return []string{string(gas.Mil82), string(gas.Lab73CO)}
 		},
-		get: func(c config.Config) string {
+		get: func(c *config.Config) string {
 			return string(c.Gas.Type)
 		},
 		set: func(c *config.Config, s string) error {
@@ -278,4 +302,85 @@ var configParams = map[string]configParam{
 			return nil
 		},
 	},
+
+	"warm_sheets_enable": {
+		Name: "Подогрев плат: использовать",
+		Type: "bool",
+		get: func(c *config.Config) string {
+			return strconv.FormatBool(c.WarmSheets.Enable)
+		},
+		set: func(c *config.Config, s string) error {
+			v, err := strconv.ParseBool(s)
+			if err != nil {
+				return err
+			}
+			c.WarmSheets.Enable = v
+			return nil
+		},
+	},
+	"warm_sheets_address": {
+		Name: "Подогрев плат: адрес устройства",
+		Type: "int",
+		get: func(c *config.Config) string {
+			return strconv.Itoa(int(c.WarmSheets.Addr))
+		},
+		set: func(c *config.Config, s string) error {
+			v, err := strconv.ParseInt(s, 10, 8)
+			if err != nil {
+				return err
+			}
+			c.WarmSheets.Addr = modbus.Addr(v)
+			return nil
+		},
+	},
+
+	"warm_sheets_temp_on": configParamFloat("Подогрев плат: температура включения",
+		func(c *config.Config) *float64 {
+			return &c.WarmSheets.TempOn
+		}),
+
+	"warm_sheets_temp_off": configParamFloat("Подогрев плат: температура выключения",
+		func(c *config.Config) *float64 {
+			return &c.WarmSheets.TempOff
+		}),
+}
+
+func configParamFloat(name string, f func(c *config.Config) *float64) configParam {
+	return configParam{
+		Name: name,
+		Type: "float",
+		list: nil,
+		set: func(c *config.Config, s string) error {
+			v, err := parseFloat(s)
+			if err != nil {
+				return err
+			}
+			p := f(c)
+			*p = v
+			return nil
+		},
+		get: func(c *config.Config) string {
+			p := f(c)
+			return formatFloat(*p)
+		},
+	}
+}
+
+func configParamFloatDuration(name string, f func(c *config.Config) *time.Duration) configParam {
+	return configParam{
+		Name: name,
+		Type: "string",
+		set: func(c *config.Config, s string) error {
+			v, err := time.ParseDuration(s)
+			if err != nil {
+				return err
+			}
+			p := f(c)
+			*p = v
+			return nil
+		},
+		get: func(c *config.Config) string {
+			return f(c).String()
+		},
+	}
 }

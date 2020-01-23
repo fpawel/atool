@@ -8,13 +8,12 @@ import (
 
 func defaultConfig() Config {
 	return Config{
-		LogComm:         false,
-		BlowGas:         5 * time.Minute,
-		HoldTemperature: 2 * time.Hour,
-		FloatPrecision:  6,
-		ProductTypes:    []string{"00.01", "00.02"},
-		PartyParams:     defaultPartyParams(),
-		ProductParams:   defaultProductParams(),
+		LogComm: false,
+
+		FloatPrecision: 6,
+		ProductTypes:   []string{"00.01", "00.02"},
+		PartyParams:    defaultPartyParams(),
+		ProductParams:  defaultProductParams(),
 		Hardware: Hardware{
 			"default": Device{
 				Baud:               9600,
@@ -38,6 +37,7 @@ func defaultConfig() Config {
 			TimeoutGetResponse: time.Second,
 			TimeoutEndResponse: time.Millisecond * 50,
 			MaxAttemptsRead:    0,
+			BlowDuration:       5 * time.Minute,
 		},
 		Temperature: Temperature{
 			Type:               T800,
@@ -45,6 +45,14 @@ func defaultConfig() Config {
 			TimeoutGetResponse: time.Second,
 			TimeoutEndResponse: time.Millisecond * 50,
 			MaxAttemptsRead:    1,
+			HoldDuration:       2 * time.Hour,
+			TempNorm:           20,
+			TempLow:            -40,
+			TempHigh:           60,
+		},
+		WarmSheets: Mil82WarmSheets{
+			Enable: false,
+			Addr:   99,
 		},
 		Ktx500:               ktx500.NewDefaultConfig(),
 		InactiveCoefficients: make(map[int]struct{}),

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm/modbus"
 	"github.com/powerman/structlog"
@@ -15,7 +16,36 @@ import (
 
 type logger = *structlog.Logger
 
-type dynamic = map[string]interface{}
+type productHardware struct {
+	product data.Product
+	device  config.Device
+}
+
+func getActiveProducts() ([]productHardware, error) {
+
+	var products []data.Product
+	err := db.Select(&products,
+		`SELECT * FROM product WHERE party_id = (SELECT party_id FROM app_config) AND active`)
+	if err != nil {
+		return nil, err
+	}
+	if len(products) == 0 {
+		return nil, errNoInterrogateObjects
+	}
+
+	var xs []productHardware
+	for _, p := range products {
+		d, f := config.Get().Hardware[p.Device]
+		if !f {
+			return nil, fmt.Errorf("не заданы параметры устройства %s для прибора %+v", p.Device, p)
+		}
+		xs = append(xs, productHardware{
+			product: p,
+			device:  d,
+		})
+	}
+	return xs, nil
+}
 
 func formatBytes(xs []byte) string {
 	return fmt.Sprintf("% X", xs)
@@ -83,11 +113,6 @@ func formatFloat(v float64) string {
 		v = math.Round(v*k) / k
 	}
 	return strconv.FormatFloat(v, 'g', -1, 64)
-}
-
-func formatTimeAsQuery(t time.Time) string {
-	return "julianday(STRFTIME('%Y-%m-%d %H:%M:%f','" +
-		t.Format(timeLayout) + "'))"
 }
 
 func timeUnixMillis(t time.Time) apitypes.TimeUnixMillis {

@@ -11,6 +11,10 @@ type Temperature struct {
 	TimeoutGetResponse time.Duration `yaml:"timeout_get_response"`
 	TimeoutEndResponse time.Duration `yaml:"timeout_end_response"`
 	MaxAttemptsRead    int           `yaml:"max_attempts_read"`
+	HoldDuration       time.Duration `yaml:"hold_duration"`
+	TempNorm           float64       `yaml:"temp_norm"`
+	TempLow            float64       `yaml:"temp_low"`
+	TempHigh           float64       `yaml:"temp_high"`
 }
 
 func (c Temperature) Validate() error {

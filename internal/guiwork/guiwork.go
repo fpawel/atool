@@ -87,7 +87,7 @@ func InterruptDelay(log *structlog.Logger) {
 	muInterruptDelay.Lock()
 	interruptDelay()
 	muInterruptDelay.Unlock()
-	journal.Warn(log, "текущая задаржка прервана пользователем")
+	journal.Warn(log, "текущая задержка прервана пользователем")
 }
 
 func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, name string, backgroundWork DelayBackgroundWorkFunc) error {
@@ -102,7 +102,7 @@ func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, n
 	// сохранить ссылку на изначальный контекст
 	ctxParent := ctx
 
-	// установить коллбэк прерывания задаржки
+	// установить коллбэк прерывания задержки
 	muInterruptDelay.Lock()
 	ctx, interruptDelay = context.WithTimeout(ctx, duration)
 	muInterruptDelay.Unlock()

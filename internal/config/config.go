@@ -5,6 +5,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/comm"
+	"github.com/fpawel/comm/modbus"
 	"github.com/fpawel/hardware/temp/ktx500"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -12,13 +13,10 @@ import (
 	"path/filepath"
 	"sort"
 	"sync"
-	"time"
 )
 
 type Config struct {
 	LogComm              bool             `yaml:"log_comm"`
-	BlowGas              time.Duration    `yaml:"blow_gas"`
-	HoldTemperature      time.Duration    `yaml:"hold_temperature"`
 	FloatPrecision       int              `yaml:"float_precision"`
 	ProductTypes         []string         `yaml:"product_types"`
 	PartyParams          PartyParams      `yaml:"party_params"`
@@ -26,6 +24,7 @@ type Config struct {
 	Hardware             Hardware         `yaml:"hardware"`
 	Gas                  Gas              `yaml:"gas"`
 	Temperature          Temperature      `yaml:"temperature"`
+	WarmSheets           Mil82WarmSheets  `yaml:"mil82_warm_sheets"`
 	Ktx500               ktx500.Config    `yaml:"ktx500"`
 	Coefficients         []Coefficients   `yaml:"coefficients"`
 	InactiveCoefficients map[int]struct{} `yaml:"inactive_coefficients"`
@@ -35,6 +34,13 @@ type Config struct {
 type ProductParams = map[string]map[string]string
 
 type PartyParams = map[string]string
+
+type Mil82WarmSheets struct {
+	Enable  bool        `yaml:"enable"`
+	Addr    modbus.Addr `yaml:"addr"`
+	TempOn  float64     `yaml:"temp_on"`
+	TempOff float64     `yaml:"temp_off"`
+}
 
 func SetYaml(strYaml []byte) error {
 	var c Config

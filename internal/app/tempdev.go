@@ -93,7 +93,13 @@ func setupTemperature(log logger, ctx context.Context, destinationTemperature fl
 			journal.Info(log, fmt.Sprintf("термокамера вышла на температуру %v⁰C: %v⁰C", destinationTemperature, currentTemperature))
 			return nil
 		}
-		if err := readProductsParams(ctx, ms); err != nil {
+
+		products, err := getActiveProducts()
+		if err != nil {
+			return err
+		}
+
+		if err := readProductsParams(ctx, ms, products); err != nil {
 			journal.Err(log, wrapErr(err))
 		}
 	}

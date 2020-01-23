@@ -21,10 +21,15 @@ const (
 	MsgNewProductParamValue
 	MsgChart
 	MsgStatus
-	MsgCoefficients
+	MsgCoefficient
 	MsgProductConnection
 	MsgDelay
+	MsgRequestConfigParams
 )
+
+func NotifyRequestConfigParams(x []ConfigParam) bool {
+	return copyData().SendJson(MsgRequestConfigParams, x)
+}
 
 func NotifyStatus(x Status) bool {
 	return copyData().SendJson(MsgStatus, x)
@@ -52,8 +57,8 @@ func NotifyEndDelay() bool {
 	}{false})
 }
 
-func NotifyCoefficients(xs []CoefficientValue) bool {
-	return copyData().SendJson(MsgCoefficients, xs)
+func NotifyCoefficient(xs CoefficientValue) bool {
+	return copyData().SendJson(MsgCoefficient, xs)
 }
 
 func NotifyProductConnection(x ProductConnection) bool {

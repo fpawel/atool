@@ -12,6 +12,7 @@ import (
 	"github.com/fpawel/comm/modbus"
 	"github.com/lxn/win"
 	"github.com/powerman/structlog"
+	"github.com/yuin/gluamapper"
 	lua "github.com/yuin/gopher-lua"
 	luar "layeh.com/gopher-luar"
 	"strconv"
@@ -73,19 +74,19 @@ func (x *luaImport) init(L *lua.LState) error {
 }
 
 func (x *luaImport) Temperature(destinationTemperature float64) {
-	luaWithGuiWarn(x.l, guiwork.PerformNewNamedWork(x.log(), x.l.Context(),
-		fmt.Sprintf("перевод термокамеры на %v⁰C", destinationTemperature),
-		func(log logger, ctx context.Context) error {
-			return setupTemperature(log, ctx, destinationTemperature)
-		}))
-	x.pause(config.Get().HoldTemperature, fmt.Sprintf("выдержка на температуре %v⁰C", destinationTemperature))
+	what := fmt.Sprintf("перевод термокамеры на %v⁰C", destinationTemperature)
+	luaWithGuiWarn(x.l, what, setupTemperature(log, x.l.Context(), destinationTemperature))
+	x.pause(config.Get().Temperature.HoldDuration, fmt.Sprintf("выдержка на температуре %v⁰C", destinationTemperature))
 }
 
 func (x *luaImport) Gas(gas byte) {
-
-	luaWithGuiWarn(x.l, switchGas(x.l.Context(), gas))
+	what := fmt.Sprintf("продуть газ %d", gas)
+	if gas == 0 {
+		what = "отключить газ"
+	}
+	luaWithGuiWarn(x.l, what, switchGas(x.l.Context(), gas))
 	if gas != 0 {
-		x.pause(config.Get().BlowGas, fmt.Sprintf("продувка газа %d", gas))
+		x.pause(config.Get().Gas.BlowDuration, what)
 	}
 }
 
@@ -96,7 +97,7 @@ func (x *luaImport) ReadSave(reg modbus.Var, format modbus.FloatBitsFormat, dbKe
 	luaCheck(x.l, guiwork.PerformNewNamedWork(x.log(), x.l.Context(),
 		fmt.Sprintf("считать из СОМ и сохранить: рег.%d,%s", reg, dbKey),
 		func(log *structlog.Logger, ctx context.Context) error {
-			return processEachActiveProduct(func(product data.Product, device config.Device) error {
+			return processEachActiveProductHardware(func(product data.Product, device config.Device) error {
 				return readAndSaveProductValue(x.log(), x.l.Context(),
 					product, device, reg, format, dbKey)
 			})
@@ -106,6 +107,17 @@ func (x *luaImport) ReadSave(reg modbus.Var, format modbus.FloatBitsFormat, dbKe
 func (x *luaImport) PauseSec(sec int64, what string) {
 	dur := time.Second * time.Duration(sec)
 	luaCheck(x.l, delay(x.log(), x.l.Context(), dur, what))
+}
+
+func (x *luaImport) ParamsDialog(arg *lua.LTable) {
+	arg.ForEach(func(k lua.LValue, v lua.LValue) {
+		var c gui.ConfigParam
+		if err := gluamapper.Map(v.(*lua.LTable), &c); err != nil {
+			x.l.RaiseError("%s", err)
+		}
+		fmt.Printf("%+v\n", c)
+	})
+
 }
 
 func (x *luaImport) log() logger {
@@ -137,11 +149,11 @@ func luaCheck(L *lua.LState, err error) {
 	}
 }
 
-func luaWithGuiWarn(L *lua.LState, err error) {
+func luaWithGuiWarn(L *lua.LState, what string, err error) {
 	if err == nil {
 		return
 	}
-	if gui.MsgBox("Ошибка сценария",
+	if gui.MsgBox(what,
 		formatError1(err)+"\n\nOK - продолжить выполнение\n\nОТМЕНА - прервать выполнение",
 		win.MB_ICONWARNING|win.MB_OKCANCEL,
 	) != win.IDOK {

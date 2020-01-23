@@ -92,11 +92,11 @@ func (h *productSvc) DeleteChartPoints(_ context.Context, r *apitypes.DeleteChar
 DELETE FROM measurement 
 WHERE product_id IN (%s) 
   AND param_addr IN (%s) 
-  AND tm >= %s
-  AND tm <= %s
+  AND tm >= %d
+  AND tm <= %d
   AND value >= ?
   AND value <= ?`,
-		qProducts, qParams, formatTimeAsQuery(timeFrom), formatTimeAsQuery(timeTo))
+		qProducts, qParams, timeFrom.UnixNano(), timeTo.UnixNano())
 	log.Printf("delete chart points %q, products:%s, params:%s, time:%v...%v, value:%v...%v, sql:%s",
 		r.Chart, qProducts, qParams, timeFrom, timeTo, r.ValueFrom, r.ValueTo, sQ)
 	res, err := db.Exec(sQ, r.ValueFrom, r.ValueTo)
