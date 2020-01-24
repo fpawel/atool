@@ -9,24 +9,15 @@ import (
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/journal"
+	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm/modbus"
 	"github.com/lxn/win"
 	"github.com/powerman/structlog"
-	"github.com/yuin/gluamapper"
 	lua "github.com/yuin/gopher-lua"
 	luar "layeh.com/gopher-luar"
 	"strconv"
 	"time"
 )
-
-func luaImportGlobals(L *lua.LState) error {
-	imp := new(luaImport)
-	if err := imp.init(L); err != nil {
-		return err
-	}
-	L.SetGlobal("go", luar.New(L, imp))
-	return nil
-}
 
 type luaImport struct {
 	Config   *lua.LTable
@@ -109,15 +100,29 @@ func (x *luaImport) PauseSec(sec int64, what string) {
 	luaCheck(x.l, delay(x.log(), x.l.Context(), dur, what))
 }
 
-func (x *luaImport) ParamsDialog(arg *lua.LTable) {
-	arg.ForEach(func(k lua.LValue, v lua.LValue) {
-		var c gui.ConfigParam
-		if err := gluamapper.Map(v.(*lua.LTable), &c); err != nil {
-			x.l.RaiseError("%s", err)
+func (x *luaImport) ParamsDialog(arg *lua.LTable) *lua.LTable {
+
+	luaParamValues = nil
+
+	arg.ForEach(func(kx lua.LValue, vx lua.LValue) {
+		var c apitypes.ConfigParamValue
+		if err := setConfigParamFromLuaValue(kx, vx, &c); err != nil {
+			x.l.RaiseError("%v:%v: %s", kx, vx, err)
 		}
-		fmt.Printf("%+v\n", c)
+		luaParamValues = append(luaParamValues, &c)
 	})
 
+	gui.RequestLuaParams()
+
+	for _, a := range luaParamValues {
+		value, err := getLuaValueFromConfigParam(a)
+		if err != nil {
+			x.l.RaiseError("%+v: %s", a, err)
+		}
+		arg.RawSet(lua.LString(a.Key), value)
+	}
+
+	return arg
 }
 
 func (x *luaImport) log() logger {

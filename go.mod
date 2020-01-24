@@ -10,6 +10,7 @@ require (
 	github.com/fpawel/gotools v0.0.0-20191030125146-1d6c7465834c // indirect
 	github.com/fpawel/hardware v0.0.0-20200121052835-14f26f485b22
 	github.com/jmoiron/sqlx v1.2.0
+	github.com/layeh/gopher-json v0.0.0-20190114024228-97fed8db8427
 	github.com/lxn/win v0.0.0-20191128105842-2da648fda5b4
 	github.com/mattn/go-sqlite3 v2.0.1+incompatible
 	github.com/mitchellh/mapstructure v1.1.2 // indirect

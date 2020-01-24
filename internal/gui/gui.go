@@ -24,11 +24,17 @@ const (
 	MsgCoefficient
 	MsgProductConnection
 	MsgDelay
-	MsgRequestConfigParams
 )
 
-func NotifyRequestConfigParams(x []ConfigParam) bool {
-	return copyData().SendJson(MsgRequestConfigParams, x)
+const (
+	wmuCurrentPartyChanged = win.WM_USER + 1 + iota
+	wmuStartWork
+	wmuStopWork
+	wmuRequestConfigParams
+)
+
+func RequestLuaParams() {
+	sendMessage(wmuRequestConfigParams, 0, 0)
 }
 
 func NotifyStatus(x Status) bool {
@@ -127,12 +133,6 @@ func NotifyStopWork() {
 	sendMessage(wmuStopWork, 0, 0)
 }
 
-const (
-	wmuCurrentPartyChanged = win.WM_USER + 1 + iota
-	wmuStartWork
-	wmuStopWork
-)
-
 func sendMessage(msg uint32, wParam uintptr, lParam uintptr) uintptr {
 	return win.SendMessage(hWndTargetSendMessage(), msg, wParam, lParam)
 }
@@ -149,6 +149,7 @@ func copyData() copydata.W {
 
 var (
 	hWndSourceSendMessage = winapi.NewWindowWithClassName(os.Args[0] + "33BCE8B6-E14D-4060-97C9-2B7E79719195")
+
 	hWndTargetSendMessage,
 	setHWndTargetSendMessage = func() (func() win.HWND, func(win.HWND)) {
 		hWnd := int64(win.HWND_TOP)

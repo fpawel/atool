@@ -51,9 +51,9 @@ type CoefficientValue struct {
 	Ok          bool
 }
 
-type ConfigParam struct {
-	Name  string
-	Type  string
-	List  []string
-	Value string
+type LuaConfigParam struct {
+	Name    string
+	TheType string
+	List    []string
+	Value   string
 }

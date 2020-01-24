@@ -7,7 +7,11 @@ import (
 )
 
 func NewWindowWithClassName(windowClassName string) win.HWND {
-	return newWindowWithClassName(windowClassName, win.DefWindowProc)
+	return NewWindow(windowClassName, win.DefWindowProc)
+}
+
+func NewWindow(windowClassName string, windowProcedure WindowProcedure) win.HWND {
+	return newWindowWithClassName(windowClassName, windowProcedure)
 }
 
 func ActivateWindowByPid(pid int) {
@@ -25,9 +29,9 @@ func MustUTF16PtrFromString(s string) *uint16 {
 	return p
 }
 
-type windowProcedure = func(hWnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr
+type WindowProcedure = func(hWnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr
 
-func newWindowWithClassName(windowClassName string, windowProcedure windowProcedure) win.HWND {
+func newWindowWithClassName(windowClassName string, windowProcedure WindowProcedure) win.HWND {
 
 	wndProc := func(hWnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 		switch msg {

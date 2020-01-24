@@ -103,4 +103,14 @@ func sendMessage(hWndSrc, hWndDest win.HWND, wParam uintptr, b []byte) uintptr {
 	return win.SendMessage(hWndDest, win.WM_COPYDATA, wParam, uintptr(unsafe.Pointer(&cd)))
 }
 
+func getCopyData(ptr unsafe.Pointer) (uintptr, []byte) {
+	cd := (*copyData)(ptr)
+	p := ptrSliceFrom(unsafe.Pointer(cd.LpData), int(cd.CbData))
+	return cd.DwData, *(*[]byte)(p)
+}
+
+func ptrSliceFrom(p unsafe.Pointer, s int) unsafe.Pointer {
+	return unsafe.Pointer(&reflect.SliceHeader{Data: uintptr(p), Len: s, Cap: s})
+}
+
 var log = structlog.New()
