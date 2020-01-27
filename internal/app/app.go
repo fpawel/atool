@@ -46,11 +46,11 @@ func Main() {
 	must.PanicIf(err)
 
 	// журнал СОМ порта
-	comportLogfile, err := logfile.New(".comport")
+	comportLogfile, err = logfile.New(".comport")
 	must.PanicIf(err)
 
 	// инициализация отправки оповещений с посылками СОМ порта в gui
-	initNotifyComm(comportLogfile)
+	comm.SetNotify(notifyComm)
 
 	// старт сервера
 	stopServer := runServer()
@@ -89,35 +89,33 @@ func Main() {
 	log.Debug("all canceled and closed")
 }
 
-// initNotifyComm инициализация отправки оповещений с посылками СОМ порта в gui
-func initNotifyComm(file *os.File) {
-	comm.SetNotify(func(x comm.Info) {
-		ct := gui.CommTransaction{
-			Port:     x.Port,
-			Request:  fmt.Sprintf("% X", x.Request),
-			Response: fmt.Sprintf("% X", x.Response),
-			Ok:       x.Err == nil,
+func notifyComm(x comm.Info) {
+	ct := gui.CommTransaction{
+		Port:     x.Port,
+		Request:  fmt.Sprintf("% X", x.Request),
+		Response: fmt.Sprintf("% X", x.Response),
+		Ok:       x.Err == nil,
+	}
+	if x.Err != nil {
+		if len(x.Response) > 0 {
+			ct.Response += " "
 		}
-		if x.Err != nil {
-			if len(x.Response) > 0 {
-				ct.Response += " "
-			}
-			ct.Response += x.Err.Error()
-		}
-		ct.Response += " " + x.Duration.String()
-		if x.Attempt > 0 {
-			ct.Response += fmt.Sprintf(" попытка %d", x.Attempt+1)
-		}
-		_, err := fmt.Fprintf(file, "%s %s % X -> % X", time.Now().Format("15:04:05.000"), x.Port, x.Request, x.Response)
+		ct.Response += x.Err.Error()
+	}
+	ct.Response += " " + x.Duration.String()
+	if x.Attempt > 0 {
+		ct.Response += fmt.Sprintf(" попытка %d", x.Attempt+1)
+	}
+	go gui.NotifyNewCommTransaction(ct)
+
+	_, err := fmt.Fprintf(comportLogfile, "%s %s % X -> % X", time.Now().Format("15:04:05.000"), x.Port, x.Request, x.Response)
+	must.PanicIf(err)
+	if x.Err != nil {
+		_, err := fmt.Fprintf(comportLogfile, " %s", x.Err)
 		must.PanicIf(err)
-		if x.Err != nil {
-			_, err := fmt.Fprintf(file, " %s", x.Err)
-			must.PanicIf(err)
-		}
-		_, err = file.WriteString("\n")
-		must.PanicIf(err)
-		go gui.NotifyNewCommTransaction(ct)
-	})
+	}
+	_, err = comportLogfile.WriteString("\n")
+	must.PanicIf(err)
 }
 
 // newApiProcessor
@@ -178,10 +176,11 @@ func runServer() context.CancelFunc {
 }
 
 var (
-	log    = structlog.New()
-	tmpDir = filepath.Join(filepath.Dir(os.Args[0]), "tmp")
-	db     *sqlx.DB
-	appCtx context.Context
+	log            = structlog.New()
+	tmpDir         = filepath.Join(filepath.Dir(os.Args[0]), "tmp")
+	db             *sqlx.DB
+	appCtx         context.Context
+	comportLogfile *os.File
 )
 
 func envVarDevModeSet() bool {

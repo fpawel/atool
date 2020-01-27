@@ -1,4 +1,8 @@
+print(package.path)
+
 require '/print_table'
+
+print("LUA MODULES:\n",(package.path:gsub("%;","\n\t")),"\n\nC MODULES:\n",(package.cpath:gsub("%;","\n\t")))
 
 params = {
     FBool = {

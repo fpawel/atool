@@ -24,11 +24,7 @@ service CurrentFileService {
     list<apitypes.DeviceParam> listDeviceParams()
     void runEdit()
     void createNewCopy()
-
-
-    list<apitypes.SectionProductParamsValues> getSectionsProductsParamsValues()
-
-}
+    list<apitypes.SectionProductParamsValues> getSectionsProductsParamsValues()}
 
 service ProductParamService {
     void setValue(1:string key, 2:i64 productID, 3:string value)
@@ -44,6 +40,8 @@ service ProductService {
    void setProductParamSeries(1:apitypes.ProductParamSeries productParam)
    apitypes.ProductParamSeries getProductParamSeries(1:i64 productID, 2:i16 paramAddr)
    void deleteChartPoints(1:apitypes.DeleteChartPointsRequest r)
+
+   void setNetAddr(1:i64 productID)
 }
 
 service FilesService {

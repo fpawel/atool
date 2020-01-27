@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
@@ -123,6 +124,22 @@ func (x *luaImport) ParamsDialog(arg *lua.LTable) *lua.LTable {
 	}
 
 	return arg
+}
+
+func (x *luaImport) Info(s string) {
+	journal.Info(luaLog(x.l), s)
+}
+
+func (x *luaImport) Err(s string) {
+	journal.Err(luaLog(x.l), errors.New(s))
+}
+
+func (x *luaImport) journalResult(s string, err error) {
+	if err != nil {
+		x.Err(fmt.Sprintf("%s: %s", s, err))
+		return
+	}
+	x.Info(fmt.Sprintf("%s: успешно", s))
 }
 
 func (x *luaImport) log() logger {

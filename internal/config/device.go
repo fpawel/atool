@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/comm"
+	"github.com/fpawel/comm/modbus"
 	"sort"
 	"time"
 )
@@ -15,7 +16,13 @@ type Device struct {
 	TimeoutEndResponse time.Duration `yaml:"timeout_end_response"` // таймаут окончания ответа
 	MaxAttemptsRead    int           `yaml:"max_attempts_read"`    //число попыток получения ответа
 	Pause              time.Duration `yaml:"pause"`                //пауза перед опросом
+	NetAddr            NetAddr       `yaml:"net_addr"`
 	Params             []Params      `yaml:"params"`
+}
+
+type NetAddr struct {
+	Cmd    modbus.DevCmd          `yaml:"cmd"`
+	Format modbus.FloatBitsFormat `yaml:"format"`
 }
 
 func (d Device) BufferSize() (r int) {
@@ -86,6 +93,10 @@ func (d Device) Validate() error {
 			}
 		}
 	}
+	if err := d.NetAddr.Format.Validate(); err != nil {
+		return merry.Append(err, "net_addr.format")
+	}
+
 	return nil
 }
 

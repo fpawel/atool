@@ -41,9 +41,9 @@ func status(log *structlog.Logger, x gui.Status) {
 	}
 	var err error
 	if x.Ok {
-		_, err = fmt.Fprintf(file, "%s %s\n", strTime, x.Text)
+		_, err = fmt.Fprintf(file, "%s\n", x.Text)
 	} else {
-		_, err = fmt.Fprintf(file, "%s ERR %s\n", strTime, x.Text)
+		_, err = fmt.Fprintf(file, "ERR %s\n", x.Text)
 	}
 	must.PanicIf(err)
 

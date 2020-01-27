@@ -28,6 +28,10 @@ func defaultConfig() Config {
 						Count:     1,
 					},
 				},
+				NetAddr: NetAddr{
+					Cmd:    5,
+					Format: "bcd",
+				},
 			},
 		},
 		Gas: Gas{

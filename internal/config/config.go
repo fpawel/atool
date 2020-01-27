@@ -24,7 +24,7 @@ type Config struct {
 	Hardware             Hardware         `yaml:"hardware"`
 	Gas                  Gas              `yaml:"gas"`
 	Temperature          Temperature      `yaml:"temperature"`
-	WarmSheets           Mil82WarmSheets  `yaml:"mil82_warm_sheets"`
+	WarmSheets           Mil82WarmSheets  `yaml:"warm_sheets"`
 	Ktx500               ktx500.Config    `yaml:"ktx500"`
 	Coefficients         []Coefficients   `yaml:"coefficients"`
 	InactiveCoefficients map[int]struct{} `yaml:"inactive_coefficients"`
