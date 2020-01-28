@@ -246,21 +246,6 @@ var configParams = map[string]configParam{
 			return &c.Temperature.HoldDuration
 		}),
 
-	"temperature_temp_norm": configParamFloat("Термокамера: норамльная температура",
-		func(c *config.Config) *float64 {
-			return &c.Temperature.TempNorm
-		}),
-
-	"temperature_temp_low": configParamFloat("Термокамера: низкая температура",
-		func(c *config.Config) *float64 {
-			return &c.Temperature.TempLow
-		}),
-
-	"temperature_temp_high": configParamFloat("Термокамера: высокая температура",
-		func(c *config.Config) *float64 {
-			return &c.Temperature.TempHigh
-		}),
-
 	"gas_address": {
 		Name: "Газовый блок: адрес",
 		Type: "int",

@@ -31,7 +31,7 @@ func (x *luaProduct) init(l *lua.LState, p data.Product) error {
 	return nil
 }
 
-func (x *luaProduct) WriteKef(k modbus.DevCmd, format modbus.FloatBitsFormat, pv lua.LValue) {
+func (x *luaProduct) WriteKef(k int, format modbus.FloatBitsFormat, pv lua.LValue) {
 	if err := format.Validate(); err != nil {
 		x.l.ArgError(2, err.Error())
 	}
@@ -40,16 +40,7 @@ func (x *luaProduct) WriteKef(k modbus.DevCmd, format modbus.FloatBitsFormat, pv
 		x.Err(fmt.Sprintf("запись К%d: нет значения", k))
 		return
 	}
-	v := pv.(lua.LNumber)
-	x.journalResult(
-		fmt.Sprintf("запись К%d=%v format=%s", k, v, format),
-		modbus.RequestWrite32{
-			Addr:      x.p.Addr,
-			ProtoCmd:  0x10,
-			DeviceCmd: (0x80 << 8) + k,
-			Format:    format,
-			Value:     float64(v),
-		}.GetResponse(log, x.l.Context(), x.comm()))
+	_ = writeKefProduct(log, x.l.Context(), x.p, x.Device, k, format, float64(pv.(lua.LNumber)))
 }
 
 func (x *luaProduct) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, pv lua.LValue) {
@@ -61,16 +52,7 @@ func (x *luaProduct) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, p
 		x.Err(fmt.Sprintf("write32: cmd=%d: нет значения", cmd))
 		return
 	}
-	v := pv.(lua.LNumber)
-	x.journalResult(
-		fmt.Sprintf("write32: cmd=%d arg=%v format=%s", cmd, v, format),
-		modbus.RequestWrite32{
-			Addr:      x.p.Addr,
-			ProtoCmd:  0x10,
-			DeviceCmd: cmd,
-			Format:    format,
-			Value:     float64(v),
-		}.GetResponse(log, x.l.Context(), x.comm()))
+	_ = write32Product(log, x.l.Context(), x.p, x.Device, cmd, format, float64(pv.(lua.LNumber)))
 }
 
 func (x *luaProduct) ReadReg(reg modbus.Var, format modbus.FloatBitsFormat) lua.LValue {

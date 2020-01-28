@@ -10,12 +10,14 @@ import (
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/journal"
+	"github.com/fpawel/atool/internal/pkg/numeth"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm/modbus"
 	"github.com/lxn/win"
 	"github.com/powerman/structlog"
 	lua "github.com/yuin/gopher-lua"
 	luar "layeh.com/gopher-luar"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -65,21 +67,60 @@ func (x *luaImport) init(L *lua.LState) error {
 	return nil
 }
 
+func (x *luaImport) InterpolationCoefficients(a *lua.LTable) lua.LValue {
+	var dt []numeth.Coordinate
+	a.ForEach(func(_ lua.LValue, a lua.LValue) {
+		par, f := a.(*lua.LTable)
+		if !f || par.Len() != 2 {
+			x.l.RaiseError("type error: %+v: table with two elements expected", a)
+		}
+		vx, xOk := par.RawGetInt(1).(lua.LNumber)
+		vy, yOk := par.RawGetInt(2).(lua.LNumber)
+		if xOk && yOk {
+			dt = append(dt, numeth.Coordinate{
+				X: float64(vx),
+				Y: float64(vy),
+			})
+		}
+	})
+	sort.Slice(dt, func(i, j int) bool {
+		return dt[i].X < dt[i].Y
+	})
+	r, ok := numeth.InterpolationCoefficients(dt)
+
+	if !ok {
+		journal.Err(x.log(), fmt.Errorf("интерполяция: %+v: расчёт не может быть выполнен", dt))
+		return lua.LNil
+	}
+	journal.Info(x.log(), fmt.Sprintf("интерполяция: %+v: %+v", dt, r))
+	a = x.l.NewTable()
+	for i, v := range r {
+		a.RawSetInt(i+1, lua.LNumber(v))
+	}
+	return a
+}
+
 func (x *luaImport) Temperature(destinationTemperature float64) {
 	what := fmt.Sprintf("перевод термокамеры на %v⁰C", destinationTemperature)
 	luaWithGuiWarn(x.l, what, setupTemperature(log, x.l.Context(), destinationTemperature))
 	x.pause(config.Get().Temperature.HoldDuration, fmt.Sprintf("выдержка на температуре %v⁰C", destinationTemperature))
 }
 
-func (x *luaImport) Gas(gas byte) {
-	what := fmt.Sprintf("продуть газ %d", gas)
+func (x *luaImport) SwitchGas(gas byte) {
+	what := fmt.Sprintf("подать газ %d", gas)
 	if gas == 0 {
 		what = "отключить газ"
 	}
 	luaWithGuiWarn(x.l, what, switchGas(x.l.Context(), gas))
 	if gas != 0 {
-		x.pause(config.Get().Gas.BlowDuration, what)
+		x.pause(config.Get().Gas.BlowGasDuration, what)
 	}
+}
+
+func (x *luaImport) BlowGas(gas byte) {
+	what := fmt.Sprintf("продуть газ %d", gas)
+	luaWithGuiWarn(x.l, what, switchGas(x.l.Context(), gas))
+	x.pause(config.Get().Gas.BlowGasDuration, what)
 }
 
 func (x *luaImport) ReadSave(reg modbus.Var, format modbus.FloatBitsFormat, dbKey string) {
@@ -89,9 +130,37 @@ func (x *luaImport) ReadSave(reg modbus.Var, format modbus.FloatBitsFormat, dbKe
 	luaCheck(x.l, guiwork.PerformNewNamedWork(x.log(), x.l.Context(),
 		fmt.Sprintf("считать из СОМ и сохранить: рег.%d,%s", reg, dbKey),
 		func(log *structlog.Logger, ctx context.Context) error {
-			return processEachActiveProductHardware(func(product data.Product, device config.Device) error {
+			return processEachActiveProduct(nil, func(product data.Product, device config.Device) error {
 				return readAndSaveProductValue(x.log(), x.l.Context(),
 					product, device, reg, format, dbKey)
+			})
+		}))
+}
+
+func (x *luaImport) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) {
+	if err := format.Validate(); err != nil {
+		x.l.ArgError(2, err.Error())
+	}
+	luaCheck(x.l, guiwork.PerformNewNamedWork(x.log(), x.l.Context(),
+		fmt.Sprintf("команда %d(%v)", cmd, value),
+		func(log *structlog.Logger, ctx context.Context) error {
+			return processEachActiveProduct(nil, func(product data.Product, device config.Device) error {
+				_ = write32Product(log, x.l.Context(), product, device, cmd, format, value)
+				return nil
+			})
+		}))
+}
+
+func (x *luaImport) WriteKef(kef int, format modbus.FloatBitsFormat, value float64) {
+	if err := format.Validate(); err != nil {
+		x.l.ArgError(2, err.Error())
+	}
+	luaCheck(x.l, guiwork.PerformNewNamedWork(x.log(), x.l.Context(),
+		fmt.Sprintf("запись K%d=%v", kef, value),
+		func(log *structlog.Logger, ctx context.Context) error {
+			return processEachActiveProduct(nil, func(product data.Product, device config.Device) error {
+				_ = writeKefProduct(log, x.l.Context(), product, device, kef, format, value)
+				return nil
 			})
 		}))
 }
@@ -111,6 +180,9 @@ func (x *luaImport) ParamsDialog(arg *lua.LTable) *lua.LTable {
 			x.l.RaiseError("%v:%v: %s", kx, vx, err)
 		}
 		luaParamValues = append(luaParamValues, &c)
+	})
+	sort.Slice(luaParamValues, func(i, j int) bool {
+		return luaParamValues[i].Name < luaParamValues[j].Name
 	})
 
 	gui.RequestLuaParams()

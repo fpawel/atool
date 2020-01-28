@@ -79,6 +79,8 @@ func setupTemperature(log logger, ctx context.Context, destinationTemperature fl
 
 	defer ms.Save()
 
+	errorsOccurred := errorsOccurred{}
+
 	for {
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -94,12 +96,7 @@ func setupTemperature(log logger, ctx context.Context, destinationTemperature fl
 			return nil
 		}
 
-		products, err := getActiveProducts()
-		if err != nil {
-			return err
-		}
-
-		if err := readProductsParams(ctx, ms, products); err != nil {
+		if err := readProductsParams(ctx, ms, errorsOccurred); err != nil {
 			journal.Err(log, wrapErr(err))
 		}
 	}

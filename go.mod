@@ -21,5 +21,6 @@ require (
 	github.com/yuin/gopher-lua v0.0.0-20191220021717-ab39c6098bdb
 	gopkg.in/yaml.v2 v2.2.7
 	gopkg.in/yaml.v3 v3.0.0-20191120175047-4206685974f2
+	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 	layeh.com/gopher-luar v1.0.7
 )

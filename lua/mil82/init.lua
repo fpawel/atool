@@ -1,3 +1,7 @@
+require 'print_table'
+
+local json = require ("dkjson")
+
 CO2 = 4
 CH4 = 5
 C3H8 = 7
@@ -18,12 +22,12 @@ units_code = {
     [C6H14] = 14,
 }
 
-prod = {
+prod = ({
     ['00.00'] = {
         gas = CO2,
         scale = 4,
-        temp_min = -40,
-        temp_max = 80,
+        temp_low = -40,
+        temp_high = 80,
         coefficient = {
             [4] = 5,
             [14] = 0.1,
@@ -35,8 +39,8 @@ prod = {
     ['00.01'] = {
         gas = CO2,
         scale = 10,
-        temp_min = -40,
-        temp_max = 80,
+        temp_low = -40,
+        temp_high = 80,
         coefficient = {
             [4] = 5,
             [14] = 0.1,
@@ -48,8 +52,8 @@ prod = {
     ['00.02'] = {
         gas = CO2,
         scale = 20,
-        temp_min = -40,
-        temp_max = 80,
+        temp_low = -40,
+        temp_high = 80,
         coefficient = {
             [4] = 5,
             [14] = 0.1,
@@ -61,8 +65,8 @@ prod = {
     ['01.00'] = {
         gas = CH4,
         scale = 100,
-        temp_min = -40,
-        temp_max = 80,
+        temp_low = -40,
+        temp_high = 80,
         coefficient = {
             [4] = 7.5,
             [14] = 0.5,
@@ -74,8 +78,8 @@ prod = {
     ['01.01'] = {
         gas = CH4,
         scale = 100,
-        temp_min = -60,
-        temp_max = 60,
+        temp_low = -60,
+        temp_high = 60,
         coefficient = {
             [4] = 7.5,
             [14] = 0.5,
@@ -87,8 +91,8 @@ prod = {
     ['02.00'] = {
         gas = C3H8,
         scale = 50,
-        temp_min = -40,
-        temp_max = 60,
+        temp_low = -40,
+        temp_high = 60,
         coefficient = {
             [4] = 12.5,
             [14] = 0.5,
@@ -100,8 +104,8 @@ prod = {
     ['02.01'] = {
         gas = C3H8,
         scale = 50,
-        temp_min = -60,
-        temp_max = 60,
+        temp_low = -60,
+        temp_high = 60,
         coefficient = {
             [4] = 12.5,
             [14] = 0.5,
@@ -113,8 +117,8 @@ prod = {
     ['03.00'] = {
         gas = C3H8,
         scale = 100,
-        temp_min = -40,
-        temp_max = 60,
+        temp_low = -40,
+        temp_high = 60,
         coefficient = {
             [4] = 12.5,
             [14] = 0.5,
@@ -126,8 +130,8 @@ prod = {
     ['03.01'] = {
         gas = C3H8,
         scale = 100,
-        temp_min = -60,
-        temp_max = 60,
+        temp_low = -60,
+        temp_high = 60,
         coefficient = {
             [4] = 12.5,
             [14] = 0.5,
@@ -139,8 +143,8 @@ prod = {
     ['04.00'] = {
         gas = CH4,
         scale = 100,
-        temp_min = -60,
-        temp_max = 80,
+        temp_low = -60,
+        temp_high = 80,
         coefficient = {
             [4] = 7.5,
             [14] = 0.5,
@@ -152,8 +156,8 @@ prod = {
     ['05.00'] = {
         gas = C6H14,
         scale = 50,
-        temp_min = 15,
-        temp_max = 80,
+        temp_low = 15,
+        temp_high = 80,
         coefficient = {
             [4] = 1,
             [14] = 30,
@@ -165,8 +169,8 @@ prod = {
     ['10.00'] = {
         gas = CO2,
         scale = 4,
-        temp_min = -40,
-        temp_max = 80,
+        temp_low = -40,
+        temp_high = 80,
         coefficient = {
             [4] = 1,
             [14] = 30,
@@ -178,8 +182,8 @@ prod = {
     ['10.01'] = {
         gas = CO2,
         scale = 10,
-        temp_min = -40,
-        temp_max = 80,
+        temp_low = -40,
+        temp_high = 80,
         coefficient = {
             [4] = 1,
             [14] = 30,
@@ -191,8 +195,8 @@ prod = {
     ['10.02'] = {
         gas = CO2,
         scale = 20,
-        temp_min = -40,
-        temp_max = 80,
+        temp_low = -40,
+        temp_high = 80,
         coefficient = {
             [4] = 1,
             [14] = 30,
@@ -204,8 +208,8 @@ prod = {
     ['10.03'] = {
         gas = CO2,
         scale = 4,
-        temp_min = -60,
-        temp_max = 80,
+        temp_low = -60,
+        temp_high = 80,
         coefficient = {
             [4] = 1,
             [14] = 30,
@@ -217,8 +221,8 @@ prod = {
     ['10.04'] = {
         gas = CO2,
         scale = 10,
-        temp_min = -60,
-        temp_max = 80,
+        temp_low = -60,
+        temp_high = 80,
         coefficient = {
             [4] = 1,
             [14] = 30,
@@ -230,8 +234,8 @@ prod = {
     ['10.05'] = {
         gas = CO2,
         scale = 20,
-        temp_min = -60,
-        temp_max = 80,
+        temp_low = -60,
+        temp_high = 80,
         coefficient = {
             [4] = 1,
             [14] = 30,
@@ -243,8 +247,8 @@ prod = {
     ['11.00'] = {
         gas = CH4,
         scale = 100,
-        temp_min = -40,
-        temp_max = 80,
+        temp_low = -40,
+        temp_high = 80,
         coefficient = {
             [4] = 1,
             [14] = 30,
@@ -256,8 +260,8 @@ prod = {
     ['11.01'] = {
         gas = CH4,
         scale = 100,
-        temp_min = -60,
-        temp_max = 80,
+        temp_low = -60,
+        temp_high = 80,
         coefficient = {
             [4] = 1,
             [14] = 30,
@@ -269,8 +273,8 @@ prod = {
     ['13.00'] = {
         gas = C3H8,
         scale = 100,
-        temp_min = -40,
-        temp_max = 80,
+        temp_low = -40,
+        temp_high = 80,
         coefficient = {
             [4] = 1,
             [14] = 30,
@@ -282,8 +286,8 @@ prod = {
     ['13.01'] = {
         gas = C3H8,
         scale = 100,
-        temp_min = -60,
-        temp_max = 80,
+        temp_low = -60,
+        temp_high = 80,
         coefficient = {
             [4] = 1,
             [14] = 30,
@@ -295,8 +299,8 @@ prod = {
     ['14.00'] = {
         gas = CH4,
         scale = 100,
-        temp_min = -60,
-        temp_max = 80,
+        temp_low = -60,
+        temp_high = 80,
         coefficient = {
             [4] = 1,
             [14] = 30,
@@ -308,8 +312,8 @@ prod = {
     ['16.00'] = {
         gas = C3H8,
         scale = 100,
-        temp_min = -60,
-        temp_max = 80,
+        temp_low = -60,
+        temp_high = 80,
         coefficient = {
             [4] = 1,
             [14] = 30,
@@ -318,10 +322,9 @@ prod = {
             [50] = 1,
         },
     },
-}
+})[go.Config.product_type]
 
 common_coefficients_values = (function()
-    local prod = prod[go.Config.product_type]
     return {
         [2] = os.date("*t").year,
         [10] = go.Config.c1,
@@ -344,3 +347,49 @@ common_coefficients_values = (function()
         [28] = 0,
     }
 end)()
+
+function lin_read_save(linear_degree)
+    go:Info("снятие линиаризации")
+    go:BlowGas(1)
+    go:ReadSave(0, 'bcd', 'lin1')
+    if linear_degree == 4 then
+        go:BlowGas(2)
+        go:ReadSave(0, 'bcd', 'lin2')
+    end
+    go:BlowGas(3)
+    go:ReadSave(0, 'bcd', 'lin3')
+    go:BlowGas(4)
+    go:ReadSave(0, 'bcd', 'lin4')
+end
+
+function lin_calc(linear_degree)
+
+    for _, p in pairs (go.Products) do
+        local ct = {}
+        for i = 1,4 do
+            if not (linear_degree == 3 and i == 2) then
+                local x = p:Value('lin' .. tostring(i))
+                if x == nil then
+                    p:Err('расёт линеаризатора не выполнен: нет значения lin'..tostring(i))
+                    return
+                end
+                ct[i] = {x, go.Config['c' .. tostring(i)]}
+            end
+        end
+
+        p:Info('расчёт линеаризатора:'..json.encode(ct, { indent = true }))
+
+        local cf = go:InterpolationCoefficients(ct)
+        if cf == nil then
+            p:Err('расёт линеаризатора не выполнен')
+            return
+        end
+        if linear_degree == 3 then
+            cf[4] = 0
+        end
+        p:Info('расчёт линеаризатора:'..json.encode(cf, { indent = true }))
+        for i = 1,4 do
+            p:WriteKef(15 + i, 'bcd', cf[i])
+        end
+    end
+end

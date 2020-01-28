@@ -7,6 +7,7 @@ import (
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/powerman/structlog"
 	lua "github.com/yuin/gopher-lua"
+	luajson "layeh.com/gopher-json"
 	luar "layeh.com/gopher-luar"
 	"path/filepath"
 )
@@ -20,6 +21,7 @@ var _ api.ScriptService = new(scriptSvc)
 func (_ *scriptSvc) RunFile(ctx context.Context, filename string) error {
 
 	L := lua.NewState()
+	luajson.Preload(L)
 	imp := new(luaImport)
 	if err := imp.init(L); err != nil {
 		return err

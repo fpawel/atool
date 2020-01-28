@@ -41,7 +41,7 @@ func defaultConfig() Config {
 			TimeoutGetResponse: time.Second,
 			TimeoutEndResponse: time.Millisecond * 50,
 			MaxAttemptsRead:    0,
-			BlowDuration:       5 * time.Minute,
+			BlowGasDuration:    5 * time.Minute,
 		},
 		Temperature: Temperature{
 			Type:               T800,
@@ -50,9 +50,6 @@ func defaultConfig() Config {
 			TimeoutEndResponse: time.Millisecond * 50,
 			MaxAttemptsRead:    1,
 			HoldDuration:       2 * time.Hour,
-			TempNorm:           20,
-			TempLow:            -40,
-			TempHigh:           60,
 		},
 		WarmSheets: Mil82WarmSheets{
 			Enable: false,
