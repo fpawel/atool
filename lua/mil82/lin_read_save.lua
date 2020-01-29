@@ -1,4 +1,4 @@
--- atoolgui: МИЛ82: Линиаризация - снятие
+-- atoolgui: МИЛ82: Линиаризация: снятие
 require 'mil82/init'
 
 lin_read_save(go:ParamsDialog({

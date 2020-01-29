@@ -1,4 +1,4 @@
--- atoolgui: МИЛ82: Линиаризация - расчёт
+-- atoolgui: МИЛ82: Линиаризация: расчёт
 
 require 'mil82/init'
 
@@ -10,3 +10,6 @@ lin_calc(go:ParamsDialog({
         list = { '3', '4' },
     },
 }).linear_degree)
+
+
+

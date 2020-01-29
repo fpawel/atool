@@ -115,11 +115,11 @@ func (x *luaProduct) Value(key string) lua.LValue {
 }
 
 func (x *luaProduct) Info(s string) {
-	journal.Info(log, fmt.Sprintf("прибор %d.%d: %s", x.p.Serial, x.p.ProductID, s))
+	journal.Info(log, fmt.Sprintf("№%d.id%d: %s", x.p.Serial, x.p.ProductID, s))
 }
 
 func (x *luaProduct) Err(s string) {
-	journal.Err(log, fmt.Errorf("прибор %d.%d: %s", x.p.Serial, x.p.ProductID, s))
+	journal.Err(log, fmt.Errorf("№%d.id%d: %s", x.p.Serial, x.p.ProductID, s))
 }
 
 func (x *luaProduct) journalResult(s string, err error) {

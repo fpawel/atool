@@ -4,7 +4,7 @@ require '/print_table'
 
 print("LUA MODULES:\n",(package.path:gsub("%;","\n\t")),"\n\nC MODULES:\n",(package.cpath:gsub("%;","\n\t")))
 
-params = {
+local params = {
     FBool = {
         name = "the bool",
         value = true,

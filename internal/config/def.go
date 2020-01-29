@@ -41,7 +41,7 @@ func defaultConfig() Config {
 			TimeoutGetResponse: time.Second,
 			TimeoutEndResponse: time.Millisecond * 50,
 			MaxAttemptsRead:    0,
-			BlowGasDuration:    5 * time.Minute,
+			BlowDuration:       5 * time.Minute,
 		},
 		Temperature: Temperature{
 			Type:               T800,

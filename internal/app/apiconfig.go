@@ -246,6 +246,11 @@ var configParams = map[string]configParam{
 			return &c.Temperature.HoldDuration
 		}),
 
+	"gas_blow_duration": configParamFloatDuration("Газовый блок: длительность продувки",
+		func(c *config.Config) *time.Duration {
+			return &c.Gas.BlowDuration
+		}),
+
 	"gas_address": {
 		Name: "Газовый блок: адрес",
 		Type: "int",

@@ -2,7 +2,9 @@ package app
 
 import (
 	"context"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/guiwork"
+	"github.com/fpawel/atool/internal/journal"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/powerman/structlog"
@@ -12,13 +14,17 @@ import (
 	"path/filepath"
 )
 
-type scriptSvc struct {
-	//paramsRequested []*apitypes.ConfigParamValue
-}
+type scriptSvc struct{}
 
 var _ api.ScriptService = new(scriptSvc)
 
-func (_ *scriptSvc) RunFile(ctx context.Context, filename string) error {
+func (_ *scriptSvc) IgnoreError(_ context.Context) error {
+	luaIgnoreError()
+	journal.Err(log, merry.New("Ошибка проигнорирована. Выполнение продолжено."))
+	return nil
+}
+
+func (_ *scriptSvc) RunFile(_ context.Context, filename string) error {
 
 	L := lua.NewState()
 	luajson.Preload(L)
@@ -46,4 +52,7 @@ func (_ *scriptSvc) GetConfigParamValues(_ context.Context) ([]*apitypes.ConfigP
 	return luaParamValues, nil
 }
 
-var luaParamValues []*apitypes.ConfigParamValue
+var (
+	luaParamValues []*apitypes.ConfigParamValue
+	luaIgnoreError = func() {}
+)

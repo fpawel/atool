@@ -13,7 +13,6 @@ import (
 	"github.com/fpawel/atool/internal/pkg/numeth"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm/modbus"
-	"github.com/lxn/win"
 	"github.com/powerman/structlog"
 	lua "github.com/yuin/gopher-lua"
 	luar "layeh.com/gopher-luar"
@@ -89,10 +88,8 @@ func (x *luaImport) InterpolationCoefficients(a *lua.LTable) lua.LValue {
 	r, ok := numeth.InterpolationCoefficients(dt)
 
 	if !ok {
-		journal.Err(x.log(), fmt.Errorf("интерполяция: %+v: расчёт не может быть выполнен", dt))
 		return lua.LNil
 	}
-	journal.Info(x.log(), fmt.Sprintf("интерполяция: %+v: %+v", dt, r))
 	a = x.l.NewTable()
 	for i, v := range r {
 		a.RawSetInt(i+1, lua.LNumber(v))
@@ -101,26 +98,49 @@ func (x *luaImport) InterpolationCoefficients(a *lua.LTable) lua.LValue {
 }
 
 func (x *luaImport) Temperature(destinationTemperature float64) {
-	what := fmt.Sprintf("перевод термокамеры на %v⁰C", destinationTemperature)
-	luaWithGuiWarn(x.l, what, setupTemperature(log, x.l.Context(), destinationTemperature))
+	luaWithGuiWarn(x.l, setupTemperature(log, x.l.Context(), destinationTemperature))
 	x.pause(config.Get().Temperature.HoldDuration, fmt.Sprintf("выдержка на температуре %v⁰C", destinationTemperature))
 }
 
-func (x *luaImport) SwitchGas(gas byte) {
+func (x *luaImport) TemperatureStart() {
+	tempDevice, err := getTemperatureDevice()
+	x.check(err)
+	x.check(tempDevice.Start(x.log(), x.l.Context()))
+}
+
+func (x *luaImport) TemperatureStop() {
+	tempDevice, err := getTemperatureDevice()
+	x.check(err)
+	x.check(tempDevice.Stop(x.log(), x.l.Context()))
+}
+
+func (x *luaImport) TemperatureSetup(temperature float64) {
+	tempDevice, err := getTemperatureDevice()
+	x.check(err)
+	x.check(tempDevice.Setup(x.log(), x.l.Context(), temperature))
+}
+
+func (x *luaImport) SwitchGas(gas byte, warn bool) {
+
+	err := switchGas(x.l.Context(), gas)
+	if err == nil {
+		return
+	}
 	what := fmt.Sprintf("подать газ %d", gas)
 	if gas == 0 {
 		what = "отключить газ"
 	}
-	luaWithGuiWarn(x.l, what, switchGas(x.l.Context(), gas))
-	if gas != 0 {
-		x.pause(config.Get().Gas.BlowGasDuration, what)
+	err = merry.New(what).WithCause(err)
+	if warn {
+		luaWithGuiWarn(x.l, err)
+		return
 	}
+	x.check(err)
 }
 
 func (x *luaImport) BlowGas(gas byte) {
-	what := fmt.Sprintf("продуть газ %d", gas)
-	luaWithGuiWarn(x.l, what, switchGas(x.l.Context(), gas))
-	x.pause(config.Get().Gas.BlowGasDuration, what)
+	x.SwitchGas(gas, true)
+	x.pause(config.Get().Gas.BlowDuration, fmt.Sprintf("продуть газ %d", gas))
 }
 
 func (x *luaImport) ReadSave(reg modbus.Var, format modbus.FloatBitsFormat, dbKey string) {
@@ -222,6 +242,12 @@ func (x *luaImport) pause(dur time.Duration, what string) {
 	luaCheck(x.l, delay(x.log(), x.l.Context(), dur, what))
 }
 
+func (x *luaImport) check(err error) {
+	if err != nil {
+		x.l.RaiseError("%s", err)
+	}
+}
+
 func luaLog(L *lua.LState) logger {
 	return L.Context().Value("log").(logger)
 }
@@ -243,15 +269,14 @@ func luaCheck(L *lua.LState, err error) {
 	}
 }
 
-func luaWithGuiWarn(L *lua.LState, what string, err error) {
+func luaWithGuiWarn(L *lua.LState, err error) {
 	if err == nil {
 		return
 	}
-	if gui.MsgBox(what,
-		formatError1(err)+"\n\nOK - продолжить выполнение\n\nОТМЕНА - прервать выполнение",
-		win.MB_ICONWARNING|win.MB_OKCANCEL,
-	) != win.IDOK {
-		L.RaiseError("%s", err)
-	}
-	journal.Err(luaLog(L), merry.New("проигнорирована ошибка сценария").WithCause(err))
+	journal.ScriptSuspended(luaLog(L), err)
+	var ctxIgnoreError context.Context
+	ctxIgnoreError, luaIgnoreError = context.WithCancel(L.Context())
+	gui.NotifyLuaSuspended(err.Error())
+	<-ctxIgnoreError.Done()
+	luaIgnoreError()
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/fpawel/atool/internal/pkg/winapi/copydata"
 	"github.com/lxn/win"
 	"os"
-	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -24,6 +23,7 @@ const (
 	MsgCoefficient
 	MsgProductConnection
 	MsgDelay
+	MsgLuaSuspended
 )
 
 const (
@@ -35,6 +35,10 @@ const (
 
 func RequestLuaParams() {
 	sendMessage(wmuRequestConfigParams, 0, 0)
+}
+
+func NotifyLuaSuspended(Text string) bool {
+	return copyData().SendString(MsgLuaSuspended, Text)
 }
 
 func NotifyStatus(x Status) bool {
@@ -105,17 +109,17 @@ func NotifyChart(xs []data.Measurement) bool {
 	return true
 }
 
-func MsgBox(title, message string, style int) int {
-	hWnd := hWndTargetSendMessage()
-	if hWnd == win.HWND_TOP {
-		return 0
-	}
-	return int(win.MessageBox(
-		hWnd,
-		winapi.MustUTF16PtrFromString(strings.ReplaceAll(message, "\x00", "␀")),
-		winapi.MustUTF16PtrFromString(strings.ReplaceAll(title, "\x00", "␀")),
-		uint32(style)))
-}
+//func MsgBox(title, message string, style int) int {
+//	hWnd := hWndTargetSendMessage()
+//	if hWnd == win.HWND_TOP {
+//		return 0
+//	}
+//	return int(win.MessageBox(
+//		hWnd,
+//		winapi.MustUTF16PtrFromString(strings.ReplaceAll(message, "\x00", "␀")),
+//		winapi.MustUTF16PtrFromString(strings.ReplaceAll(title, "\x00", "␀")),
+//		uint32(style)))
+//}
 
 func SetHWndTargetSendMessage(hWnd win.HWND) {
 	setHWndTargetSendMessage(hWnd)
