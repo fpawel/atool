@@ -15,6 +15,7 @@ service ScriptService {
     void setConfigParamValues (1:list<apitypes.ConfigParamValue> configParamValues)
     list<apitypes.ConfigParamValue> getConfigParamValues ()
     void IgnoreError()
+    void selectWorks(1:list<bool> works)
 }
 
 service CurrentFileService {

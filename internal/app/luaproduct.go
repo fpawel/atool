@@ -12,20 +12,17 @@ import (
 )
 
 type luaProduct struct {
-	p data.Product
-	l *lua.LState
-
+	p      data.Product
 	Serial int
 	Device config.Device
 }
 
-func (x *luaProduct) init(l *lua.LState, p data.Product) error {
+func (x *luaProduct) init(p data.Product) error {
 	device, okDevice := config.Get().Hardware[p.Device]
 	if !okDevice {
 		return fmt.Errorf("%s: не заданы параметры устройства", p)
 	}
 	x.p = p
-	x.l = l
 	x.Serial = p.Serial
 	x.Device = device
 	return nil
@@ -33,33 +30,33 @@ func (x *luaProduct) init(l *lua.LState, p data.Product) error {
 
 func (x *luaProduct) WriteKef(k int, format modbus.FloatBitsFormat, pv lua.LValue) {
 	if err := format.Validate(); err != nil {
-		x.l.ArgError(2, err.Error())
+		luaState.ArgError(2, err.Error())
 	}
-	luaCheckNumberOrNil(x.l, 4)
+	luaCheckNumberOrNil(4)
 	if pv == lua.LNil {
 		x.Err(fmt.Sprintf("запись К%d: нет значения", k))
 		return
 	}
-	_ = writeKefProduct(log, x.l.Context(), x.p, x.Device, k, format, float64(pv.(lua.LNumber)))
+	_ = writeKefProduct(log, luaState.Context(), x.p, x.Device, k, format, float64(pv.(lua.LNumber)))
 }
 
 func (x *luaProduct) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, pv lua.LValue) {
 	if err := format.Validate(); err != nil {
-		x.l.ArgError(2, err.Error())
+		luaState.ArgError(2, err.Error())
 	}
-	luaCheckNumberOrNil(x.l, 4)
+	luaCheckNumberOrNil(4)
 	if pv == lua.LNil {
 		x.Err(fmt.Sprintf("write32: cmd=%d: нет значения", cmd))
 		return
 	}
-	_ = write32Product(log, x.l.Context(), x.p, x.Device, cmd, format, float64(pv.(lua.LNumber)))
+	_ = write32Product(log, luaState.Context(), x.p, x.Device, cmd, format, float64(pv.(lua.LNumber)))
 }
 
 func (x *luaProduct) ReadReg(reg modbus.Var, format modbus.FloatBitsFormat) lua.LValue {
 	if err := format.Validate(); err != nil {
-		x.l.ArgError(2, err.Error())
+		luaState.ArgError(2, err.Error())
 	}
-	v, err := modbus.Read3Value(log, x.l.Context(), x.comm(), x.p.Addr, reg, format)
+	v, err := modbus.Read3Value(log, luaState.Context(), x.comm(), x.p.Addr, reg, format)
 	if err != nil {
 		x.Err(fmt.Sprintf("считывание рег%d", reg))
 		return lua.LNil
@@ -70,9 +67,9 @@ func (x *luaProduct) ReadReg(reg modbus.Var, format modbus.FloatBitsFormat) lua.
 
 func (x *luaProduct) ReadKef(k modbus.Var, format modbus.FloatBitsFormat) lua.LValue {
 	if err := format.Validate(); err != nil {
-		x.l.ArgError(2, err.Error())
+		luaState.ArgError(2, err.Error())
 	}
-	v, err := modbus.Read3Value(log, x.l.Context(), x.comm(), x.p.Addr, 224+2*k, format)
+	v, err := modbus.Read3Value(log, luaState.Context(), x.comm(), x.p.Addr, 224+2*k, format)
 	if err != nil {
 		x.Err(fmt.Sprintf("считывание K%d", k))
 		return lua.LNil
@@ -83,7 +80,7 @@ func (x *luaProduct) ReadKef(k modbus.Var, format modbus.FloatBitsFormat) lua.LV
 
 func (x *luaProduct) DeleteKey(key string) {
 	x.Info(fmt.Sprintf("удалить ключ %q", key))
-	luaCheck(x.l, deleteProductKey(x.p.ProductID, key))
+	luaCheck(deleteProductKey(x.p.ProductID, key))
 }
 
 func (x *luaProduct) SetValue(key string, pv lua.LValue) {
@@ -96,7 +93,7 @@ func (x *luaProduct) SetValue(key string, pv lua.LValue) {
 	}
 	v := float64(pv.(lua.LNumber))
 	x.Info(fmt.Sprintf("сохранение %q=%v", key, v))
-	luaCheck(x.l, saveProductValue(x.p.ProductID, key, v))
+	luaCheck(saveProductValue(x.p.ProductID, key, v))
 }
 
 func (x *luaProduct) Value(key string) lua.LValue {

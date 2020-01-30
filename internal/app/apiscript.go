@@ -18,6 +18,11 @@ type scriptSvc struct{}
 
 var _ api.ScriptService = new(scriptSvc)
 
+func (_ *scriptSvc) SelectWorks(_ context.Context, works []bool) (err error) {
+	luaSelectedWorksChan <- works
+	return nil
+}
+
 func (_ *scriptSvc) IgnoreError(_ context.Context) error {
 	luaIgnoreError()
 	journal.Err(log, merry.New("Ошибка проигнорирована. Выполнение продолжено."))
@@ -25,21 +30,19 @@ func (_ *scriptSvc) IgnoreError(_ context.Context) error {
 }
 
 func (_ *scriptSvc) RunFile(_ context.Context, filename string) error {
+	luaState = lua.NewState()
+	luajson.Preload(luaState)
 
-	L := lua.NewState()
-	luajson.Preload(L)
-	imp := new(luaImport)
-	if err := imp.init(L); err != nil {
-		return err
-	}
-	L.SetGlobal("go", luar.New(L, imp))
 	return guiwork.RunWork(log, appCtx, filepath.Base(filename), func(log *structlog.Logger, ctx context.Context) error {
-		defer L.Close()
-		if err := imp.init(L); err != nil {
+		defer luaState.Close()
+
+		imp := new(luaImport)
+		if err := imp.init(); err != nil {
 			return err
 		}
-		L.SetContext(context.WithValue(ctx, "log", log))
-		return L.DoFile(filename)
+		luaState.SetGlobal("go", luar.New(luaState, imp))
+		luaState.SetContext(context.WithValue(ctx, "log", log))
+		return luaState.DoFile(filename)
 	})
 }
 
@@ -51,8 +54,3 @@ func (_ *scriptSvc) SetConfigParamValues(_ context.Context, configParamValues []
 func (_ *scriptSvc) GetConfigParamValues(_ context.Context) ([]*apitypes.ConfigParamValue, error) {
 	return luaParamValues, nil
 }
-
-var (
-	luaParamValues []*apitypes.ConfigParamValue
-	luaIgnoreError = func() {}
-)

@@ -24,6 +24,7 @@ const (
 	MsgProductConnection
 	MsgDelay
 	MsgLuaSuspended
+	MsgLuaSelectWorks
 )
 
 const (
@@ -35,6 +36,10 @@ const (
 
 func RequestLuaParams() {
 	sendMessage(wmuRequestConfigParams, 0, 0)
+}
+
+func NotifyLuaSelectWorks(works []string) bool {
+	return copyData().SendJson(MsgLuaSelectWorks, works)
 }
 
 func NotifyLuaSuspended(Text string) bool {

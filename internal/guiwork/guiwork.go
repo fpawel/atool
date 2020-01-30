@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-type WorkFunc func(*structlog.Logger, context.Context) error
+type WorkFunc = func(*structlog.Logger, context.Context) error
 
 type DelayBackgroundWorkFunc func(*structlog.Logger, context.Context) error
 
@@ -54,13 +54,14 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 		return ctx.Err()
 	}
 
+	journal.Info(log, newWorkName+": выполняется")
+
 	muNamedWorksStack.Lock()
 	isMainWork := len(namedWorksStack) == 0
 	namedWorksStack = append(namedWorksStack, newWorkName)
+	journal.CurrentWorkLevel += 1
 	level := len(namedWorksStack)
 	muNamedWorksStack.Unlock()
-
-	journal.Info(log, newWorkName+": выполняется")
 
 	log = pkg.LogPrependSuffixKeys(log, fmt.Sprintf("work%d", level), newWorkName)
 
@@ -68,6 +69,7 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 
 	muNamedWorksStack.Lock()
 	namedWorksStack = namedWorksStack[:len(namedWorksStack)-1]
+	journal.CurrentWorkLevel -= 1
 	muNamedWorksStack.Unlock()
 	if err == nil {
 		journal.Info(log, newWorkName+": выполнение окончено")
