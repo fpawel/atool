@@ -9,7 +9,6 @@ import (
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/guiwork"
-	"github.com/fpawel/atool/internal/journal"
 	"github.com/fpawel/atool/internal/pkg/numeth"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm/modbus"
@@ -121,9 +120,12 @@ func (x *luaImport) TemperatureStop() {
 }
 
 func (x *luaImport) TemperatureSetup(temperature float64) {
-	tempDevice, err := getTemperatureDevice()
-	luaCheck(err)
-	luaCheck(tempDevice.Setup(luaLog(), luaState.Context(), temperature))
+	x.newNestedWork1(fmt.Sprintf("перевод термокамеры на %v⁰C", temperature),
+		func() error {
+			tempDevice, err := getTemperatureDevice()
+			luaCheck(err)
+			return tempDevice.Setup(luaLog(), luaState.Context(), temperature)
+		})
 }
 
 func (x *luaImport) SwitchGas(gas byte, warn bool) {
@@ -145,36 +147,37 @@ func (x *luaImport) SwitchGas(gas byte, warn bool) {
 }
 
 func (x *luaImport) BlowGas(gas byte) {
-	x.SwitchGas(gas, true)
-	luaDelay(config.Get().Gas.BlowDuration, fmt.Sprintf("продуть газ %d", gas))
+	x.newNestedWork1(fmt.Sprintf("продуть газ %d", gas),
+		func() error {
+			x.SwitchGas(gas, true)
+			luaDelay(config.Get().Gas.BlowDuration, fmt.Sprintf("продуть газ %d", gas))
+			return nil
+		})
 }
 
 func (x *luaImport) ReadSave(reg modbus.Var, format modbus.FloatBitsFormat, dbKey string) {
 	if err := format.Validate(); err != nil {
 		luaState.ArgError(2, err.Error())
 	}
-	luaCheck(guiwork.PerformNewNamedWork(luaLog(), luaState.Context(),
-		fmt.Sprintf("считать из СОМ и сохранить: рег.%d,%s", reg, dbKey),
-		func(log *structlog.Logger, ctx context.Context) error {
+	x.newWork(fmt.Sprintf("считать из СОМ и сохранить: рег.%d,%s", reg, dbKey),
+		func(s *structlog.Logger, ctx context.Context) error {
 			return processEachActiveProduct(nil, func(product data.Product, device config.Device) error {
 				return readAndSaveProductValue(log, ctx,
 					product, device, reg, format, dbKey)
 			})
-		}))
+		})
 }
 
 func (x *luaImport) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) {
 	if err := format.Validate(); err != nil {
 		luaState.ArgError(2, err.Error())
 	}
-	luaCheck(guiwork.PerformNewNamedWork(luaLog(), luaState.Context(),
-		fmt.Sprintf("команда %d(%v)", cmd, value),
-		func(log *structlog.Logger, ctx context.Context) error {
-			return processEachActiveProduct(nil, func(product data.Product, device config.Device) error {
-				_ = write32Product(log, ctx, product, device, cmd, format, value)
-				return nil
-			})
-		}))
+	x.newWork(fmt.Sprintf("команда %d(%v)", cmd, value), func(s *structlog.Logger, ctx context.Context) error {
+		return processEachActiveProduct(nil, func(product data.Product, device config.Device) error {
+			_ = write32Product(log, ctx, product, device, cmd, format, value)
+			return nil
+		})
+	})
 }
 
 func (x *luaImport) WriteKef(kef int, format modbus.FloatBitsFormat, value float64) {
@@ -191,8 +194,10 @@ func (x *luaImport) WriteKef(kef int, format modbus.FloatBitsFormat, value float
 		}))
 }
 
-func (x *luaImport) PauseSec(sec int64, what string) {
-	luaDelay(time.Second*time.Duration(sec), what)
+func (x *luaImport) Delay(strDuration string, what string) {
+	duration, err := time.ParseDuration(strDuration)
+	luaCheck(err)
+	luaDelay(duration, what)
 }
 
 func (x *luaImport) ParamsDialog(arg *lua.LTable) *lua.LTable {
@@ -224,14 +229,14 @@ func (x *luaImport) ParamsDialog(arg *lua.LTable) *lua.LTable {
 }
 
 func (x *luaImport) Info(s string) {
-	journal.Info(luaLog(), s)
+	guiwork.JournalInfo(luaLog(), s)
 }
 
 func (x *luaImport) Err(s string) {
-	journal.Err(luaLog(), errors.New(s))
+	guiwork.JournalErr(luaLog(), errors.New(s))
 }
 
-func (x *luaImport) Run(arg *lua.LTable) {
+func (x *luaImport) SelectWorksDialog(arg *lua.LTable) {
 
 	var (
 		functions []func() error
@@ -275,13 +280,26 @@ func (x *luaImport) Run(arg *lua.LTable) {
 			if !f {
 				continue
 			}
-			luaCheck(
-				guiwork.PerformNewNamedWork(luaLog(), luaState.Context(), names[i],
-					func(logger, context.Context) error {
-						return functions[i]()
-					}))
+			x.newNestedWork1(names[i], functions[i])
 		}
 	}
+}
+
+func (x *luaImport) NewWork(name string, Func func()) {
+	x.newWork(name, func(logger, context.Context) error {
+		Func()
+		return nil
+	})
+}
+
+func (x *luaImport) newWork(name string, Func guiwork.WorkFunc) {
+	luaCheck(guiwork.PerformNewNamedWork(luaLog(), luaState.Context(), name, Func))
+}
+
+func (x *luaImport) newNestedWork1(name string, Func func() error) {
+	x.newWork(name, func(logger, context.Context) error {
+		return Func()
+	})
 }
 
 func (x *luaImport) journalResult(s string, err error) {
@@ -308,6 +326,9 @@ func luaCheckNumberOrNil(n int) {
 }
 
 func luaCheck(err error) {
+	if merry.Is(err, context.Canceled) {
+		return
+	}
 	if err != nil {
 		luaState.RaiseError("%s", err)
 	}
@@ -321,10 +342,13 @@ func luaWithGuiWarn(err error) {
 	if err == nil {
 		return
 	}
-	journal.ScriptSuspended(luaLog(), err)
+
 	var ctxIgnoreError context.Context
 	ctxIgnoreError, luaIgnoreError = context.WithCancel(luaState.Context())
-	gui.NotifyLuaSuspended(err.Error())
+	guiwork.NotifyLuaSuspended(luaLog(), err)
 	<-ctxIgnoreError.Done()
 	luaIgnoreError()
+	if luaState.Context().Err() == nil {
+		guiwork.JournalErr(log, merry.New("ошибка проигнорирована: выполнение продолжено").WithCause(err))
+	}
 }

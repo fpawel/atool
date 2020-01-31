@@ -2,9 +2,7 @@ package app
 
 import (
 	"context"
-	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/guiwork"
-	"github.com/fpawel/atool/internal/journal"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/powerman/structlog"
@@ -25,7 +23,7 @@ func (_ *scriptSvc) SelectWorks(_ context.Context, works []bool) (err error) {
 
 func (_ *scriptSvc) IgnoreError(_ context.Context) error {
 	luaIgnoreError()
-	journal.Err(log, merry.New("Ошибка проигнорирована. Выполнение продолжено."))
+
 	return nil
 }
 

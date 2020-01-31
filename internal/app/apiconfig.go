@@ -8,7 +8,7 @@ import (
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
-	"github.com/fpawel/atool/internal/journal"
+	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/pkg/winapi"
 	"github.com/fpawel/atool/internal/thriftgen/api"
@@ -60,7 +60,7 @@ func (h *appConfigSvc) EditConfig(_ context.Context) error {
 	go func() {
 		if err := applyConfig(); err != nil {
 			log.PrintErr(err)
-			journal.Err(log, merry.Append(err, "Ошибка при сохранении конфигурации"))
+			guiwork.JournalErr(log, merry.Append(err, "Ошибка при сохранении конфигурации"))
 			return
 		}
 		gui.NotifyCurrentPartyChanged()

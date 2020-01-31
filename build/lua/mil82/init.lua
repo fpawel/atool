@@ -21,8 +21,6 @@ units_code = {
     [C6H14] = 14,
 }
 
-prod_type = prod_types[go.Config.product_type]
-
 var16 = 16
 varTemp = 2
 varConcentration = 0
@@ -32,3 +30,8 @@ vars = { varConcentration, varTemp, 4, 8, 10, 12, 14, var16, }
 pt_temp_low = 't_low'
 pt_temp_norm = 't_norm'
 pt_temp_high = 't_high'
+
+function db_key_gas_var(gas, var)
+    return 'gas'..tostring(gas) .. '_var' .. tostring(var)
+end
+

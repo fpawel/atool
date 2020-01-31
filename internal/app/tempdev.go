@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
-	"github.com/fpawel/atool/internal/journal"
+	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/gofins/fins"
@@ -88,16 +88,16 @@ func setupTemperature(log logger, ctx context.Context, destinationTemperature fl
 		currentTemperature, err := dev.Read(log, ctx)
 		if err != nil {
 			err = wrapErr(merry.Append(err, "считывание температуры"))
-			journal.Err(log, err)
+			guiwork.JournalErr(log, err)
 			return err
 		}
 		if math.Abs(currentTemperature-destinationTemperature) < 2 {
-			journal.Info(log, fmt.Sprintf("термокамера вышла на температуру %v⁰C: %v⁰C", destinationTemperature, currentTemperature))
+			guiwork.JournalInfo(log, fmt.Sprintf("термокамера вышла на температуру %v⁰C: %v⁰C", destinationTemperature, currentTemperature))
 			return nil
 		}
 
 		if err := readProductsParams(ctx, ms, errorsOccurred); err != nil {
-			journal.Err(log, wrapErr(err))
+			guiwork.JournalErr(log, wrapErr(err))
 		}
 	}
 }

@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/configlua"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
-	"github.com/fpawel/atool/internal/journal"
+	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/pkg/winapi"
@@ -18,7 +19,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime/debug"
-	"sort"
 	"time"
 )
 
@@ -66,26 +66,26 @@ WHERE product_id IN (SELECT product_id FROM product WHERE party_id IN (SELECT pa
 		return nil, err
 	}
 
-	cfg := config.Get()
+	//cfg := config.Get()
 
-	for section, m := range cfg.ProductParams {
-		y := &apitypes.SectionProductParamsValues{Section: section, Values: [][]string{{"Прибор"}}}
-
-		for key := range m {
-			y.Keys = append(y.Keys, key)
+	for nSect, sect := range configlua.GetProductParamsSections() {
+		y := &apitypes.SectionProductParamsValues{
+			Section: fmt.Sprintf("%d. %s", nSect+1, sect.Name),
+			Values:  [][]string{{"Прибор"}},
 		}
-		sort.Slice(y.Keys, func(i, j int) bool {
-			return m[y.Keys[i]] < m[y.Keys[j]]
-		})
+
+		for _, prm := range sect.Params {
+			y.Keys = append(y.Keys, prm.Key)
+		}
 
 		for _, p := range party.Products {
 			y.Values[0] = append(y.Values[0], fmt.Sprintf("№%d ID%d", p.Serial, p.ProductID))
 		}
-		for _, key := range y.Keys {
-			xs := []string{m[key]}
+		for _, prm := range sect.Params {
+			xs := []string{prm.Name}
 			for _, p := range party.Products {
 				var s string
-				if m, f := values[key]; f {
+				if m, f := values[prm.Key]; f {
 					if v, f := m[p.ProductID]; f {
 						s = fmt.Sprintf("%v", v)
 					}
@@ -99,9 +99,6 @@ WHERE product_id IN (SELECT product_id FROM product WHERE party_id IN (SELECT pa
 
 	addAdditionalProductParamsSectionValues(party, values, &result)
 
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Section > result[j].Section
-	})
 	return result, nil
 }
 
@@ -149,7 +146,7 @@ func (h *currentFileSvc) ListDeviceParams(_ context.Context) ([]*apitypes.Device
 func (h *currentFileSvc) CreateNewCopy(_ context.Context) error {
 	go func() {
 		if err := data.CopyCurrentParty(db); err != nil {
-			journal.Err(log, merry.Append(err, "копирование текущего файла"))
+			guiwork.JournalErr(log, merry.Append(err, "копирование текущего файла"))
 			return
 		}
 		gui.NotifyCurrentPartyChanged()
@@ -195,7 +192,7 @@ func (h *currentFileSvc) RunEdit(_ context.Context) error {
 	go func() {
 
 		if err := save(); err != nil {
-			journal.Err(log, merry.Append(err, "Ошибка при сохранении данных"))
+			guiwork.JournalErr(log, merry.Append(err, "Ошибка при сохранении данных"))
 			return
 		}
 	}()
@@ -231,13 +228,6 @@ func addAdditionalProductParamsSectionValues(party data.Party, values map[string
 	}
 
 	if len(sect.Values) > 1 {
-		sort.Slice(sect.Keys, func(i, j int) bool {
-			return sect.Keys[i] < sect.Keys[j]
-		})
-		vs := sect.Values[1:]
-		sort.Slice(vs, func(i, j int) bool {
-			return vs[i][0] < vs[j][0]
-		})
 		*result = append(*result, sect)
 	}
 }
@@ -266,21 +256,21 @@ func processCurrentPartyChart() {
 	if err != nil {
 		err = merry.Append(err, "не удалось получить номер текущего файла")
 		log.PrintErr(err)
-		journal.Err(log, err)
+		guiwork.JournalErr(log, err)
 	}
 
 	paramAddresses, err := getParamAddresses()
 	if err != nil {
 		err = merry.Append(err, "не удалось получить номера параметров текущего файла")
 		log.PrintErr(err)
-		journal.Err(log, err)
+		guiwork.JournalErr(log, err)
 		return
 	}
 
 	log := pkg.LogPrependSuffixKeys(log, "party", partyID, "params", fmt.Sprintf("%d", paramAddresses))
 
 	printErr := func(err error) {
-		journal.WarnError(log, merry.Appendf(err, "график текущего файла %d: % d, %v", partyID, paramAddresses, time.Since(t)))
+		guiwork.JournalWarnError(log, merry.Appendf(err, "график текущего файла %d: % d, %v", partyID, paramAddresses, time.Since(t)))
 	}
 
 	gui.Popupf("открывается график файла %d", partyID)

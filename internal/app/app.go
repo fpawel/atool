@@ -9,7 +9,6 @@ import (
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/guiwork"
-	"github.com/fpawel/atool/internal/journal"
 	"github.com/fpawel/atool/internal/pkg/logfile"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/thriftgen/api"
@@ -27,6 +26,8 @@ import (
 )
 
 func Main() {
+
+	//configlua.GetProductParamsSections()
 
 	cleanTmpDir()
 	err := os.MkdirAll(tmpDir, os.ModePerm)
@@ -83,7 +84,7 @@ func Main() {
 	log.ErrIfFail(comportLogfile.Close)
 
 	log.Debug("закрыть журнал")
-	log.ErrIfFail(journal.Close)
+	log.ErrIfFail(guiwork.CloseJournal)
 
 	// записать в лог что всё хорошо
 	log.Debug("all canceled and closed")

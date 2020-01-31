@@ -6,6 +6,7 @@ import (
 	"github.com/yuin/gluamapper"
 	lua "github.com/yuin/gopher-lua"
 	"strconv"
+	"time"
 )
 
 type luaConfigParam struct {
@@ -35,6 +36,12 @@ func getLuaValueFromConfigParam(a *apitypes.ConfigParamValue) (lua.LValue, error
 			return nil, err
 		}
 		return lua.LBool(v), nil
+	case "duration":
+		v, err := time.ParseDuration(a.Value)
+		if err != nil {
+			return nil, err
+		}
+		return lua.LString(v), nil
 	default:
 		return lua.LString(a.Value), nil
 	}

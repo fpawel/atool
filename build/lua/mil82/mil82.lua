@@ -3,6 +3,8 @@
 require 'mil82/init'
 json = require 'json'
 
+prod_type = prod_types[go.Config.product_type]
+
 go:Info("конфигурация: " .. json.encode(go.Config))
 
 local params = go:ParamsDialog({
@@ -31,6 +33,12 @@ local params = go:ParamsDialog({
         name = "Уставка высокой температуры,⁰C",
         value = prod_type.temp_high,
         format = 'float',
+    },
+
+    duration_tex = {
+        name = "Длительность технологического прогона",
+        value = '16h',
+        format = 'duration',
     },
 })
 
@@ -108,25 +116,26 @@ local function setupTemperature(temperature)
         go:Info(what .. ': температура уже установлена')
         return
     end
-    go:Info(what)
-    go:SwitchGas(0, true)
-    go:Temperature(temperature)
-    current_temperature = temperature
-end
-
-local function db_key_gas_var(gas, var)
-    return 'gas'..tostring(gas) .. '_var' .. tostring(var)
+    go:NewWork(what, function ()
+        go:SwitchGas(0, true)
+        go:Temperature(temperature)
+        current_temperature = temperature
+    end)
 end
 
 local function gases_read_save( db_key_section, gases )
-    go:Info("снятие " .. db_key_section .. ': газы: '..json.encode(gases))
-    for _, gas in ipairs(gases) do
-        go:BlowGas(gas)
-        for _, var in pairs(vars) do
-            go:ReadSave(var, 'bcd', db_key_section..'_' .. db_key_gas_var(gas, var))
+    go:NewWork("снятие " .. db_key_section .. ': газы: '..json.encode(gases), function ()
+        for _, gas in ipairs(gases) do
+            go:NewWork("снятие " .. db_key_section .. ': газ: '..tostring(gas), function ()
+                go:BlowGas(gas)
+                for _, var in pairs(vars) do
+                    go:ReadSave(var, 'bcd', db_key_section..'_' .. db_key_gas_var(gas, var))
+                end
+            end)
         end
-    end
-    go:BlowGas(1)
+        go:BlowGas(1)
+    end)
+
 end
 
 local function temperature_compensation(pt_temp )
@@ -147,13 +156,15 @@ local function temperature_compensation(pt_temp )
 end
 
 local function adjust()
-    go:Info("калибровка нуля")
-    go:BlowGas(1)
-    go:Write32(1, 'bcd', go.Config.c1)
-    go:Info("калибровка чувствительности")
-    go:BlowGas(4)
-    go:Write32(2, 'bcd', go.Config.c4)
-    go:BlowGas(1)
+    go:NewWork("калибровка нуля", function ()
+        go:BlowGas(1)
+        go:Write32(1, 'bcd', go.Config.c1)
+    end)
+    go:NewWork("калибровка чувствительности", function ()
+        go:BlowGas(4)
+        go:Write32(2, 'bcd', go.Config.c4)
+        go:BlowGas(1)
+    end)
 end
 
 local function calc_temp()
@@ -240,7 +251,7 @@ local function calc_lin()
     end
 end
 
-go:Run({
+go:SelectWorksDialog({
     { "запись коэффициентов", write_common_coefficients },
 
     { "установка НКУ", function()
@@ -276,6 +287,12 @@ go:Run({
 
     { "расчёт и ввод термокомпенсации", calc_temp },
 
+    { "снятие сигналов каналов", function()
+        for _,k in pairs({21,22,43,44}) do
+            go:ReadSave(224 + k*2, 'bcd', 'K'..tostring(k))
+        end
+    end },
+
     { format_temperature(params.temp_norm)..": снятие для проверки погрешности", function()
         setupTemperature(params.temp_norm)
         adjust()
@@ -295,5 +312,14 @@ go:Run({
     { format_temperature(params.temp_norm)..": повторное снятие для проверки погрешности", function()
         setupTemperature(params.temp_norm)
         gases_read_save('test2_'..pt_temp_norm, {1,4})
+    end },
+
+    { "технологический прогон", function()
+        adjust()
+        go:Info('снятие перед технологическим прогоном')
+        gases_read_save('tex1', {1,4})
+        go:Delay(params.duration_tex, 'технологический прогон')
+        go:Info('снятие после технологического прогона')
+        gases_read_save('tex2', {1,4})
     end },
 })

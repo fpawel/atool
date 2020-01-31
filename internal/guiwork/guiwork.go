@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/gui"
-	"github.com/fpawel/atool/internal/journal"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/powerman/structlog"
@@ -54,12 +53,11 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 		return ctx.Err()
 	}
 
-	journal.Info(log, newWorkName+": выполняется")
+	JournalInfo(log, newWorkName+": выполняется")
 
 	muNamedWorksStack.Lock()
 	isMainWork := len(namedWorksStack) == 0
 	namedWorksStack = append(namedWorksStack, newWorkName)
-	journal.CurrentWorkLevel += 1
 	level := len(namedWorksStack)
 	muNamedWorksStack.Unlock()
 
@@ -69,10 +67,9 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 
 	muNamedWorksStack.Lock()
 	namedWorksStack = namedWorksStack[:len(namedWorksStack)-1]
-	journal.CurrentWorkLevel -= 1
 	muNamedWorksStack.Unlock()
 	if err == nil {
-		journal.Info(log, newWorkName+": выполнение окончено")
+		JournalInfo(log, newWorkName+": выполнение окончено")
 	} else {
 		if isMainWork {
 			log = pkg.LogPrependSuffixKeys(log, "stack", pkg.FormatMerryStacktrace(err), "error", err)
@@ -80,7 +77,7 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 		} else {
 			err = merry.Append(err, newWorkName)
 		}
-		journal.Err(log, err)
+		JournalErr(log, err)
 	}
 	return err
 }
@@ -88,8 +85,9 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 func InterruptDelay(log *structlog.Logger) {
 	muInterruptDelay.Lock()
 	interruptDelay()
+	name := delayName
 	muInterruptDelay.Unlock()
-	journal.Info(log, "текущая задержка прервана пользователем")
+	JournalInfo(log, name+": задержка прервана")
 }
 
 func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, name string, backgroundWork DelayBackgroundWorkFunc) error {
@@ -107,9 +105,10 @@ func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, n
 	// установить коллбэк прерывания задержки
 	muInterruptDelay.Lock()
 	ctx, interruptDelay = context.WithTimeout(ctx, duration)
+	delayName = name
 	muInterruptDelay.Unlock()
 
-	s1 := fmt.Sprintf("%s %s", name, duration)
+	s1 := fmt.Sprintf("задержка: %s %s", name, duration)
 
 	err := PerformNewNamedWork(log, ctx, s1, func(log *structlog.Logger, ctx context.Context) error {
 		log.Info("delay: begin")
@@ -134,7 +133,7 @@ func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, n
 				return nil
 			}
 			if err != nil {
-				journal.Err(log, err)
+				JournalErr(log, err)
 				return nil
 			}
 		}
@@ -151,17 +150,17 @@ func performWork(log *structlog.Logger, ctx context.Context, workName string, wo
 
 	_ = PerformNewNamedWork(log, ctx, workName, work)
 
-	muNamedWorksStack.Lock()
-	if len(namedWorksStack) != 0 {
-		panic("len(namedWorksStack) != 0")
-	}
-	muNamedWorksStack.Unlock()
-
 	interrupt()
 	atomic.StoreInt32(&atomicConnected, 0)
 	comports.CloseAllComports()
 	wg.Done()
 	go gui.NotifyStopWork()
+}
+
+func currentWorkLevel() int {
+	muNamedWorksStack.Lock()
+	defer muNamedWorksStack.Unlock()
+	return len(namedWorksStack)
 }
 
 var (
@@ -172,5 +171,6 @@ var (
 	muNamedWorksStack sync.Mutex
 
 	interruptDelay   = func() {}
+	delayName        string
 	muInterruptDelay sync.Mutex
 )

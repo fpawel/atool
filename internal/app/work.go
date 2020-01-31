@@ -8,7 +8,6 @@ import (
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/guiwork"
-	"github.com/fpawel/atool/internal/journal"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
@@ -64,11 +63,11 @@ func notifyReadCoefficient(p data.Product, n int, value float64, err error) {
 	if err == nil {
 		x.Result = formatFloat(value)
 		x.Ok = true
-		journal.Info(log, fmt.Sprintf("считано: №%d K%d=%v", p.Serial, n, value))
+		guiwork.JournalInfo(log, fmt.Sprintf("считано: №%d K%d=%v", p.Serial, n, value))
 	} else {
 		err = fmt.Errorf("считывание №%d K%d: %w", p.Serial, n, err)
 		x.Result = err.Error()
-		journal.Err(log, err)
+		guiwork.JournalErr(log, err)
 		x.Ok = false
 	}
 	go gui.NotifyCoefficient(x)
@@ -165,10 +164,10 @@ func readAndSaveProductValue(log logger, ctx context.Context, product data.Produ
 	cm := getCommProduct(product.Comport, device)
 	value, err := modbus.Read3Value(log, ctx, cm, product.Addr, param, format)
 	if err != nil {
-		journal.Err(log, wrapErr(err))
+		guiwork.JournalErr(log, wrapErr(err))
 		return nil
 	}
-	journal.Info(log, fmt.Sprintf("прибор %d.%d: сохранить рег.%d,%s = %v",
+	guiwork.JournalInfo(log, fmt.Sprintf("прибор %d.%d: сохранить рег.%d,%s = %v",
 		product.Serial, product.ProductID, param, dbKey, value))
 	const query = `
 INSERT INTO product_value
@@ -189,9 +188,9 @@ func write32Product(log logger, ctx context.Context, product data.Product, devic
 	}.GetResponse(log, ctx, getCommProduct(product.Comport, device))
 
 	if err == nil {
-		journal.Info(log, fmt.Sprintf("прибор №%d: команда %d(%v)", product.Serial, cmd, value))
+		guiwork.JournalInfo(log, fmt.Sprintf("прибор №%d: команда %d(%v)", product.Serial, cmd, value))
 	} else {
-		journal.Err(log, fmt.Errorf("прибор №%d: команда %d(%v): %w", product.Serial, cmd, value, err))
+		guiwork.JournalErr(log, fmt.Errorf("прибор №%d: команда %d(%v): %w", product.Serial, cmd, value, err))
 	}
 	return err
 }
@@ -213,11 +212,11 @@ func writeKefProduct(log logger, ctx context.Context, product data.Product, devi
 	if err == nil {
 		x.Result = formatFloat(value)
 		x.Ok = true
-		journal.Info(log, fmt.Sprintf("записано: №%d K%d=%v", product.Serial, kef, value))
+		guiwork.JournalInfo(log, fmt.Sprintf("записано: №%d K%d=%v", product.Serial, kef, value))
 	} else {
 		err = fmt.Errorf("запись №%d K%d=%v: %w", product.Serial, kef, value, err)
 		x.Result = err.Error()
-		journal.Err(log, err)
+		guiwork.JournalErr(log, err)
 		x.Ok = false
 	}
 	go gui.NotifyCoefficient(x)
@@ -270,11 +269,11 @@ func processEachActiveProduct(errorsOccurred errorsOccurred, work func(data.Prod
 		})
 		if err != nil {
 			if errorsOccurred == nil {
-				journal.Err(log, merry.Errorf("ошибка связи с прибором №%d", p.product.Serial).WithCause(err))
+				guiwork.JournalErr(log, merry.Errorf("ошибка связи с прибором №%d", p.product.Serial).WithCause(err))
 			} else {
 				if _, f := errorsOccurred[err.Error()]; !f {
 					errorsOccurred[err.Error()] = struct{}{}
-					journal.Err(log, merry.Errorf("ошибка связи с прибором №%d", p.product.Serial).WithCause(err))
+					guiwork.JournalErr(log, merry.Errorf("ошибка связи с прибором №%d", p.product.Serial).WithCause(err))
 				}
 			}
 		}
