@@ -1,6 +1,7 @@
 -- atoolgui: МИЛ82: Автоматическая настройка
 
 require 'mil82/init'
+require 'print_table'
 json = require 'json'
 
 prod_type = prod_types[go.Config.product_type]
@@ -191,13 +192,24 @@ local function calc_temp()
             val(pt_temp_high, 1, var16),
         }
 
-        write_coefficients(23, go:InterpolationCoefficients({
+        local xyt1 = {
             { val(pt_temp_low, 1, varTemp), -y1[1] },
             { val(pt_temp_norm, 1, varTemp), -y1[2] },
             { val(pt_temp_high, 1, varTemp), -y1[3] },
-        }))
+        }
+        local kt1 = go:InterpolationCoefficients(xyt1)
 
-        local xs3 = {
+        p:Info('xyt1: '..json.encode(xyt1))
+
+        if kt1 == nil then
+            p:Err('расчёт термокомпенсации нуля не выполнен')
+            return
+        end
+
+        p:Info('kt1: '..json.encode(kt1))
+        write_coefficients(23, kt1)
+
+        local xyt3 = {
             {
                 val(pt_temp_low, 4, varTemp),
                 val(pt_temp_low, 4, var16) - y1[1],
@@ -212,10 +224,18 @@ local function calc_temp()
             },
         }
         for i = 1, 3 do
-            xs3[i][2] = xs3[2][2] / xs3[i][2]
+            xyt3[i][2] = xyt3[2][2] / xyt3[i][2]
         end
 
-        write_coefficients(23, go:InterpolationCoefficients(xs3))
+        p:Info('xyt3: '..json.encode(xyt3))
+        local kt3 = go:InterpolationCoefficients(xyt3)
+
+        if kt3 == nil then
+            p:Err('расчёт термокомпенсации чувствительности не выполнен')
+            return
+        end
+        p:Info('kt3: '..json.encode(kt3))
+        write_coefficients(26, kt3)
     end
 
 end

@@ -66,9 +66,7 @@ WHERE product_id IN (SELECT product_id FROM product WHERE party_id IN (SELECT pa
 		return nil, err
 	}
 
-	//cfg := config.Get()
-
-	for nSect, sect := range configlua.GetProductParamsSections() {
+	for nSect, sect := range configlua.ProductParamsSections {
 		y := &apitypes.SectionProductParamsValues{
 			Section: fmt.Sprintf("%d. %s", nSect+1, sect.Name),
 			Values:  [][]string{{"Прибор"}},
@@ -199,18 +197,19 @@ func (h *currentFileSvc) RunEdit(_ context.Context) error {
 	return nil
 }
 
-func addAdditionalProductParamsSectionValues(party data.Party, values map[string]mapIntFloat, result *[]*apitypes.SectionProductParamsValues) {
+func addAdditionalProductParamsSectionValues(party data.Party,
+	values map[string]mapIntFloat,
+	result *[]*apitypes.SectionProductParamsValues) {
 	sect := &apitypes.SectionProductParamsValues{
 		Values:  [][]string{{"Прибор"}},
 		Section: fmt.Sprintf("%d. Дополнительно", len(*result)+1),
 	}
-	cfgProductParamsKeys := config.Get().ListProductParamKeys()
 
 	for _, p := range party.Products {
 		sect.Values[0] = append(sect.Values[0], fmt.Sprintf("№%d ID%d", p.Serial, p.ProductID))
 	}
 	for k, m := range values {
-		if _, f := cfgProductParamsKeys[k]; f {
+		if configlua.ProductParamsSections.HasKey(k) {
 			continue
 		}
 		xs := []string{k}

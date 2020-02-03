@@ -66,11 +66,12 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 	err := work(log, ctx)
 
 	muNamedWorksStack.Lock()
-	namedWorksStack = namedWorksStack[:len(namedWorksStack)-1]
+	if len(namedWorksStack) > 0 {
+		namedWorksStack = namedWorksStack[:len(namedWorksStack)-1]
+	}
 	muNamedWorksStack.Unlock()
-	if err == nil {
-		JournalInfo(log, newWorkName+": выполнение окончено")
-	} else {
+
+	if err != nil {
 		if isMainWork {
 			log = pkg.LogPrependSuffixKeys(log, "stack", pkg.FormatMerryStacktrace(err), "error", err)
 			err = merry.New(newWorkName + ": завершено с ошибкой").WithCause(err)
@@ -79,6 +80,7 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 		}
 		JournalErr(log, err)
 	}
+
 	return err
 }
 

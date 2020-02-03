@@ -20,7 +20,6 @@ type Config struct {
 	FloatPrecision       int              `yaml:"float_precision"`
 	ProductTypes         []string         `yaml:"product_types"`
 	PartyParams          PartyParams      `yaml:"party_params"`
-	ProductParams        ProductParams    `yaml:"product_params"`
 	Hardware             Hardware         `yaml:"hardware"`
 	Gas                  Gas              `yaml:"gas"`
 	Temperature          Temperature      `yaml:"temperature"`
@@ -30,8 +29,6 @@ type Config struct {
 	InactiveCoefficients map[int]struct{} `yaml:"inactive_coefficients"`
 	ParamsNames          map[int]string   `yaml:"params_names"`
 }
-
-type ProductParams = map[string]map[string]string
 
 type PartyParams = map[string]string
 
@@ -107,10 +104,6 @@ func (c Config) Validate() error {
 		return merry.New("список параметров партии не должен быть пустым")
 	}
 
-	if len(c.ProductParams) == 0 {
-		return merry.New("список параметров приборов не должен быть пустым")
-	}
-
 	m := make(map[string]struct{})
 	for _, x := range c.ProductTypes {
 		if _, f := m[x]; f {
@@ -148,25 +141,6 @@ func (c Config) ListCoefficients() (xs []int) {
 	return
 }
 
-func (c Config) IsProductParamKeyExists(k string) bool {
-	for _, m := range c.ProductParams {
-		if _, f := m[k]; f {
-			return true
-		}
-	}
-	return false
-}
-
-func (c Config) ListProductParamKeys() map[string]struct{} {
-	r := make(map[string]struct{})
-	for _, m := range c.ProductParams {
-		for k := range m {
-			r[k] = struct{}{}
-		}
-	}
-	return r
-}
-
 func writeFile(b []byte) error {
 	return ioutil.WriteFile(filename(), b, 0666)
 }
@@ -192,10 +166,6 @@ func (c *Config) validate() {
 
 	if len(c.PartyParams) == 0 {
 		c.PartyParams = defaultPartyParams()
-	}
-
-	if len(c.ProductParams) == 0 {
-		c.ProductParams = defaultProductParams()
 	}
 
 	if len(c.Coefficients) == 0 {

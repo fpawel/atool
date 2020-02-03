@@ -84,9 +84,6 @@ func (x *luaProduct) DeleteKey(key string) {
 }
 
 func (x *luaProduct) SetValue(key string, pv lua.LValue) {
-	if !config.Get().IsProductParamKeyExists(key) {
-		x.Err(fmt.Sprintf("%q: параметр приборов не задан в настройках", key))
-	}
 	if pv == lua.LNil {
 		x.Err(fmt.Sprintf("%q: нет значения", key))
 		return
