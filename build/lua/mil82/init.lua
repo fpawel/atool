@@ -1,5 +1,4 @@
 require 'mil82/prod_types'
-json = require 'json'
 
 CO2 = 4
 CH4 = 5
@@ -35,3 +34,9 @@ function db_key_gas_var(gas, var)
     return 'gas'..tostring(gas) .. '_var' .. tostring(var)
 end
 
+function db_key_coefficient(k)
+    if k < 10 then
+        return 'K0'..tostring(k)
+    end
+    return 'K'..tostring(k)
+end

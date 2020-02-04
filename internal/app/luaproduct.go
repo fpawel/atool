@@ -14,6 +14,7 @@ import (
 type luaProduct struct {
 	p      data.Product
 	Serial int
+	ID     int64
 	Device config.Device
 }
 
@@ -25,6 +26,7 @@ func (x *luaProduct) init(p data.Product) error {
 	x.p = p
 	x.Serial = p.Serial
 	x.Device = device
+	x.ID = p.ProductID
 	return nil
 }
 
@@ -38,6 +40,7 @@ func (x *luaProduct) WriteKef(k int, format modbus.FloatBitsFormat, pv lua.LValu
 		return
 	}
 	_ = writeKefProduct(log, luaState.Context(), x.p, x.Device, k, format, float64(pv.(lua.LNumber)))
+	//x.setValue(fmt.Sprintf("K%02d", k), float64(pv.(lua.LNumber)))
 }
 
 func (x *luaProduct) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, pv lua.LValue) {
@@ -88,9 +91,7 @@ func (x *luaProduct) SetValue(key string, pv lua.LValue) {
 		x.Err(fmt.Sprintf("%q: нет значения", key))
 		return
 	}
-	v := float64(pv.(lua.LNumber))
-	x.Info(fmt.Sprintf("сохранение %q=%v", key, v))
-	luaCheck(saveProductValue(x.p.ProductID, key, v))
+	x.setValue(key, float64(pv.(lua.LNumber)))
 }
 
 func (x *luaProduct) Value(key string) lua.LValue {
@@ -126,4 +127,9 @@ func (x *luaProduct) journalResult(s string, err error) {
 
 func (x *luaProduct) comm() comm.T {
 	return getCommProduct(x.p.Comport, x.Device)
+}
+
+func (x *luaProduct) setValue(key string, value float64) {
+	x.Info(fmt.Sprintf("сохранение %q=%v", key, value))
+	luaCheck(saveProductValue(x.p.ProductID, key, value))
 }

@@ -212,7 +212,7 @@ func writeKefProduct(log logger, ctx context.Context, product data.Product, devi
 	if err == nil {
 		x.Result = formatFloat(value)
 		x.Ok = true
-		guiwork.JournalInfo(log, fmt.Sprintf("записано: №%d K%d=%v", product.Serial, kef, value))
+		guiwork.JournalInfo(log, fmt.Sprintf("№%d.id%d: записано: K%d=%v", product.Serial, product.ProductID, kef, value))
 	} else {
 		err = fmt.Errorf("запись №%d K%d=%v: %w", product.Serial, kef, value, err)
 		x.Result = err.Error()

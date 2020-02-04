@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/fpawel/atool/internal/pkg/must"
 	lua "github.com/yuin/gopher-lua"
-	luajson "layeh.com/gopher-json"
 	"os"
 	"path/filepath"
 )
@@ -44,7 +43,6 @@ func (xs ProductParamsSectionsList) HasKey(key string) bool {
 
 func GetProductParamsSectionsList(filename string) (ProductParamsSectionsList, error) {
 	L := lua.NewState()
-	luajson.Preload(L)
 	if err := L.DoFile(filename); err != nil {
 		return nil, err
 	}

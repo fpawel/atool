@@ -2,11 +2,15 @@
 
 require 'mil82/init'
 require 'print_table'
-json = require 'json'
+json = require("dkjson")
 
 prod_type = prod_types[go.Config.product_type]
 
-go:Info("конфигурация: " .. json.encode(go.Config))
+local function stringify(v)
+    return json.encode(v, { indent = true })
+end
+
+go:Info("конфигурация: " .. stringify(go.Config))
 
 local params = go:ParamsDialog({
     linear_degree = {
@@ -65,45 +69,19 @@ local function write_common_coefficients()
         [27] = 0,
         [28] = 0,
     }) do
-        go:WriteKef(k, 'bcd', v)
-    end
-end
-
-function lin_calc()
-    for _, p in pairs(go.Products) do
-        local ct = {}
-        for i = 1, 4 do
-            if not (params.linear_degree == 3 and i == 2) then
-                local x = p:Value('lin' .. tostring(i))
-                if x == nil then
-                    p:Err('расёт линеаризатора не выполнен: нет значения lin' .. tostring(i))
-                    return
-                end
-                ct[i] = { x, go.Config['c' .. tostring(i)] }
-            end
-        end
-
-        local cf = go:InterpolationCoefficients(ct)
-        if cf == nil then
-            p:Err('расёт линеаризатора не выполнен: ' .. json.encode(ct))
-            return
-        end
-        p:Info('расчёт линеаризатора: ' .. json.encode(ct) .. ': ' .. json.encode(cf))
-        if params.linear_degree == 3 then
-            cf[4] = 0
-        end
-        for i = 1, 4 do
-            p:WriteKef(15 + i, 'bcd', cf[i])
+        for _,p in pairs(go.Products) do
+            p:WriteKef(k, 'bcd', v)
+            p:SetValue(db_key_coefficient(n), value)
         end
     end
 end
 
-go:Info("параметры: " .. json.encode(params))
+go:Info("параметры: " .. stringify(params))
 
 local current_temperature
 
 local function format_temperature(temperature)
-    return tostring(temperature)..'⁰C'
+    return tostring(temperature) .. '⁰C'
 end
 
 local function setupTemperature(temperature)
@@ -117,20 +95,20 @@ local function setupTemperature(temperature)
         go:Info(what .. ': температура уже установлена')
         return
     end
-    go:NewWork(what, function ()
+    go:NewWork(what, function()
         go:SwitchGas(0, true)
         go:Temperature(temperature)
         current_temperature = temperature
     end)
 end
 
-local function gases_read_save( db_key_section, gases )
-    go:NewWork("снятие " .. db_key_section .. ': газы: '..json.encode(gases), function ()
+local function gases_read_save(db_key_section, gases)
+    go:NewWork("снятие " .. db_key_section .. ': газы: ' .. json.encode(gases, { indent = true }), function()
         for _, gas in ipairs(gases) do
-            go:NewWork("снятие " .. db_key_section .. ': газ: '..tostring(gas), function ()
+            go:NewWork("снятие " .. db_key_section .. ': газ: ' .. tostring(gas), function()
                 go:BlowGas(gas)
                 for _, var in pairs(vars) do
-                    go:ReadSave(var, 'bcd', db_key_section..'_' .. db_key_gas_var(gas, var))
+                    go:ReadSave(var, 'bcd', db_key_section .. '_' .. db_key_gas_var(gas, var))
                 end
             end)
         end
@@ -139,7 +117,7 @@ local function gases_read_save( db_key_section, gases )
 
 end
 
-local function temperature_compensation(pt_temp )
+local function temperature_compensation(pt_temp)
     local gases = { 1, 4 }
     if params.temp_middle_scale then
         gases = { 1, 3, 4 }
@@ -150,124 +128,130 @@ local function temperature_compensation(pt_temp )
         [pt_temp_high] = params.temp_high,
     }
     local temperature = temperatures[pt_temp]
-    return function ()
+    return function()
         setupTemperature(temperature)
         gases_read_save(pt_temp, gases)
     end
 end
 
 local function adjust()
-    go:NewWork("калибровка нуля", function ()
+    go:NewWork("калибровка нуля", function()
         go:BlowGas(1)
         go:Write32(1, 'bcd', go.Config.c1)
     end)
-    go:NewWork("калибровка чувствительности", function ()
+    go:NewWork("калибровка чувствительности", function()
         go:BlowGas(4)
         go:Write32(2, 'bcd', go.Config.c4)
         go:BlowGas(1)
     end)
 end
 
-local function calc_temp()
+local function temp_db_key(pt_temp, gas, var)
+    return pt_temp .. '_gas' .. tostring(gas) .. '_var' .. tostring(var)
+end
 
-    local function temp_db_key( pt_temp, gas, var)
-        return pt_temp .. '_gas' .. tostring(gas) .. '_var' .. tostring(var)
+local write_coefficients_product = function(product, k, values)
+    for i,value in pairs(values) do
+        local n = k + i - 1
+        local s = string.format('K%02d', n)
+        if value ~= value then
+            product:Err( s..': нет значения для записи: NaN')
+        elseif value == nil then
+            product:Err( s..': нет значения для записи: nil')
+        else
+            product:WriteKef(n, 'bcd', value)
+            product:SetValue(db_key_coefficient(n), value)
+        end
     end
+end
 
-    for _, p in pairs(go.Products) do
-
-        local val = function(db_key, gas, var)
-            return p:Value(temp_db_key(db_key, gas, var))
+local function get_temp_values_product(product, gas, var)
+    local values = {}
+    for _, pt_t in pairs({ pt_temp_low, pt_temp_norm, pt_temp_high }) do
+        local key = temp_db_key(pt_t, gas, var)
+        local value = product:Value(key)
+        if value == nil then
+            value = 0 / 0
         end
+        table.insert(values, value)
+    end
+    return values
+end
 
-        local write_coefficients = function (k, values)
-            for i = 1, 3 do
-                p:WriteKef(k + i - 1, 'bcd', values[i])
-            end
-        end
+local function format_product_number(p)
+    return string.format('№%d.id%d', p.Serial, p.ID)
+end
 
-        local y1 = {
-            val(pt_temp_low, 1, var16),
-            val(pt_temp_norm, 1, var16),
-            val(pt_temp_high, 1, var16),
-        }
+local function calc_T0_product(p)
+    go:NewWork( string.format('%s: расчёт термокомпенсации начала шкалы', format_product_number(p) ), function()
+        local t1 = get_temp_values_product(p, 1, varTemp)
+        local var1 = get_temp_values_product(p,1, var16)
 
-        local xyt1 = {
-            { val(pt_temp_low, 1, varTemp), -y1[1] },
-            { val(pt_temp_norm, 1, varTemp), -y1[2] },
-            { val(pt_temp_high, 1, varTemp), -y1[3] },
-        }
-        local kt1 = go:InterpolationCoefficients(xyt1)
+        p:Info('t1='..stringify(t1))
+        p:Info('var1='.. stringify(var1))
 
-        p:Info('xyt1: '..json.encode(xyt1))
-
-        if kt1 == nil then
-            p:Err('расчёт термокомпенсации нуля не выполнен')
-            return
-        end
-
-        p:Info('kt1: '..json.encode(kt1))
-        write_coefficients(23, kt1)
-
-        local xyt3 = {
-            {
-                val(pt_temp_low, 4, varTemp),
-                val(pt_temp_low, 4, var16) - y1[1],
-            },
-            {
-                val(pt_temp_norm, 4, varTemp),
-                val(pt_temp_norm, 4, var16) - y1[2],
-            },
-            {
-                val(pt_temp_high, 4, varTemp),
-                val(pt_temp_high, 4, var16) - y1[3],
-            },
-        }
+        local d1 = {}
         for i = 1, 3 do
-            xyt3[i][2] = xyt3[2][2] / xyt3[i][2]
+            table.insert(d1, { t1[i], -var1[i] })
         end
 
-        p:Info('xyt3: '..json.encode(xyt3))
-        local kt3 = go:InterpolationCoefficients(xyt3)
+        local T0 = go:InterpolationCoefficients(d1)
+        p:Info('T0=' .. stringify(T0))
+        write_coefficients_product(p, 23, T0)
+    end)
+end
 
-        if kt3 == nil then
-            p:Err('расчёт термокомпенсации чувствительности не выполнен')
-            return
+local function calc_TK_product(p)
+    go:NewWork( string.format('%s: расчёт термокомпенсации конца шкалы', format_product_number(p) ), function()
+        local t4 = get_temp_values_product(p,4, varTemp)
+        local var4 = get_temp_values_product(p,4, var16)
+        local var1 = get_temp_values_product(p,1, var16)
+
+        p:Info('t1='..stringify(t4))
+        p:Info('var1='.. stringify(var4))
+
+        local d4 = {}
+        for i = 1, 3 do
+            table.insert(d4, { t4[i], (var4[2] - var1[2]) / (var4[i] - var1[i]) })
         end
-        p:Info('kt3: '..json.encode(kt3))
-        write_coefficients(26, kt3)
-    end
 
+        local TK = go:InterpolationCoefficients(d4)
+
+        p:Info('TK: ' .. stringify(TK))
+        write_coefficients_product(p, 26, TK)
+    end)
+end
+
+local function calc_TM_product(p)
+    go:NewWork( string.format('%s: расчёт термокомпенсации середины шкалы', format_product_number(p) ), function()
+        local K = {}
+        for i = 16,19 do
+            K[i] = p:Value(db_key_coefficient(n))
+        end
+    end)
 end
 
 local function calc_lin()
     for _, p in pairs(go.Products) do
-        local ct = {}
-        local gases = {1,2,3,4}
-        if params.linear_degree == 3 then
-            gases = {1,3,4}
-        end
-        for _,gas in pairs(gases) do
-            local x = p:Value('lin' .. tostring(gas))
-            if x == nil then
-                p:Err('расёт линеаризатора не выполнен: нет значения lin' .. tostring(gas))
-                return
+        go:NewWork( string.format('%s: расчёт линеаризации', format_product_number(p) ), function()
+            local xy = {}
+            local gases = { 1, 2, 3, 4 }
+            if params.linear_degree == 3 then
+                gases = { 1, 3, 4 }
             end
-            ct[gas] = { x, go.Config['c' .. tostring(gas)] }
-        end
+            for _, gas in pairs(gases) do
+                local x = p:Value('lin' .. tostring(gas))
+                if x == nil then return end
+                xy[gas] = { x, go.Config['c' .. tostring(gas)] }
+            end
 
-        local cf = go:InterpolationCoefficients(ct)
-        if cf == nil then
-            p:Err('расёт линеаризатора не выполнен: ' .. json.encode(ct))
-            return
-        end
-        p:Info('расчёт линеаризатора: ' .. json.encode(ct) .. ': ' .. json.encode(cf))
-        if params.linear_degree == 3 then
-            cf[4] = 0
-        end
-        for i = 1, 4 do
-            p:WriteKef(15 + i, 'bcd', cf[i])
-        end
+            local LIN = go:InterpolationCoefficients(xy)
+            if params.linear_degree == 3 then
+                LIN[4] = 0
+            end
+            p:Info(stringify(xy) .. ': ' .. stringify(LIN))
+            write_coefficients_product(p, 16, LIN)
+        end)
     end
 end
 
@@ -286,60 +270,65 @@ go:SelectWorksDialog({
 
     { "снятие линеаризации", function()
         go:ReadSave(varConcentration, 'bcd', 'lin1')
-        local gases = {3,4}
+        local gases = { 3, 4 }
         if params.linear_degree == 4 then
-            gases = {2, 3,4}
+            gases = { 2, 3, 4 }
         end
-        for _,gas in pairs(gases) do
+        for _, gas in pairs(gases) do
             go:BlowGas(gas)
-            go:ReadSave(varConcentration, 'bcd', 'lin'..tostring(gas))
+            go:ReadSave(varConcentration, 'bcd', 'lin' .. tostring(gas))
         end
         go:BlowGas(1)
     end },
 
     { "расчёт линеаризации", calc_lin },
 
-    { format_temperature(params.temp_low)..": снятие термокомпенсации", temperature_compensation(pt_temp_low) },
+    { format_temperature(params.temp_low) .. ": снятие термокомпенсации", temperature_compensation(pt_temp_low) },
 
-    { format_temperature(params.temp_high)..": снятие термокомпенсации", temperature_compensation(pt_temp_high)},
+    { format_temperature(params.temp_high) .. ": снятие термокомпенсации", temperature_compensation(pt_temp_high) },
 
-    { format_temperature(params.temp_norm)..": снятие термокомпенсации", temperature_compensation(pt_temp_norm) },
+    { format_temperature(params.temp_norm) .. ": снятие термокомпенсации", temperature_compensation(pt_temp_norm) },
 
-    { "расчёт и ввод термокомпенсации", calc_temp },
-
-    { "снятие сигналов каналов", function()
-        for _,k in pairs({21,22,43,44}) do
-            go:ReadSave(224 + k*2, 'bcd', 'K'..tostring(k))
+    { "расчёт и ввод термокомпенсации", function()
+        for _, p in pairs(go.Products) do
+            calc_T0_product(p)
+            calc_TK_product(p)
         end
     end },
 
-    { format_temperature(params.temp_norm)..": снятие для проверки погрешности", function()
+    { "снятие сигналов каналов", function()
+        for _, k in pairs({ 21, 22, 43, 44 }) do
+            go:ReadSave(224 + k * 2, 'bcd', 'K' .. tostring(k))
+        end
+    end },
+
+    { format_temperature(params.temp_norm) .. ": снятие для проверки погрешности", function()
         setupTemperature(params.temp_norm)
         adjust()
-        gases_read_save('test_'..pt_temp_norm, {1,4})
+        gases_read_save('test_' .. pt_temp_norm, { 1, 4 })
     end },
 
-    { format_temperature(params.temp_low)..": снятие для проверки погрешности", function()
+    { format_temperature(params.temp_low) .. ": снятие для проверки погрешности", function()
         setupTemperature(params.temp_low)
-        gases_read_save('test_'..pt_temp_low, {1,4})
+        gases_read_save('test_' .. pt_temp_low, { 1, 4 })
     end },
 
-    { format_temperature(params.temp_high)..": снятие для проверки погрешности", function()
+    { format_temperature(params.temp_high) .. ": снятие для проверки погрешности", function()
         setupTemperature(params.temp_high)
-        gases_read_save('test_'..pt_temp_high, {1,4})
+        gases_read_save('test_' .. pt_temp_high, { 1, 4 })
     end },
 
-    { format_temperature(params.temp_norm)..": повторное снятие для проверки погрешности", function()
+    { format_temperature(params.temp_norm) .. ": повторное снятие для проверки погрешности", function()
         setupTemperature(params.temp_norm)
-        gases_read_save('test2_'..pt_temp_norm, {1,4})
+        gases_read_save('test2_' .. pt_temp_norm, { 1, 4 })
     end },
 
     { "технологический прогон", function()
         adjust()
         go:Info('снятие перед технологическим прогоном')
-        gases_read_save('tex1', {1,4})
+        gases_read_save('tex1', { 1, 4 })
         go:Delay(params.duration_tex, 'технологический прогон')
         go:Info('снятие после технологического прогона')
-        gases_read_save('tex2', {1,4})
+        gases_read_save('tex2', { 1, 4 })
     end },
 })
