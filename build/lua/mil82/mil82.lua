@@ -47,8 +47,35 @@ local params = go:ParamsDialog({
     },
 })
 
+local function set_coefficients_product (values, product)
+    for k, value in pairs(values) do
+        product:SetKef(k, value)
+    end
+end
+
+local function write_coefficients_product (values, product)
+    for k, value in pairs(values) do
+        product:WriteKef(k, 'bcd', value)
+    end
+end
+
+local function write_coefficients(coefficients)
+
+    table.sort(coefficients, function(a, b)
+        return a < b
+    end)
+
+    go:NewWork('запись коэффициентов ' .. stringify(coefficients), function()
+        for _, product in pairs(go.Products) do
+            for _, k in pairs(coefficients) do
+                product:WriteKef(k, 'bcd', product:Kef(k))
+            end
+        end
+    end)
+end
+
 local function write_common_coefficients()
-    for k, v in pairs({
+    local coefficients = {
         [2] = os.date("*t").year,
         [10] = go.Config.c1,
         [11] = go.Config.c3,
@@ -68,11 +95,11 @@ local function write_common_coefficients()
         [26] = 0,
         [27] = 0,
         [28] = 0,
-    }) do
-        for _,p in pairs(go.Products) do
-            p:WriteKef(k, 'bcd', v)
-            p:SetValue(db_key_coefficient(n), value)
-        end
+    }
+
+    for _, p in pairs(go.Products) do
+        set_coefficients_product(coefficients, p)
+        write_coefficients_product(coefficients, p)
     end
 end
 
@@ -123,9 +150,9 @@ local function temperature_compensation(pt_temp)
         gases = { 1, 3, 4 }
     end
     local temperatures = {
-        [pt_temp_norm] = params.temp_norm,
-        [pt_temp_low] = params.temp_low,
-        [pt_temp_high] = params.temp_high,
+        [t_norm] = params.temp_norm,
+        [t_low] = params.temp_low,
+        [t_high] = params.temp_high,
     }
     local temperature = temperatures[pt_temp]
     return function()
@@ -150,24 +177,9 @@ local function temp_db_key(pt_temp, gas, var)
     return pt_temp .. '_gas' .. tostring(gas) .. '_var' .. tostring(var)
 end
 
-local write_coefficients_product = function(product, k, values)
-    for i,value in pairs(values) do
-        local n = k + i - 1
-        local s = string.format('K%02d', n)
-        if value ~= value then
-            product:Err( s..': нет значения для записи: NaN')
-        elseif value == nil then
-            product:Err( s..': нет значения для записи: nil')
-        else
-            product:WriteKef(n, 'bcd', value)
-            product:SetValue(db_key_coefficient(n), value)
-        end
-    end
-end
-
 local function get_temp_values_product(product, gas, var)
     local values = {}
-    for _, pt_t in pairs({ pt_temp_low, pt_temp_norm, pt_temp_high }) do
+    for _, pt_t in pairs({ t_low, t_norm, t_high }) do
         local key = temp_db_key(pt_t, gas, var)
         local value = product:Value(key)
         if value == nil then
@@ -182,13 +194,21 @@ local function format_product_number(p)
     return string.format('№%d.id%d', p.Serial, p.ID)
 end
 
-local function calc_T0_product(p)
-    go:NewWork( string.format('%s: расчёт термокомпенсации начала шкалы', format_product_number(p) ), function()
-        local t1 = get_temp_values_product(p, 1, varTemp)
-        local var1 = get_temp_values_product(p,1, var16)
+local function array_n(xs, n)
+    local ret = {}
+    for i, v in pairs(xs) do
+        ret[n + i - 1] = v
+    end
+    return ret
+end
 
-        p:Info('t1='..stringify(t1))
-        p:Info('var1='.. stringify(var1))
+local function calc_T0_product(p)
+    go:NewWork(string.format('%s: расчёт термокомпенсации начала шкалы', format_product_number(p)), function()
+        local t1 = get_temp_values_product(p, 1, varTemp)
+        local var1 = get_temp_values_product(p, 1, var16)
+
+        p:Info('t1=' .. stringify(t1))
+        p:Info('var1=' .. stringify(var1))
 
         local d1 = {}
         for i = 1, 3 do
@@ -197,18 +217,18 @@ local function calc_T0_product(p)
 
         local T0 = go:InterpolationCoefficients(d1)
         p:Info('T0=' .. stringify(T0))
-        write_coefficients_product(p, 23, T0)
+        set_coefficients_product(array_n(T0, 23), p)
     end)
 end
 
 local function calc_TK_product(p)
-    go:NewWork( string.format('%s: расчёт термокомпенсации конца шкалы', format_product_number(p) ), function()
-        local t4 = get_temp_values_product(p,4, varTemp)
-        local var4 = get_temp_values_product(p,4, var16)
-        local var1 = get_temp_values_product(p,1, var16)
+    go:NewWork(string.format('%s: расчёт термокомпенсации конца шкалы', format_product_number(p)), function()
+        local t4 = get_temp_values_product(p, 4, varTemp)
+        local var4 = get_temp_values_product(p, 4, var16)
+        local var1 = get_temp_values_product(p, 1, var16)
 
-        p:Info('t1='..stringify(t4))
-        p:Info('var1='.. stringify(var4))
+        p:Info('t1=' .. stringify(t4))
+        p:Info('var1=' .. stringify(var4))
 
         local d4 = {}
         for i = 1, 3 do
@@ -216,24 +236,64 @@ local function calc_TK_product(p)
         end
 
         local TK = go:InterpolationCoefficients(d4)
-
         p:Info('TK: ' .. stringify(TK))
-        write_coefficients_product(p, 26, TK)
+        set_coefficients_product(array_n(TK, 26), p)
     end)
 end
 
 local function calc_TM_product(p)
-    go:NewWork( string.format('%s: расчёт термокомпенсации середины шкалы', format_product_number(p) ), function()
-        local K = {}
-        for i = 16,19 do
-            K[i] = p:Value(db_key_coefficient(n))
-        end
+    go:NewWork(string.format('%s: расчёт термокомпенсации середины шкалы', format_product_number(p)), function()
+        local K16 = p:Kef(16)
+        local K17 = p:Kef(17)
+        local K18 = p:Kef(18)
+        local K19 = p:Kef(19)
+
+        local v1_norm = p:Value(temp_db_key(t_norm, 1, var16))
+        local v3_norm = p:Value(temp_db_key(t_norm, 3, var16))
+        local v4_norm = p:Value(temp_db_key(t_norm, 4, var16))
+
+        local v1_low = p:Value(temp_db_key(t_low, 1, var16))
+        local v3_low = p:Value(temp_db_key(t_low, 3, var16))
+        local v4_low = p:Value(temp_db_key(t_low, 4, var16))
+
+        local v1_high = p:Value(temp_db_key(t_high, 1, var16))
+        local v3_high = p:Value(temp_db_key(t_high, 3, var16))
+        local v4_high = p:Value(temp_db_key(t_high, 4, var16))
+
+        local C = go.Config.c4
+
+        local x1 = C * (v1_norm - v3_norm) / (v1_norm - v4_norm)
+        local x2 = C * (v1_low - v3_low) / (v1_low - v4_low)
+        local d = K16 + K17 * x2 + K18 * x2 * x2 + K19 * x2 * x2 * x2 - x2
+
+        local y_low = (K16 + K17 * x1 + K18 * x1 * x1 + K19 * x1 * x1 * x1 - x2) / d
+
+        x1 = C * (v1_norm - v3_norm) / (v1_norm - v4_norm)
+        x2 = C * (v1_high - v3_high) / (v1_high - v4_high)
+
+        d = K16 + K17 * x2 + K18 * x2 * x2 + K19 * x2 * x2 * x2 - x2
+
+        local y_hi = (K16 + K17 * x1 + K18 * x1 * x1 + K19 * x1 * x1 * x1 - x2) / d
+
+        local t1 = p:Value(temp_db_key(t_low, 3, varTemp))
+        local t2 = p:Value(temp_db_key(t_norm, 3, varTemp))
+        local t3 = p:Value(temp_db_key(t_high, 3, varTemp))
+
+        local TM = go:InterpolationCoefficients({
+            { t1, y_low },
+            { t2, 1 },
+            { t3, y_hi },
+        })
+
+        p:Info('TM: ' .. stringify(TM))
+        set_coefficients_product(array_n(TM, 37), p)
+
     end)
 end
 
 local function calc_lin()
     for _, p in pairs(go.Products) do
-        go:NewWork( string.format('%s: расчёт линеаризации', format_product_number(p) ), function()
+        go:NewWork(string.format('%s: расчёт линеаризации', format_product_number(p)), function()
             local xy = {}
             local gases = { 1, 2, 3, 4 }
             if params.linear_degree == 3 then
@@ -241,7 +301,9 @@ local function calc_lin()
             end
             for _, gas in pairs(gases) do
                 local x = p:Value('lin' .. tostring(gas))
-                if x == nil then return end
+                if x == nil then
+                    return
+                end
                 xy[gas] = { x, go.Config['c' .. tostring(gas)] }
             end
 
@@ -250,7 +312,7 @@ local function calc_lin()
                 LIN[4] = 0
             end
             p:Info(stringify(xy) .. ': ' .. stringify(LIN))
-            write_coefficients_product(p, 16, LIN)
+            set_coefficients_product(array_n(LIN, 16), p)
         end)
     end
 end
@@ -283,17 +345,28 @@ go:SelectWorksDialog({
 
     { "расчёт линеаризации", calc_lin },
 
-    { format_temperature(params.temp_low) .. ": снятие термокомпенсации", temperature_compensation(pt_temp_low) },
+    { "запись линеаризации", function()
+        write_coefficients({ 16, 17, 18, 19 })
+    end },
 
-    { format_temperature(params.temp_high) .. ": снятие термокомпенсации", temperature_compensation(pt_temp_high) },
+    { format_temperature(params.temp_low) .. ": снятие термокомпенсации", temperature_compensation(t_low) },
 
-    { format_temperature(params.temp_norm) .. ": снятие термокомпенсации", temperature_compensation(pt_temp_norm) },
+    { format_temperature(params.temp_high) .. ": снятие термокомпенсации", temperature_compensation(t_high) },
 
-    { "расчёт и ввод термокомпенсации", function()
+    { format_temperature(params.temp_norm) .. ": снятие термокомпенсации", temperature_compensation(t_norm) },
+
+    { "расчёт термокомпенсации", function()
         for _, p in pairs(go.Products) do
             calc_T0_product(p)
             calc_TK_product(p)
+            if params.temp_middle_scale then
+                calc_TM_product(p)
+            end
         end
+    end },
+
+    { "запись термокомпенсации", function()
+        write_coefficients({ 23, 24, 25, 26, 27, 28, 37, 38, 39 })
     end },
 
     { "снятие сигналов каналов", function()
@@ -305,22 +378,22 @@ go:SelectWorksDialog({
     { format_temperature(params.temp_norm) .. ": снятие для проверки погрешности", function()
         setupTemperature(params.temp_norm)
         adjust()
-        gases_read_save('test_' .. pt_temp_norm, { 1, 4 })
+        gases_read_save('test_' .. t_norm, { 1, 4 })
     end },
 
     { format_temperature(params.temp_low) .. ": снятие для проверки погрешности", function()
         setupTemperature(params.temp_low)
-        gases_read_save('test_' .. pt_temp_low, { 1, 4 })
+        gases_read_save('test_' .. t_low, { 1, 4 })
     end },
 
     { format_temperature(params.temp_high) .. ": снятие для проверки погрешности", function()
         setupTemperature(params.temp_high)
-        gases_read_save('test_' .. pt_temp_high, { 1, 4 })
+        gases_read_save('test_' .. t_high, { 1, 4 })
     end },
 
     { format_temperature(params.temp_norm) .. ": повторное снятие для проверки погрешности", function()
         setupTemperature(params.temp_norm)
-        gases_read_save('test2_' .. pt_temp_norm, { 1, 4 })
+        gases_read_save('test2_' .. t_norm, { 1, 4 })
     end },
 
     { "технологический прогон", function()

@@ -9,6 +9,7 @@ import (
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
 	lua "github.com/yuin/gopher-lua"
+	"math"
 )
 
 type luaProduct struct {
@@ -30,52 +31,53 @@ func (x *luaProduct) init(p data.Product) error {
 	return nil
 }
 
-func (x *luaProduct) WriteKef(k int, format modbus.FloatBitsFormat, pv lua.LValue) {
+func (x *luaProduct) WriteKef(k int, format modbus.FloatBitsFormat, LValue lua.LNumber) {
 	if err := format.Validate(); err != nil {
 		luaState.ArgError(2, err.Error())
 	}
 	luaCheckNumberOrNil(4)
-	if pv == lua.LNil {
+	value := float64(LValue)
+	if math.IsNaN(value) {
 		x.Err(fmt.Sprintf("запись К%d: нет значения", k))
 		return
 	}
-	_ = writeKefProduct(log, luaState.Context(), x.p, x.Device, k, format, float64(pv.(lua.LNumber)))
-	//x.setValue(fmt.Sprintf("K%02d", k), float64(pv.(lua.LNumber)))
+	_ = writeKefProduct(log, luaState.Context(), x.p, x.Device, k, format, value)
 }
 
-func (x *luaProduct) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, pv lua.LValue) {
+func (x *luaProduct) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, LValue lua.LNumber) {
 	if err := format.Validate(); err != nil {
 		luaState.ArgError(2, err.Error())
 	}
 	luaCheckNumberOrNil(4)
-	if pv == lua.LNil {
+	value := float64(LValue)
+	if math.IsNaN(value) {
 		x.Err(fmt.Sprintf("write32: cmd=%d: нет значения", cmd))
 		return
 	}
-	_ = write32Product(log, luaState.Context(), x.p, x.Device, cmd, format, float64(pv.(lua.LNumber)))
+	_ = write32Product(log, luaState.Context(), x.p, x.Device, cmd, format, value)
 }
 
-func (x *luaProduct) ReadReg(reg modbus.Var, format modbus.FloatBitsFormat) lua.LValue {
+func (x *luaProduct) ReadReg(reg modbus.Var, format modbus.FloatBitsFormat) lua.LNumber {
 	if err := format.Validate(); err != nil {
 		luaState.ArgError(2, err.Error())
 	}
 	v, err := modbus.Read3Value(log, luaState.Context(), x.comm(), x.p.Addr, reg, format)
 	if err != nil {
-		x.Err(fmt.Sprintf("считывание рег%d", reg))
-		return lua.LNil
+		x.Err(fmt.Sprintf("считывание рег%d: %v", reg, err))
+		return luaNaN
 	}
 	x.Info(fmt.Sprintf("считатно рег%d=%v", reg, v))
 	return lua.LNumber(v)
 }
 
-func (x *luaProduct) ReadKef(k modbus.Var, format modbus.FloatBitsFormat) lua.LValue {
+func (x *luaProduct) ReadKef(k modbus.Var, format modbus.FloatBitsFormat) lua.LNumber {
 	if err := format.Validate(); err != nil {
 		luaState.ArgError(2, err.Error())
 	}
 	v, err := modbus.Read3Value(log, luaState.Context(), x.comm(), x.p.Addr, 224+2*k, format)
 	if err != nil {
-		x.Err(fmt.Sprintf("считывание K%d", k))
-		return lua.LNil
+		x.Err(fmt.Sprintf("считывание K%d: %v", k, err))
+		return luaNaN
 	}
 	x.Info(fmt.Sprintf("считатно K%d=%v", k, v))
 	return lua.LNumber(v)
@@ -86,22 +88,31 @@ func (x *luaProduct) DeleteKey(key string) {
 	luaCheck(deleteProductKey(x.p.ProductID, key))
 }
 
-func (x *luaProduct) SetValue(key string, pv lua.LValue) {
-	if pv == lua.LNil {
+func (x *luaProduct) SetKef(k int, LValue lua.LNumber) {
+	x.SetValue(dbKeyCoefficient(k), LValue)
+}
+
+func (x *luaProduct) SetValue(key string, LValue lua.LNumber) {
+	value := float64(LValue)
+	if math.IsNaN(value) {
 		x.Err(fmt.Sprintf("%q: нет значения", key))
 		return
 	}
-	x.setValue(key, float64(pv.(lua.LNumber)))
+	x.setValue(key, value)
 }
 
-func (x *luaProduct) Value(key string) lua.LValue {
+func (x *luaProduct) Kef(k int) lua.LNumber {
+	return x.Value(dbKeyCoefficient(k))
+}
+
+func (x *luaProduct) Value(key string) lua.LNumber {
 	var v float64
 	err := db.Get(&v,
 		`SELECT value FROM product_value WHERE product_id = ? AND key = ?`,
 		x.p.ProductID, key)
 	if err == sql.ErrNoRows {
-		x.Err(fmt.Sprintf("%q: нет данных", key))
-		return lua.LNil
+		x.Err(fmt.Sprintf("%q: нет значения", key))
+		return luaNaN
 	}
 	if err != nil {
 		log.Panic(err)

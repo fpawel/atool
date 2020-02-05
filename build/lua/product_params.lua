@@ -58,9 +58,9 @@ local function formatGas(gas)
 end
 
 for pt_key, pt_name in pairs({
-    [pt_temp_low] = 'низкая температура',
-    [pt_temp_norm] = 'нормальная температура',
-    [pt_temp_high] = 'высокая температура',
+    [t_low] = 'низкая температура',
+    [t_norm] = 'нормальная температура',
+    [t_high] = 'высокая температура',
 }) do
     local x = {}
     for _,var in pairs(vars) do

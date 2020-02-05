@@ -26,17 +26,10 @@ varConcentration = 0
 
 vars = { varConcentration, varTemp, 4, 8, 10, 12, 14, var16, }
 
-pt_temp_low = 't_low'
-pt_temp_norm = 't_norm'
-pt_temp_high = 't_high'
+t_low = 't_low'
+t_norm = 't_norm'
+t_high = 't_high'
 
 function db_key_gas_var(gas, var)
     return 'gas'..tostring(gas) .. '_var' .. tostring(var)
-end
-
-function db_key_coefficient(k)
-    if k < 10 then
-        return 'K0'..tostring(k)
-    end
-    return 'K'..tostring(k)
 end

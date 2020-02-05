@@ -15,6 +15,7 @@ import (
 	"github.com/powerman/structlog"
 	lua "github.com/yuin/gopher-lua"
 	luar "layeh.com/gopher-luar"
+	"math"
 	"sort"
 	"strconv"
 	"time"
@@ -30,6 +31,7 @@ var (
 	luaSelectedWorksChan = make(chan []bool)
 	luaIgnoreError       = func() {}
 	luaState             *lua.LState
+	luaNaN               = lua.LNumber(math.NaN())
 )
 
 func (x *luaImport) init() error {

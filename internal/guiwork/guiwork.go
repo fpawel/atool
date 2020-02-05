@@ -79,9 +79,13 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 			err = merry.Append(err, newWorkName)
 		}
 		JournalErr(log, err)
+		return err
 	}
 
-	return err
+	if isMainWork {
+		JournalInfo(log, newWorkName+": выполнение окончено")
+	}
+	return nil
 }
 
 func InterruptDelay(log *structlog.Logger) {

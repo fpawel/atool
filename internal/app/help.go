@@ -177,6 +177,10 @@ ON CONFLICT (product_id,key) DO UPDATE
 	return merry.Appendf(err, "%s, %s: %v", q1, key, value)
 }
 
+func dbKeyCoefficient(k int) string {
+	return fmt.Sprintf("K%02d", k)
+}
+
 func getProductValues(productID int64) (map[string]float64, error) {
 	var xs []struct {
 		Key   string  `db:"key"`
