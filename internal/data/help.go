@@ -44,9 +44,9 @@ func formatIDs(ids []int64) string {
 	return strings.Join(ss, ",")
 }
 
-func currentPartyProductsIDsSql(db *sqlx.DB) (string, error) {
+func partyProductsIDsSql(db *sqlx.DB, partyID int64) (string, error) {
 	var xs []int64
-	if err := db.Select(&xs, `SELECT product_id FROM product WHERE party_id = (SELECT party_id FROM app_config)`); err != nil {
+	if err := db.Select(&xs, `SELECT product_id FROM product WHERE party_id = ?`, partyID); err != nil {
 		return "", err
 	}
 	return "(" + formatIDs(xs) + ")", nil

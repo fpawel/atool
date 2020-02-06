@@ -26,7 +26,14 @@ service CurrentFileService {
     list<apitypes.DeviceParam> listDeviceParams()
     void runEdit()
     void createNewCopy()
-    list<apitypes.SectionProductParamsValues> getSectionsProductsParamsValues()}
+    list<apitypes.SectionProductParamsValues> getProductsParamsValues(1:string configFilename)
+
+    void saveFile(1:string filename)
+    void openFile(1:string filename)
+    void deleteAll()
+
+    apitypes.SectionProductParamsValues getAllProductsParamsValues()
+}
 
 service ProductParamService {
     void setValue(1:string key, 2:i64 productID, 3:string value)

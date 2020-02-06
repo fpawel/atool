@@ -393,7 +393,7 @@ go:SelectWorksDialog({
 
     { format_temperature(params.temp_norm) .. ": повторное снятие для проверки погрешности", function()
         setupTemperature(params.temp_norm)
-        gases_read_save('test2_' .. t_norm, { 1, 4 })
+        gases_read_save('test2_', { 1, 4 })
     end },
 
     { "технологический прогон", function()

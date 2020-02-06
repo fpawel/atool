@@ -82,5 +82,5 @@ func (h *filesSvc) CreateNewParty(ctx context.Context, productsCount int8, name 
 	if len(xs) > 0 {
 		productType = xs[0]
 	}
-	return data.CreateNewParty(ctx, db, int(productsCount), name, productType)
+	return data.SetNewCurrentParty(ctx, db, int(productsCount), name, productType)
 }

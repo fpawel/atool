@@ -2,10 +2,7 @@ package configlua
 
 import (
 	"fmt"
-	"github.com/fpawel/atool/internal/pkg/must"
 	lua "github.com/yuin/gopher-lua"
-	"os"
-	"path/filepath"
 )
 
 type ProductParamsSection struct {
@@ -89,10 +86,3 @@ func GetProductParamsSectionsList(filename string) (ProductParamsSectionsList, e
 	})
 	return sections, nil
 }
-
-var ProductParamsSections = func() ProductParamsSectionsList {
-	xs, err := GetProductParamsSectionsList(
-		filepath.Join(filepath.Dir(os.Args[0]), "lua", "product_params.lua"))
-	must.PanicIf(err)
-	return xs
-}()

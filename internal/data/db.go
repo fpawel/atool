@@ -80,45 +80,8 @@ func SetCurrentPartyValues(db *sqlx.DB, p PartyValues) error {
 	if err != nil {
 		return err
 	}
-	currentPartyProductsIDsSql, err := currentPartyProductsIDsSql(db)
-	if err != nil {
+	if err := setPartyValues(db, partyID, p); err != nil {
 		return err
-	}
-
-	if _, err := db.Exec(`DELETE FROM party_value WHERE party_id=?`, partyID); err != nil {
-		return err
-	}
-
-	var sqlStr string
-	for k, v := range p.Values {
-		if len(sqlStr) > 0 {
-			sqlStr += ","
-		}
-		sqlStr += fmt.Sprintf("(%d, '%s', %v)", partyID, k, v)
-	}
-	if len(sqlStr) > 0 {
-		if _, err := db.Exec(`INSERT INTO party_value(party_id, key, value) VALUES ` + sqlStr); err != nil {
-			return err
-		}
-	}
-
-	if _, err := db.Exec(`DELETE FROM product_value WHERE product_id IN ` + currentPartyProductsIDsSql); err != nil {
-		return err
-	}
-
-	sqlStr = ""
-	for _, p := range p.Products {
-		for k, v := range p.Values {
-			if len(sqlStr) > 0 {
-				sqlStr += ","
-			}
-			sqlStr += fmt.Sprintf("(%d, '%s', %v)", p.ProductID, k, v)
-		}
-	}
-	if len(sqlStr) > 0 {
-		if _, err := db.Exec(`INSERT INTO product_value(product_id, key, value) VALUES ` + sqlStr); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -237,7 +200,7 @@ ON CONFLICT (product_id, param_addr) DO UPDATE SET series_active=:series_active,
 	return err
 }
 
-func CreateNewParty(ctx context.Context, db *sqlx.DB, productsCount int, name string, productType string) error {
+func SetNewCurrentParty(ctx context.Context, db *sqlx.DB, productsCount int, name string, productType string) error {
 	newPartyID, err := createNewParty(db, name, productType)
 	if err != nil {
 		return err
@@ -254,6 +217,62 @@ func CreateNewParty(ctx context.Context, db *sqlx.DB, productsCount int, name st
 		}
 	}
 	if err := setAppConfigPartyID(db, newPartyID); err != nil {
+		return err
+	}
+	return nil
+}
+
+func AddNewProduct(db *sqlx.DB, order int) (int64, error) {
+	party, err := GetCurrentParty(db)
+	if err != nil {
+		return 0, err
+	}
+	addresses := make(map[modbus.Addr]struct{})
+	for _, x := range party.Products {
+		addresses[x.Addr] = struct{}{}
+	}
+	addr := modbus.Addr(1)
+	for ; addr <= modbus.Addr(255); addr++ {
+		if _, f := addresses[addr]; !f {
+			break
+		}
+	}
+	r, err := db.Exec(
+		`INSERT INTO product( party_id, addr, created_order) VALUES (?,?,?)`,
+		party.PartyID, addr, order)
+	if err != nil {
+		return 0, err
+	}
+
+	productID, err := getNewInsertedID(r)
+	if err != nil {
+		return 0, err
+	}
+	return productID, nil
+}
+
+func DeleteCurrentParty(db *sqlx.DB) error {
+	var newCurrentPartyID int64
+	const q1 = `
+SELECT party_id 
+FROM party 
+WHERE party_id != (SELECT party_id FROM app_config WHERE id=1)
+ORDER BY created_at  DESC 
+LIMIT 1`
+	if err := db.Get(&newCurrentPartyID, q1); err != nil {
+		return err
+	}
+
+	partyID, err := GetCurrentPartyID(db)
+	if err != nil {
+		return err
+	}
+
+	if _, err := db.Exec(`UPDATE app_config SET party_id = ? WHERE id=1`, newCurrentPartyID); err != nil {
+		return err
+	}
+
+	if _, err := db.Exec(`DELETE FROM party WHERE party_id=?`, partyID); err != nil {
 		return err
 	}
 	return nil
@@ -279,30 +298,47 @@ func createNewParty(db *sqlx.DB, name, productType string) (int64, error) {
 	return getNewInsertedID(r)
 }
 
-func AddNewProduct(db *sqlx.DB, order int) error {
-	party, err := GetCurrentParty(db)
-	if err != nil {
-		return err
-	}
-	addresses := make(map[modbus.Addr]struct{})
-	for _, x := range party.Products {
-		addresses[x.Addr] = struct{}{}
-	}
-	addr := modbus.Addr(1)
-	for ; addr <= modbus.Addr(255); addr++ {
-		if _, f := addresses[addr]; !f {
-			break
-		}
-	}
-	r, err := db.Exec(
-		`INSERT INTO product( party_id, addr, created_order) VALUES (?,?,?)`,
-		party.PartyID, addr, order)
+func setPartyValues(db *sqlx.DB, partyID int64, p PartyValues) error {
+
+	partyProductsIDsSql, err := partyProductsIDsSql(db, partyID)
 	if err != nil {
 		return err
 	}
 
-	if _, err = getNewInsertedID(r); err != nil {
+	if _, err := db.Exec(`DELETE FROM party_value WHERE party_id=?`, partyID); err != nil {
 		return err
+	}
+
+	var sqlStr string
+	for k, v := range p.Values {
+		if len(sqlStr) > 0 {
+			sqlStr += ","
+		}
+		sqlStr += fmt.Sprintf("(%d, '%s', %v)", partyID, k, v)
+	}
+	if len(sqlStr) > 0 {
+		if _, err := db.Exec(`INSERT INTO party_value(party_id, key, value) VALUES ` + sqlStr); err != nil {
+			return err
+		}
+	}
+
+	if _, err := db.Exec(`DELETE FROM product_value WHERE product_id IN ` + partyProductsIDsSql); err != nil {
+		return err
+	}
+
+	sqlStr = ""
+	for _, p := range p.Products {
+		for k, v := range p.Values {
+			if len(sqlStr) > 0 {
+				sqlStr += ","
+			}
+			sqlStr += fmt.Sprintf("(%d, '%s', %v)", p.ProductID, k, v)
+		}
+	}
+	if len(sqlStr) > 0 {
+		if _, err := db.Exec(`INSERT INTO product_value(product_id, key, value) VALUES ` + sqlStr); err != nil {
+			return err
+		}
 	}
 	return nil
 }

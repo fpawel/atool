@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime/debug"
+	"sort"
 	"time"
 )
 
@@ -36,37 +37,42 @@ func (h *currentFileSvc) RequestChart(_ context.Context) error {
 
 type mapIntFloat map[int64]float64
 
-func (h *currentFileSvc) GetSectionsProductsParamsValues(_ context.Context) ([]*apitypes.SectionProductParamsValues, error) {
-	const q2 = `
-SELECT product_id, key, value
-FROM product_value
-WHERE product_id IN (SELECT product_id FROM product WHERE party_id IN (SELECT party_id FROM app_config))`
-	var values1 []struct {
-		ProductID int64   `db:"product_id"`
-		Key       string  `db:"key"`
-		Value     float64 `db:"value"`
-	}
-	if err := db.Select(&values1, q2); err != nil {
-		return nil, err
-	}
-
-	values := map[string]mapIntFloat{}
-
-	for _, x := range values1 {
-		if values[x.Key] == nil {
-			values[x.Key] = mapIntFloat{}
-		}
-		values[x.Key][x.ProductID] = x.Value
-	}
-
-	var result []*apitypes.SectionProductParamsValues
+func (h *currentFileSvc) GetAllProductsParamsValues(_ context.Context) (r *apitypes.SectionProductParamsValues, err error) {
 
 	party, err := data.GetCurrentParty(db)
 	if err != nil {
 		return nil, err
 	}
 
-	for nSect, sect := range configlua.ProductParamsSections {
+	values, err := getPartyProductsParamsValues(party.PartyID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := getAllProductsParamsValues(party, values)
+	return &result, nil
+}
+
+func (h *currentFileSvc) GetProductsParamsValues(_ context.Context, configFilename string) ([]*apitypes.SectionProductParamsValues, error) {
+
+	productParamsSections, err := configlua.GetProductParamsSectionsList(configFilename)
+	if err != nil {
+		return nil, err
+	}
+
+	party, err := data.GetCurrentParty(db)
+	if err != nil {
+		return nil, err
+	}
+
+	values, err := getPartyProductsParamsValues(party.PartyID)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*apitypes.SectionProductParamsValues
+
+	for nSect, sect := range productParamsSections {
 		y := &apitypes.SectionProductParamsValues{
 			Section: fmt.Sprintf("%d. %s", nSect+1, sect.Name),
 			Values:  [][]string{{"Прибор"}},
@@ -92,10 +98,9 @@ WHERE product_id IN (SELECT product_id FROM product WHERE party_id IN (SELECT pa
 			}
 			y.Values = append(y.Values, xs)
 		}
+
 		result = append(result, y)
 	}
-
-	addAdditionalProductParamsSectionValues(party, values, &result)
 
 	return result, nil
 }
@@ -112,7 +117,7 @@ WHERE chart = ?
 
 func (h *currentFileSvc) AddNewProducts(_ context.Context, productsCount int8) error {
 	for i := 0; i < int(productsCount); i++ {
-		if err := data.AddNewProduct(db, i); err != nil {
+		if _, err := data.AddNewProduct(db, i); err != nil {
 			return err
 		}
 	}
@@ -197,21 +202,64 @@ func (h *currentFileSvc) RunEdit(_ context.Context) error {
 	return nil
 }
 
-func addAdditionalProductParamsSectionValues(party data.Party,
-	values map[string]mapIntFloat,
-	result *[]*apitypes.SectionProductParamsValues) {
-	sect := &apitypes.SectionProductParamsValues{
-		Values:  [][]string{{"Прибор"}},
-		Section: fmt.Sprintf("%d. Дополнительно", len(*result)+1),
+func (h *currentFileSvc) SaveFile(ctx context.Context, filename string) error {
+	return nil
+}
+
+func (h *currentFileSvc) OpenFile(_ context.Context, filename string) error {
+	err := data.LoadFile(db, filename)
+	if err == nil {
+		go gui.NotifyCurrentPartyChanged()
+	}
+	return err
+}
+
+func (h *currentFileSvc) DeleteAll(_ context.Context) error {
+	go func() {
+		if err := data.DeleteCurrentParty(db); err != nil {
+			guiwork.JournalErr(log, merry.Append(err, "удаление текущего файла"))
+			return
+		}
+		gui.NotifyCurrentPartyChanged()
+	}()
+	return nil
+}
+
+func getPartyProductsParamsValues(partyID int64) (map[string]mapIntFloat, error) {
+	const q2 = `
+SELECT product_id, key, value
+FROM product_value
+WHERE product_id IN (SELECT product_id FROM product WHERE party_id = ?)`
+	var values1 []struct {
+		ProductID int64   `db:"product_id"`
+		Key       string  `db:"key"`
+		Value     float64 `db:"value"`
+	}
+	if err := db.Select(&values1, q2, partyID); err != nil {
+		return nil, err
+	}
+
+	values := map[string]mapIntFloat{}
+
+	for _, x := range values1 {
+		if values[x.Key] == nil {
+			values[x.Key] = mapIntFloat{}
+		}
+		values[x.Key][x.ProductID] = x.Value
+	}
+	return values, nil
+}
+
+func getAllProductsParamsValues(party data.Party, values map[string]mapIntFloat) apitypes.SectionProductParamsValues {
+
+	result := apitypes.SectionProductParamsValues{
+		Values: [][]string{{"Прибор"}},
 	}
 
 	for _, p := range party.Products {
-		sect.Values[0] = append(sect.Values[0], fmt.Sprintf("№%d ID%d", p.Serial, p.ProductID))
+		result.Values[0] = append(result.Values[0], fmt.Sprintf("№%d ID%d", p.Serial, p.ProductID))
 	}
 	for k, m := range values {
-		if configlua.ProductParamsSections.HasKey(k) {
-			continue
-		}
 		xs := []string{k}
 		for _, p := range party.Products {
 			s := ""
@@ -221,14 +269,22 @@ func addAdditionalProductParamsSectionValues(party data.Party,
 			xs = append(xs, s)
 		}
 		if len(xs) > 1 {
-			sect.Values = append(sect.Values, xs)
-			sect.Keys = append(sect.Keys, k)
+			result.Values = append(result.Values, xs)
+			result.Keys = append(result.Keys, k)
 		}
 	}
 
-	if len(sect.Values) > 1 {
-		*result = append(*result, sect)
+	if len(result.Values) > 1 {
+		sort.Slice(result.Keys, func(i, j int) bool {
+			return result.Keys[i] < result.Keys[j]
+		})
+		vs := result.Values[1:]
+		sort.Slice(vs, func(i, j int) bool {
+			return vs[i][0] < vs[j][0]
+		})
 	}
+
+	return result
 }
 
 func getParamAddresses() ([]int, error) {
