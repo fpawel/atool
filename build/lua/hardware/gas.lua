@@ -1,4 +1,4 @@
--- atoolgui: Оборудование: Газовый блок: клапан
+-- atool: work: Газовый блок: клапан
 
 go:SwitchGasNoWarn(go:ParamsDialog({
     x = {

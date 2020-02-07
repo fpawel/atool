@@ -1,3 +1,3 @@
--- atoolgui: Оборудование: Термокамера: старт
+-- atool: work: Термокамера: старт
 
 go:TemperatureStart()

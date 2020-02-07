@@ -1,4 +1,4 @@
--- atoolgui: MODBUS: Отправка команды
+-- atool: work: MODBUS: Отправка команды
 
 params =  go:ParamsDialog({
     cmd = {

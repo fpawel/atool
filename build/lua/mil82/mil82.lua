@@ -1,16 +1,19 @@
--- atoolgui: МИЛ82: Автоматическая настройка
+-- atool: work: МИЛ-82: Автоматическая настройка
 
 require 'mil82/init'
 require 'print_table'
 json = require("dkjson")
 
-prod_type = prod_types[go.Config.product_type]
+local Config = go:GetConfig()
+local Products = go:GetProducts()
+
+prod_type = prod_types[Config.product_type]
 
 local function stringify(v)
     return json.encode(v, { indent = true })
 end
 
-go:Info("конфигурация: " .. stringify(go.Config))
+go:Info("конфигурация: " .. stringify(Config))
 
 local params = go:ParamsDialog({
     linear_degree = {
@@ -66,7 +69,7 @@ local function write_coefficients(coefficients)
     end)
 
     go:NewWork('запись коэффициентов ' .. stringify(coefficients), function()
-        for _, product in pairs(go.Products) do
+        for _, product in pairs(Products) do
             for _, k in pairs(coefficients) do
                 product:WriteKef(k, 'bcd', product:Kef(k))
             end
@@ -77,8 +80,8 @@ end
 local function write_common_coefficients()
     local coefficients = {
         [2] = os.date("*t").year,
-        [10] = go.Config.c1,
-        [11] = go.Config.c3,
+        [10] = Config.c1,
+        [11] = Config.c3,
         [7] = scale_code[prod_type.scale],
         [8] = prod_type.scale_begin or 0,
         [9] = prod_type.scale,
@@ -97,7 +100,7 @@ local function write_common_coefficients()
         [28] = 0,
     }
 
-    for _, p in pairs(go.Products) do
+    for _, p in pairs(Products) do
         set_coefficients_product(coefficients, p)
         write_coefficients_product(coefficients, p)
     end
@@ -164,11 +167,11 @@ end
 local function adjust()
     go:NewWork("калибровка нуля", function()
         go:BlowGas(1)
-        go:Write32(1, 'bcd', go.Config.c1)
+        go:Write32(1, 'bcd', Config.c1)
     end)
     go:NewWork("калибровка чувствительности", function()
         go:BlowGas(4)
-        go:Write32(2, 'bcd', go.Config.c4)
+        go:Write32(2, 'bcd', Config.c4)
         go:BlowGas(1)
     end)
 end
@@ -260,7 +263,7 @@ local function calc_TM_product(p)
         local v3_high = p:Value(temp_db_key(t_high, 3, var16))
         local v4_high = p:Value(temp_db_key(t_high, 4, var16))
 
-        local C = go.Config.c4
+        local C = Config.c4
 
         local x1 = C * (v1_norm - v3_norm) / (v1_norm - v4_norm)
         local x2 = C * (v1_low - v3_low) / (v1_low - v4_low)
@@ -292,7 +295,7 @@ local function calc_TM_product(p)
 end
 
 local function calc_lin()
-    for _, p in pairs(go.Products) do
+    for _, p in pairs(Products) do
         go:NewWork(string.format('%s: расчёт линеаризации', format_product_number(p)), function()
             local xy = {}
             local gases = { 1, 2, 3, 4 }
@@ -304,7 +307,7 @@ local function calc_lin()
                 if x == nil then
                     return
                 end
-                xy[gas] = { x, go.Config['c' .. tostring(gas)] }
+                xy[gas] = { x, Config['c' .. tostring(gas)] }
             end
 
             local LIN = go:InterpolationCoefficients(xy)
@@ -356,7 +359,7 @@ go:SelectWorksDialog({
     { format_temperature(params.temp_norm) .. ": снятие термокомпенсации", temperature_compensation(t_norm) },
 
     { "расчёт термокомпенсации", function()
-        for _, p in pairs(go.Products) do
+        for _, p in pairs(Products) do
             calc_T0_product(p)
             calc_TK_product(p)
             if params.temp_middle_scale then

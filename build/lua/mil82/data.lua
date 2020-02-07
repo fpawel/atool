@@ -1,4 +1,4 @@
--- atool-data: МИЛ82: снятие
+-- atool: data: МИЛ-82: снятие
 
 require 'mil82/init'
 --require 'print_table'

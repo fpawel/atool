@@ -1,4 +1,4 @@
--- atoolgui: Оборудование: Термокамера: уставка
+-- atool: work: Термокамера: уставка
 
 go:TemperatureSetup(go:ParamsDialog({
     temperature = {

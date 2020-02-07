@@ -22,55 +22,55 @@ import (
 )
 
 type luaImport struct {
-	Config   *lua.LTable
-	Products *lua.LTable
+	luaState *lua.LState
 }
 
 var (
 	luaParamValues       []*apitypes.ConfigParamValue
 	luaSelectedWorksChan = make(chan []bool)
 	luaIgnoreError       = func() {}
-	luaState             *lua.LState
-	luaNaN               = lua.LNumber(math.NaN())
+
+	luaNaN = lua.LNumber(math.NaN())
 )
 
-func (x *luaImport) init() error {
-	x.Products = luaState.NewTable()
-	x.Config = luaState.NewTable()
+func (x *luaImport) GetConfig() *lua.LTable {
+	Config := x.luaState.NewTable()
 	xs, err := getConfigParamsValues()
-	if err != nil {
-		return err
-	}
+	x.luaCheck(err)
 	for _, p := range xs {
-		if p.Type == "int" || p.Type == "float" {
+		switch p.Type {
+		case "int", "float":
 			v, err := strconv.ParseFloat(p.Value, 64)
 			if err != nil {
-				return fmt.Errorf("%q=%v: %w", p.Name, p.Value, err)
+				x.luaState.RaiseError("%q=%v: %v", p.Name, p.Value, err)
 			}
-			x.Config.RawSetString(p.Key, luar.New(luaState, v))
-		} else {
-			x.Config.RawSetString(p.Key, luar.New(luaState, p.Value))
+			Config.RawSetString(p.Key, luar.New(x.luaState, v))
+		default:
+			Config.RawSetString(p.Key, luar.New(x.luaState, p.Value))
 		}
 	}
+	return Config
+}
+
+func (x *luaImport) GetProducts() *lua.LTable {
+	Products := x.luaState.NewTable()
 
 	party, err := data.GetCurrentParty(db)
-	if err != nil {
-		return err
-	}
+	x.luaCheck(err)
 
 	for _, p := range party.Products {
 		p := p
 		if !p.Active {
 			continue
 		}
-		impP := new(luaProduct)
-		if err := impP.init(p); err != nil {
-			return err
-		}
+		impP := &luaProduct{luaState: x.luaState}
+		x.luaCheck(impP.init(p))
 
-		x.Products.Append(luar.New(luaState, impP))
+		Products.Append(luar.New(x.luaState, impP))
 	}
-	return nil
+	x.luaState.SetGlobal("Products", Products)
+
+	return Products
 }
 
 func (x *luaImport) InterpolationCoefficients(a *lua.LTable) lua.LValue {
@@ -78,7 +78,7 @@ func (x *luaImport) InterpolationCoefficients(a *lua.LTable) lua.LValue {
 	a.ForEach(func(_ lua.LValue, a lua.LValue) {
 		par, f := a.(*lua.LTable)
 		if !f || par.Len() != 2 {
-			luaState.RaiseError("type error: %+v: table with two elements expected", a)
+			x.luaState.RaiseError("type error: %+v: table with two elements expected", a)
 		}
 		vx, xOk := par.RawGetInt(1).(lua.LNumber)
 		vy, yOk := par.RawGetInt(2).(lua.LNumber)
@@ -95,9 +95,13 @@ func (x *luaImport) InterpolationCoefficients(a *lua.LTable) lua.LValue {
 	r, ok := numeth.InterpolationCoefficients(dt)
 
 	if !ok {
-		return lua.LNil
+		r = make([]float64, len(dt))
+		for i := range r {
+			r[i] = math.NaN()
+		}
+		guiwork.JournalErr(log, fmt.Errorf("расёт не выполнен: %+v", dt))
 	}
-	a = luaState.NewTable()
+	a = x.luaState.NewTable()
 	for i, v := range r {
 		a.RawSetInt(i+1, lua.LNumber(v))
 	}
@@ -105,34 +109,35 @@ func (x *luaImport) InterpolationCoefficients(a *lua.LTable) lua.LValue {
 }
 
 func (x *luaImport) Temperature(destinationTemperature float64) {
-	luaWithGuiWarn(setupTemperature(luaLog(), luaState.Context(), destinationTemperature))
-	luaDelay(config.Get().Temperature.HoldDuration, fmt.Sprintf("выдержка на температуре %v⁰C", destinationTemperature))
+	luaWithGuiWarn(x.luaState, setupTemperature(log, x.luaState.Context(), destinationTemperature))
+	luaDelay(x.luaState, config.Get().Temperature.HoldDuration,
+		fmt.Sprintf("выдержка на температуре %v⁰C", destinationTemperature))
 }
 
 func (x *luaImport) TemperatureStart() {
 	tempDevice, err := getTemperatureDevice()
-	luaCheck(err)
-	luaCheck(tempDevice.Start(luaLog(), luaState.Context()))
+	x.luaCheck(err)
+	x.luaCheck(tempDevice.Start(log, x.luaState.Context()))
 }
 
 func (x *luaImport) TemperatureStop() {
 	tempDevice, err := getTemperatureDevice()
-	luaCheck(err)
-	luaCheck(tempDevice.Stop(luaLog(), luaState.Context()))
+	x.luaCheck(err)
+	x.luaCheck(tempDevice.Stop(log, x.luaState.Context()))
 }
 
 func (x *luaImport) TemperatureSetup(temperature float64) {
 	x.newNestedWork1(fmt.Sprintf("перевод термокамеры на %v⁰C", temperature),
 		func() error {
 			tempDevice, err := getTemperatureDevice()
-			luaCheck(err)
-			return tempDevice.Setup(luaLog(), luaState.Context(), temperature)
+			x.luaCheck(err)
+			return tempDevice.Setup(log, x.luaState.Context(), temperature)
 		})
 }
 
 func (x *luaImport) SwitchGas(gas byte, warn bool) {
 
-	err := switchGas(luaState.Context(), gas)
+	err := switchGas(x.luaState.Context(), gas)
 	if err == nil {
 		return
 	}
@@ -142,24 +147,24 @@ func (x *luaImport) SwitchGas(gas byte, warn bool) {
 	}
 	err = merry.New(what).WithCause(err)
 	if warn {
-		luaWithGuiWarn(err)
+		luaWithGuiWarn(x.luaState, err)
 		return
 	}
-	luaCheck(err)
+	x.luaCheck(err)
 }
 
 func (x *luaImport) BlowGas(gas byte) {
 	x.newNestedWork1(fmt.Sprintf("продуть газ %d", gas),
 		func() error {
 			x.SwitchGas(gas, true)
-			luaDelay(config.Get().Gas.BlowDuration, fmt.Sprintf("продуть газ %d", gas))
+			luaDelay(x.luaState, config.Get().Gas.BlowDuration, fmt.Sprintf("продуть газ %d", gas))
 			return nil
 		})
 }
 
 func (x *luaImport) ReadSave(reg modbus.Var, format modbus.FloatBitsFormat, dbKey string) {
 	if err := format.Validate(); err != nil {
-		luaState.ArgError(2, err.Error())
+		x.luaState.ArgError(2, err.Error())
 	}
 	x.newWork(fmt.Sprintf("считать из СОМ и сохранить: рег.%d,%s", reg, dbKey),
 		func(s *structlog.Logger, ctx context.Context) error {
@@ -172,7 +177,7 @@ func (x *luaImport) ReadSave(reg modbus.Var, format modbus.FloatBitsFormat, dbKe
 
 func (x *luaImport) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) {
 	if err := format.Validate(); err != nil {
-		luaState.ArgError(2, err.Error())
+		x.luaState.ArgError(2, err.Error())
 	}
 	x.newWork(fmt.Sprintf("команда %d(%v)", cmd, value), func(s *structlog.Logger, ctx context.Context) error {
 		return processEachActiveProduct(nil, func(product data.Product, device config.Device) error {
@@ -184,9 +189,9 @@ func (x *luaImport) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, va
 
 func (x *luaImport) WriteKef(kef int, format modbus.FloatBitsFormat, value float64) {
 	if err := format.Validate(); err != nil {
-		luaState.ArgError(2, err.Error())
+		x.luaState.ArgError(2, err.Error())
 	}
-	luaCheck(guiwork.PerformNewNamedWork(luaLog(), luaState.Context(),
+	x.luaCheck(guiwork.PerformNewNamedWork(log, x.luaState.Context(),
 		fmt.Sprintf("запись K%d=%v", kef, value),
 		func(log *structlog.Logger, ctx context.Context) error {
 			return processEachActiveProduct(nil, func(product data.Product, device config.Device) error {
@@ -198,8 +203,8 @@ func (x *luaImport) WriteKef(kef int, format modbus.FloatBitsFormat, value float
 
 func (x *luaImport) Delay(strDuration string, what string) {
 	duration, err := time.ParseDuration(strDuration)
-	luaCheck(err)
-	luaDelay(duration, what)
+	x.luaCheck(err)
+	luaDelay(x.luaState, duration, what)
 }
 
 func (x *luaImport) ParamsDialog(arg *lua.LTable) *lua.LTable {
@@ -209,7 +214,7 @@ func (x *luaImport) ParamsDialog(arg *lua.LTable) *lua.LTable {
 	arg.ForEach(func(kx lua.LValue, vx lua.LValue) {
 		var c apitypes.ConfigParamValue
 		if err := setConfigParamFromLuaValue(kx, vx, &c); err != nil {
-			luaState.RaiseError("%v:%v: %s", kx, vx, err)
+			x.luaState.RaiseError("%v:%v: %s", kx, vx, err)
 		}
 		luaParamValues = append(luaParamValues, &c)
 	})
@@ -222,7 +227,7 @@ func (x *luaImport) ParamsDialog(arg *lua.LTable) *lua.LTable {
 	for _, a := range luaParamValues {
 		value, err := getLuaValueFromConfigParam(a)
 		if err != nil {
-			luaState.RaiseError("%+v: %s", a, err)
+			x.luaState.RaiseError("%+v: %s", a, err)
 		}
 		arg.RawSet(lua.LString(a.Key), value)
 	}
@@ -231,11 +236,11 @@ func (x *luaImport) ParamsDialog(arg *lua.LTable) *lua.LTable {
 }
 
 func (x *luaImport) Info(s string) {
-	guiwork.JournalInfo(luaLog(), s)
+	guiwork.JournalInfo(log, s)
 }
 
 func (x *luaImport) Err(s string) {
-	guiwork.JournalErr(luaLog(), errors.New(s))
+	guiwork.JournalErr(log, errors.New(s))
 }
 
 func (x *luaImport) SelectWorksDialog(arg *lua.LTable) {
@@ -246,26 +251,26 @@ func (x *luaImport) SelectWorksDialog(arg *lua.LTable) {
 	)
 	arg.ForEach(func(n lua.LValue, arg lua.LValue) {
 		if _, ok := n.(lua.LNumber); !ok {
-			luaState.RaiseError("type error: %v: %v: key must be an integer index", n, arg)
+			x.luaState.RaiseError("type error: %v: %v: key must be an integer index", n, arg)
 		}
 		w, ok := arg.(*lua.LTable)
 		if !ok {
-			luaState.RaiseError("type error: %v: %v: value must be a tuple of string and function", n, arg)
+			x.luaState.RaiseError("type error: %v: %v: value must be a tuple of string and function", n, arg)
 		}
 		if w.Len() != 2 {
-			luaState.RaiseError("type error: %v: %v: w.Len() != 2", n, arg)
+			x.luaState.RaiseError("type error: %v: %v: w.Len() != 2", n, arg)
 		}
 		what, ok := w.RawGetInt(1).(lua.LString)
 		if !ok {
-			luaState.RaiseError("type error: %v: %v: w.RawGetInt(1).(lua.LString)", n, arg)
+			x.luaState.RaiseError("type error: %v: %v: w.RawGetInt(1).(lua.LString)", n, arg)
 		}
 		Func, ok := w.RawGetInt(2).(*lua.LFunction)
 		if !ok {
-			luaState.RaiseError("type error: %v: %v: w.RawGetInt(2).(lua.LFunction)", n, arg)
+			x.luaState.RaiseError("type error: %v: %v: w.RawGetInt(2).(lua.LFunction)", n, arg)
 		}
 		names = append(names, string(what))
 		functions = append(functions, func() error {
-			return luaState.CallByParam(lua.P{
+			return x.luaState.CallByParam(lua.P{
 				Fn:      Func,
 				Protect: true,
 			})
@@ -275,7 +280,7 @@ func (x *luaImport) SelectWorksDialog(arg *lua.LTable) {
 	go gui.NotifyLuaSelectWorks(names)
 
 	select {
-	case <-luaState.Context().Done():
+	case <-x.luaState.Context().Done():
 		return
 	case luaSelectedWorks := <-luaSelectedWorksChan:
 		for i, f := range luaSelectedWorks {
@@ -294,8 +299,12 @@ func (x *luaImport) NewWork(name string, Func func()) {
 	})
 }
 
+func (x *luaImport) luaCheck(err error) {
+	luaCheck(x.luaState, err)
+}
+
 func (x *luaImport) newWork(name string, Func guiwork.WorkFunc) {
-	luaCheck(guiwork.PerformNewNamedWork(luaLog(), luaState.Context(), name, Func))
+	x.luaCheck(guiwork.PerformNewNamedWork(log, x.luaState.Context(), name, Func))
 }
 
 func (x *luaImport) newNestedWork1(name string, Func func() error) {
@@ -312,11 +321,7 @@ func (x *luaImport) journalResult(s string, err error) {
 	x.Info(fmt.Sprintf("%s: успешно", s))
 }
 
-func luaLog() logger {
-	return luaState.Context().Value("log").(logger)
-}
-
-func luaCheckNumberOrNil(n int) {
+func luaCheckNumberOrNil(luaState *lua.LState, n int) {
 	switch luaState.Get(n).(type) {
 	case *lua.LNilType:
 		return
@@ -327,7 +332,7 @@ func luaCheckNumberOrNil(n int) {
 	}
 }
 
-func luaCheck(err error) {
+func luaCheck(luaState *lua.LState, err error) {
 	if merry.Is(err, context.Canceled) {
 		return
 	}
@@ -336,18 +341,18 @@ func luaCheck(err error) {
 	}
 }
 
-func luaDelay(dur time.Duration, what string) {
-	luaCheck(delay(luaLog(), luaState.Context(), dur, what))
+func luaDelay(luaState *lua.LState, dur time.Duration, what string) {
+	luaCheck(luaState, delay(log, luaState.Context(), dur, what))
 }
 
-func luaWithGuiWarn(err error) {
+func luaWithGuiWarn(luaState *lua.LState, err error) {
 	if err == nil {
 		return
 	}
 
 	var ctxIgnoreError context.Context
 	ctxIgnoreError, luaIgnoreError = context.WithCancel(luaState.Context())
-	guiwork.NotifyLuaSuspended(luaLog(), err)
+	guiwork.NotifyLuaSuspended(log, err)
 	<-ctxIgnoreError.Done()
 	luaIgnoreError()
 	if luaState.Context().Err() == nil {

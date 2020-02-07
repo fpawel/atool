@@ -38,8 +38,8 @@ func LoadFile(db *sqlx.DB, filename string) error {
 
 	for i, p := range x.Products {
 		r, err := db.Exec(
-			`INSERT INTO product( party_id, serial, created_order) VALUES (?,?,?)`,
-			partyID, p.Serial, i)
+			`INSERT INTO product( party_id, serial, created_order, device) VALUES (?,?,?, ?)`,
+			partyID, p.Serial, i, p.Device)
 		if err != nil {
 			return err
 		}
@@ -75,5 +75,6 @@ type externalParty struct {
 type externalProduct struct {
 	Addr   modbus.Addr
 	Serial int
+	Device string
 	Values map[string]float64
 }
