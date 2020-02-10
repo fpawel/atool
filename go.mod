@@ -17,6 +17,7 @@ require (
 	github.com/powerman/structlog v0.6.0
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.4.0
+	github.com/valyala/quicktemplate v1.4.1
 	github.com/yuin/gluamapper v0.0.0-20150323120927-d836955830e7
 	github.com/yuin/gopher-lua v0.0.0-20191220021717-ab39c6098bdb
 	gopkg.in/yaml.v2 v2.2.7

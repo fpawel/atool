@@ -1,0 +1,67 @@
+{% func (x *Report) Html(title string) %}
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" type="text/css" href="/report.css">
+<title>{%s= title %}</title>
+</head>
+
+<body>
+    <div class="centered">
+        <table class="report-table">
+            <thead>
+              <tr>
+                {%- for _,header := range x.headers -%}
+                    <th class="sticky">
+                        {%s= header %}
+                    </th>
+                {%- endfor -%}
+              </tr>
+            </thead>
+            <tbody>
+                {%- for _,tab := range x.tables -%}
+                    {%s= tab.html() %}
+                {%- endfor -%}
+            </tbody>
+        </table>
+    </div>
+</body>
+
+</html>
+{% endfunc %}
+
+{% func (x *Table) html() %}
+    {% if len(x.head) > 0 && len(x.rows) > 0  %}
+        <tr>
+            <td class="section-title"
+                colspan="{%d len(x.rows[0].cells)+1 %}"
+                title="Это тултип. Здесь будет длинное сообщение&#10;Это тултип. Здесь будет длинное сообщение&#10;Это тултип. Здесь будет длинное сообщение&#10;Это тултип. Здесь будет длинное сообщение&#10;Это тултип. Здесь будет длинное сообщение&#10;Это тултип. Здесь будет длинное сообщение&#10;Это тултип. Здесь будет длинное сообщение&#10;Это тултип. Здесь будет длинное сообщение&#10;"
+            >
+                {%s= x.head %}
+            </td>
+        </tr>
+    {% endif %}
+
+    {%- for _,row := range x.rows -%}
+    <tr>
+        {%s= row.html() %}
+    </tr>
+    {%- endfor -%}
+
+{% endfunc %}
+
+{% func (x *TableRow) html() %}
+<td>{%s= x.head %}</td>
+{%- for _,c := range x.cells -%}
+    {% if c.ok == nil %}
+        <td>{%s= c.text %}</td>
+    {% elseif *c.ok %}
+        <td class="ok">{%s= c.text %}</td>
+    {% else %}
+        <td class="err">{%s= c.text %}</td>
+    {% endif %}
+{%- endfor -%}
+
+
+{% endfunc %}

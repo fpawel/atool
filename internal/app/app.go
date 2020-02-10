@@ -12,15 +12,19 @@ import (
 	"github.com/fpawel/atool/internal/pkg/logfile"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/thriftgen/api"
+	"github.com/fpawel/atool/internal/view"
 	"github.com/fpawel/comm"
 	"github.com/jmoiron/sqlx"
 	"github.com/powerman/structlog"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -42,7 +46,7 @@ func Main() {
 
 	// соединение с базой данных
 	dbFilename := filepath.Join(filepath.Dir(os.Args[0]), "atool.sqlite")
-	log.Debug("open database: "+dbFilename, structlog.KeyTime, time.Now().Format("15:04:05"))
+	log.Debug("open database: " + dbFilename)
 	db, err = data.Open(dbFilename)
 	must.PanicIf(err)
 
@@ -54,7 +58,8 @@ func Main() {
 	comm.SetNotify(notifyComm)
 
 	// старт сервера
-	stopServer := runServer()
+	stopApiServer := runApiServer()
+	stopWebServer := runWebServer()
 
 	if envVarDevModeSet() {
 		log.Printf("waiting system signal because of %s=%s", internal.EnvVarDevMode, os.Getenv(internal.EnvVarDevMode))
@@ -74,10 +79,13 @@ func Main() {
 	guiwork.Interrupt()
 	guiwork.Wait()
 
-	log.Debug("остановка сервера")
-	stopServer()
+	log.Debug("остановка сервера api")
+	stopApiServer()
 
-	log.Debug("закрыть соединение с базой данных", structlog.KeyTime, time.Now().Format("15:04:05"))
+	log.Debug("остановка сервера web")
+	stopWebServer()
+
+	log.Debug("закрыть соединение с базой данных")
 	log.ErrIfFail(db.Close)
 
 	log.Debug("закрыть журнал СОМ порта")
@@ -148,9 +156,48 @@ func newApiProcessor() thrift.TProcessor {
 	return p
 }
 
-func runServer() context.CancelFunc {
+func runWebServer() context.CancelFunc {
+	srv := &http.Server{Addr: getTCPAddrEnvVar(internal.EnvVarWebPort)}
+	log.Debug("serve web: " + srv.Addr)
 
-	addr := getTCPAddrApi()
+	http.HandleFunc("/lua/", func(w http.ResponseWriter, r *http.Request) {
+		filename := filepath.Join(
+			filepath.Dir(os.Args[0]), "lua",
+			strings.TrimPrefix(r.URL.Path, "/lua/"))
+		report := new(view.Report)
+		if err := luaDoReport(filename, report); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte("500 - " + err.Error()))
+			return
+		}
+		report.WriteHtml(w, filepath.Base(filename))
+	})
+
+	http.Handle("/", http.FileServer(http.Dir("static")))
+
+	wg := &sync.WaitGroup{}
+
+	go func() {
+		wg.Add(1)
+		defer wg.Done()
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			// unexpected error. port in use?
+			log.Fatalf("ListenAndServe(): %v", err)
+		}
+	}()
+
+	return func() {
+		if err := srv.Shutdown(context.TODO()); err != nil {
+			panic(err) // failure/timeout shutting down the server gracefully
+		}
+		// wait for goroutine started in startHttpServer() to stop
+		wg.Wait()
+	}
+}
+
+func runApiServer() context.CancelFunc {
+
+	addr := getTCPAddrEnvVar(internal.EnvVarApiPort)
 	log.Debug("serve api: " + addr)
 
 	transport, err := thrift.NewTServerSocket(addr)
@@ -188,16 +235,16 @@ func envVarDevModeSet() bool {
 	return os.Getenv(internal.EnvVarDevMode) == "true"
 }
 
-func getTCPAddrApi() string {
-	port, errPort := strconv.Atoi(os.Getenv(internal.EnvVarApiPort))
+func getTCPAddrEnvVar(envVar string) string {
+	port, errPort := strconv.Atoi(os.Getenv(envVar))
 	if errPort != nil {
-		log.Debug("search free port to serve api")
+		log.Debug("search free port to serve: " + envVar)
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
 			panic(err)
 		}
 		port = ln.Addr().(*net.TCPAddr).Port
-		must.PanicIf(os.Setenv(internal.EnvVarApiPort, strconv.Itoa(port)))
+		must.PanicIf(os.Setenv(envVar, strconv.Itoa(port)))
 		must.PanicIf(ln.Close())
 	}
 	return fmt.Sprintf("127.0.0.1:%d", port)

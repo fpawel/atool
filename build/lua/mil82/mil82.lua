@@ -7,7 +7,7 @@ json = require("dkjson")
 local Config = go:GetConfig()
 local Products = go:GetProducts()
 
-prod_type = prod_types[Config.product_type]
+local prod_type = prod_types[Config.product_type]
 
 local function stringify(v)
     return json.encode(v, { indent = true })

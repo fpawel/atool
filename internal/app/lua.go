@@ -11,6 +11,7 @@ import (
 	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/pkg/numeth"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
+	"github.com/fpawel/atool/internal/view"
 	"github.com/fpawel/comm/modbus"
 	"github.com/powerman/structlog"
 	lua "github.com/yuin/gopher-lua"
@@ -32,6 +33,17 @@ var (
 
 	luaNaN = lua.LNumber(math.NaN())
 )
+
+func luaDoReport(filename string, report *view.Report) error {
+	luaState := lua.NewState()
+	defer luaState.Close()
+	luaState.SetGlobal("go", luar.New(luaState, &luaImport{luaState: luaState}))
+	luaState.SetGlobal("report", luar.New(luaState, report))
+	if err := luaState.DoFile(filename); err != nil {
+		return err
+	}
+	return nil
+}
 
 func (x *luaImport) GetConfig() *lua.LTable {
 	Config := x.luaState.NewTable()

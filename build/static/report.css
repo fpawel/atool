@@ -1,0 +1,72 @@
+body{
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+}
+
+div.centered
+{
+    text-align: center;
+}
+
+div.centered table
+{
+    margin: 0 auto;
+    text-align: left;
+}
+
+table.report-table {
+    border-collapse: collapse;
+    border-spacing: 0;
+    width: 80%;
+    table-layout: fixed;
+}
+table.report-table th.sticky {
+
+    top: 1px;
+    background: CornflowerBlue;
+    color: white;
+    position: sticky;
+}
+
+table.report-table th, table.report-table td {
+    text-align: center;
+    vertical-align: middle;
+    padding: 4px 4px;
+}
+
+table.report-table, table.report-table th, table.report-table td {
+    border-bottom: 1px solid  #BCBCBC;
+    border-right: 1px solid  #BCBCBC;
+}
+
+table.report-table th:hover {
+    background-color: darkgrey;
+    color: white;
+}
+
+table.report-table tr td:first-child {
+    font-style: italic;
+    text-align:right;
+    background-color: Gainsboro;
+}
+
+table.report-table tbody tr td.section-title{
+    text-align:center;
+    font-weight: bold;
+    font-style: normal;
+}
+
+table.report-table tbody tr td{
+    text-align:right;
+}
+
+table.report-table tbody tr td.ok{
+    color: blue;
+    background-color: LightCyan  ;
+}
+
+table.report-table tbody tr td.err{
+    background-color: Silver;
+    color: red;
+    font-weight: bolder;
+}

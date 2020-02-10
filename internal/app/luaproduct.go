@@ -16,7 +16,8 @@ type luaProduct struct {
 	p        data.Product
 	Serial   int
 	ID       int64
-	Device   config.Device
+	Addr     modbus.Addr
+	device   config.Device
 	luaState *lua.LState
 }
 
@@ -27,8 +28,9 @@ func (x *luaProduct) init(p data.Product) error {
 	}
 	x.p = p
 	x.Serial = p.Serial
-	x.Device = device
+	x.device = device
 	x.ID = p.ProductID
+	x.Addr = p.Addr
 	return nil
 }
 
@@ -42,7 +44,7 @@ func (x *luaProduct) WriteKef(k int, format modbus.FloatBitsFormat, LValue lua.L
 		x.Err(fmt.Sprintf("запись К%d: нет значения", k))
 		return
 	}
-	_ = writeKefProduct(log, x.luaState.Context(), x.p, x.Device, k, format, value)
+	_ = writeKefProduct(log, x.luaState.Context(), x.p, x.device, k, format, value)
 }
 
 func (x *luaProduct) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, LValue lua.LNumber) {
@@ -55,7 +57,7 @@ func (x *luaProduct) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, L
 		x.Err(fmt.Sprintf("write32: cmd=%d: нет значения", cmd))
 		return
 	}
-	_ = write32Product(log, x.luaState.Context(), x.p, x.Device, cmd, format, value)
+	_ = write32Product(log, x.luaState.Context(), x.p, x.device, cmd, format, value)
 }
 
 func (x *luaProduct) ReadReg(reg modbus.Var, format modbus.FloatBitsFormat) lua.LNumber {
@@ -144,7 +146,7 @@ func (x *luaProduct) journalResult(s string, err error) {
 }
 
 func (x *luaProduct) comm() comm.T {
-	return getCommProduct(x.p.Comport, x.Device)
+	return getCommProduct(x.p.Comport, x.device)
 }
 
 func (x *luaProduct) setValue(key string, value float64) {
