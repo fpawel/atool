@@ -311,17 +311,13 @@ func createNewParty(db *sqlx.DB, name, productType string) (int64, error) {
 
 func setPartyValues(db *sqlx.DB, p PartyValues) error {
 
-	_, err := db.Exec(`UPDATE party SET name=?, product_type=? WHERE party_id=?`,
-		p.Name, p.ProductType, p.PartyID)
-	if err != nil {
+	const q1 = `UPDATE party SET name=?, product_type=? WHERE party_id=?`
+	if _, err := db.Exec(q1, p.Name, p.ProductType, p.PartyID); err != nil {
 		return err
 	}
-
-	partyProductsIDsSql, err := partyProductsIDsSql(db, p.PartyID)
-	if err != nil {
+	if _, err := db.Exec(`DELETE FROM product WHERE party_id=?`, p.PartyID); err != nil {
 		return err
 	}
-
 	if _, err := db.Exec(`DELETE FROM party_value WHERE party_id=?`, p.PartyID); err != nil {
 		return err
 	}
@@ -339,12 +335,21 @@ func setPartyValues(db *sqlx.DB, p PartyValues) error {
 		}
 	}
 
-	if _, err := db.Exec(`DELETE FROM product_value WHERE product_id IN ` + partyProductsIDsSql); err != nil {
-		return err
-	}
-
 	sqlStr = ""
-	for _, p := range p.Products {
+	for i := range p.Products {
+		var err error
+		p.Products[i].ProductID, err = AddNewProduct(db, i)
+		if err != nil {
+			return err
+		}
+		p := p.Products[i]
+
+		if _, err = db.Exec(`UPDATE product SET serial = ? WHERE product_id=?`, p.Serial, p.ProductID); err != nil {
+			return err
+		}
+
+		_, _ = db.Exec(`UPDATE product SET addr = ? WHERE product_id=?`, p.Addr, p.ProductID)
+
 		for k, v := range p.Values {
 			if len(sqlStr) > 0 {
 				sqlStr += ","

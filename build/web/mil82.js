@@ -14,7 +14,7 @@ const ProductsSerialsRow = ({products}) => {
 };
 
 
-const ProductConcentrationError = ({value, nominal, prodType}) => {
+const ProductConcentrationError = ({value, nominal, prodType, product, setOverlay}) => {
     const absErr = value - nominal;
     const absErrLimit = concentrationErrorLimit20(value, prodType);
     const relErrPercent =
@@ -22,24 +22,30 @@ const ProductConcentrationError = ({value, nominal, prodType}) => {
     if (relErrPercent !== relErrPercent) {
         return <td/>;
     }
-    const className = Math.abs(absErr) < Math.abs(absErrLimit) ? "ok" : "err";
+    const ok = Math.abs(absErr) < Math.abs(absErrLimit);
+    const className = ok ? "ok" : "err";
+
     return <td className={className}
-               onClick={() => {
-                   let s = [
-                       ["Концентрация", value],
-                       ["ПГС", nominal],
-                       ["Абсолютная погрешность", absErr],
-                       ["Предел абсолютной погрешности", absErrLimit]].map(([s, v]) => `${s}: ${v.toFixed(3)}`).join("\n");
-                   alert(s)
-               }}
+               onClick={() =>
+                   setOverlay({
+                       serial:product.Serial,
+                       value:value,
+                       nominal:nominal,
+                       absErr:absErr,
+                       absErrLimit:absErrLimit,
+                       ok:ok,
+                   })
+               }
     >
         {relErrPercent.toFixed(1)}
     </td>
 };
 
+
 const Report = () => {
 
     const [party, setParty] = React.useState(null);
+    const [overlayState, setOverlay] = React.useState(null);
 
     if (party === null) {
         (async () => {
@@ -59,9 +65,9 @@ const Report = () => {
         ['test_t_low', 'низкая температура', 20],
         ['test_t_high', 'высокая температура', 20],
         ['test2', 'возврат НКУ', null]].map(([ptKey, section, tNorm]) => {
-        return <div>
-            <h3>{section}</h3>
+        return <div className={"centered"}>
             <table className="report-table">
+                <caption style={{textAlign:"left", fontSize:"16px", margin:"5px"}}>{section}</caption>
                 <thead>
                 <tr>
                     <th>Газ</th>
@@ -76,14 +82,14 @@ const Report = () => {
                             <MapProducts
                                 products={products}
                                 component={
-                                    ({product}) => {
-                                        const value = product.Values[`${ptKey}_gas${gas}_var0`];
-                                        const nominal = party.Values[`c${gas}`];
-                                        return <ProductConcentrationError
-                                            value={value}
+                                    ({product}) =>
+                                         <ProductConcentrationError
+                                            product={product}
+                                            value={product.Values[`${ptKey}_gas${gas}_var0`]}
                                             prodType={prodType}
-                                            nominal={nominal}/>
-                                    }
+                                            nominal={party.Values[`c${gas}`]}
+                                            setOverlay={setOverlay}
+                                         />
                                 }/>
 
                         </tr>
@@ -96,6 +102,7 @@ const Report = () => {
     });
 
     return <div>
+        <OverlayProductConcentrationError overlayState={overlayState} hide={() => setOverlay(null)} />
         ПГС1=<strong style={{marginRight: "10px"}}>{party.Values.c1}</strong>
         ПГС3=<strong style={{marginRight: "10px"}}>{party.Values.c3}</strong>
         ПГС4=<strong>{party.Values.c4}</strong>
@@ -103,16 +110,46 @@ const Report = () => {
     </div>;
 };
 
-// const App = () => (<HashRouter>
-//     <ul>
-//         <li><Link to="/">МИЛ-82: погрешность</Link></li>
-//         <li><Link to="/a">TO A</Link></li>
-//         <li><Link to="/b">TO B</Link></li>
-//     </ul>
-//     <Route path="/" exact component={Mil82Report}/>
-//     <Route path="/a" component={A}/>
-//     <Route path="/b" component={B}/>
-// </HashRouter>);
+const OverlayProductConcentrationError = ({overlayState, hide}) => {
+
+    if (!overlayState) {
+        return null;
+    }
+    let {serial, value, nominal, absErr, absErrLimit, ok} = overlayState;
+
+    const className = ok ? "ok" : "err";
+    return [
+        <div className="overlay" onClick={() => hide()}/>,
+        <div className="overlay-text" onClick={() => hide()} >
+            <h3 style={{
+                borderBottom: "1px solid black",
+                paddingBottom: "20px",
+            }}>
+                МИЛ-82: {serial}
+            </h3>
+            <table>
+                <tr>
+                    <td>ПГС:</td>
+                    <td>{nominal.toFixed(3)}</td>
+                </tr>
+                <tr>
+                    <td>Предел абс. погрешности:</td>
+                    <td>{absErrLimit.toFixed(3)}</td>
+                </tr>
+                <tr>
+                    <td>Концентрация:</td>
+                    <td className={className} >{value.toFixed(3)}</td>
+                </tr>
+                <tr>
+                    <td>Абс. погрешность:</td>
+                    <td className={className}>{absErr.toFixed(3)}</td>
+                </tr>
+
+
+            </table>
+        </div>
+    ]
+};
 
 
 ReactDOM.render(
