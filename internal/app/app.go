@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/apache/thrift/lib/go/thrift"
@@ -12,7 +13,6 @@ import (
 	"github.com/fpawel/atool/internal/pkg/logfile"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/thriftgen/api"
-	"github.com/fpawel/atool/internal/view"
 	"github.com/fpawel/comm"
 	"github.com/jmoiron/sqlx"
 	"github.com/powerman/structlog"
@@ -23,7 +23,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -160,20 +159,20 @@ func runWebServer() context.CancelFunc {
 	srv := &http.Server{Addr: getTCPAddrEnvVar(internal.EnvVarWebPort)}
 	log.Debug("serve web: " + srv.Addr)
 
-	http.HandleFunc("/lua/", func(w http.ResponseWriter, r *http.Request) {
-		filename := filepath.Join(
-			filepath.Dir(os.Args[0]), "lua",
-			strings.TrimPrefix(r.URL.Path, "/lua/"))
-		report := new(view.Report)
-		if err := luaDoReport(filename, report); err != nil {
+	http.HandleFunc("/party", func(w http.ResponseWriter, r *http.Request) {
+		var party data.PartyValues
+		if err := data.GetCurrentPartyValues(db, &party); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte("500 - " + err.Error()))
+			_, _ = w.Write([]byte("500: " + err.Error()))
 			return
 		}
-		report.WriteHtml(w, filepath.Base(filename))
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(&party)
 	})
 
-	http.Handle("/", http.FileServer(http.Dir("static")))
+	http.Handle("/", http.FileServer(http.Dir("web")))
 
 	wg := &sync.WaitGroup{}
 

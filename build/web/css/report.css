@@ -20,13 +20,6 @@ table.report-table {
     width: 80%;
     table-layout: fixed;
 }
-table.report-table th.sticky {
-
-    top: 1px;
-    background: CornflowerBlue;
-    color: white;
-    position: sticky;
-}
 
 table.report-table th, table.report-table td {
     text-align: center;
@@ -35,13 +28,7 @@ table.report-table th, table.report-table td {
 }
 
 table.report-table, table.report-table th, table.report-table td {
-    border-bottom: 1px solid  #BCBCBC;
-    border-right: 1px solid  #BCBCBC;
-}
-
-table.report-table th:hover {
-    background-color: darkgrey;
-    color: white;
+    border: 1px solid  #BCBCBC;
 }
 
 table.report-table tr td:first-child {
@@ -50,10 +37,9 @@ table.report-table tr td:first-child {
     background-color: Gainsboro;
 }
 
-table.report-table tbody tr td.section-title{
+table.report-table th {
     text-align:center;
-    font-weight: bold;
-    font-style: normal;
+    background-color: Gainsboro;
 }
 
 table.report-table tbody tr td{
@@ -66,7 +52,6 @@ table.report-table tbody tr td.ok{
 }
 
 table.report-table tbody tr td.err{
-    background-color: Silver;
     color: red;
     font-weight: bolder;
 }

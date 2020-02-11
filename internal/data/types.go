@@ -44,13 +44,19 @@ type ProductParam struct {
 type Values map[string]float64
 
 type PartyValues struct {
-	Values   Values          `yaml:"values"`
-	Products []ProductValues `yaml:"products"`
+	PartyID     int64           `db:"party_id"`
+	CreatedAt   time.Time       `db:"created_at"`
+	Name        string          `db:"name"`
+	ProductType string          `db:"product_type"`
+	Values      Values          `db:"-"`
+	Products    []ProductValues `db:"-"`
 }
 
 type ProductValues struct {
-	ProductID int64              `yaml:"product_id"`
-	Place     int                `yaml:"place"`
-	Serial    int                `yaml:"serial"`
-	Values    map[string]float64 `yaml:"values"`
+	ProductID int64
+	Place     int
+	Serial    int
+	Addr      modbus.Addr
+	Device    string
+	Values    map[string]float64
 }
