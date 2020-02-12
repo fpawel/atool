@@ -157,7 +157,7 @@ func newApiProcessor() thrift.TProcessor {
 
 func runWebServer() context.CancelFunc {
 	srv := &http.Server{Addr: getTCPAddrEnvVar(internal.EnvVarWebPort)}
-	log.Debug("serve web: " + srv.Addr)
+	log.Debug("serve web: http://" + srv.Addr)
 
 	http.HandleFunc("/party", func(w http.ResponseWriter, r *http.Request) {
 		var party data.PartyValues

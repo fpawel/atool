@@ -12,34 +12,34 @@ div.centered table {
     text-align: left;
 }
 
-table.report-table {
+.report table {
     border-collapse: collapse;
     border-spacing: 0;
 }
 
-table.report-table th, table.report-table td {
+.report table th, .report table td {
     text-align: center;
     vertical-align: middle;
     padding: 4px 4px;
     min-width: 60px;
 }
 
-table.report-table, table.report-table th, table.report-table td {
+.report table, .report table th, .report table td {
     border: 1px solid #BCBCBC;
 }
 
-table.report-table tr td:first-child {
+.report table tr td:first-child {
     font-style: italic;
     text-align: right;
     background-color: Gainsboro;
 }
 
-table.report-table th {
+.report table th {
     text-align: center;
     background-color: Gainsboro;
 }
 
-table.report-table tbody tr td {
+.report table tbody tr td {
     text-align: right;
 }
 
@@ -81,16 +81,30 @@ td.err {
     background-color: AliceBlue; /* Цвет фона */
     color: black;
     z-index: 3;
-    padding: 30px;
+    padding: 10px;
     border: 1px solid #BCBCBC;
     display:block;
 }
+
+.overlay-text table{
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+.overlay-text table tr {
+    border-top: 1px solid #BCBCBC;
+}
+
+.overlay-text table tr:first-child {
+    border-top: 0;
+}
+
 .overlay-text td{
     padding-top: 10px;
 }
 
 .overlay-text td:first-child {
-    padding-right: 20px;
+    padding-right: 10px;
     font-style: italic;
 }
 
