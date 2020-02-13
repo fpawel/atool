@@ -211,15 +211,15 @@ ON CONFLICT (product_id, param_addr) DO UPDATE SET series_active=:series_active,
 	return err
 }
 
-func SetNewCurrentParty(ctx context.Context, db *sqlx.DB, productsCount int, name string, productType string) error {
+func SetNewCurrentParty(ctx context.Context, db *sqlx.DB, productsCount int, name string, device, productType string) error {
 	newPartyID, err := createNewParty(db, name, productType)
 	if err != nil {
 		return err
 	}
 	for i := 0; i < productsCount; i++ {
 		r, err := db.ExecContext(ctx,
-			`INSERT INTO product(party_id, addr, created_order, created_at) VALUES (?, ?, ?, ?);`,
-			newPartyID, i+1, i+1, time.Now().Add(time.Second*time.Duration(i)))
+			`INSERT INTO product(party_id, addr, created_order, created_at, device) VALUES (?, ?, ?, ?, ?);`,
+			newPartyID, i+1, i+1, time.Now().Add(time.Second*time.Duration(i)), device)
 		if err != nil {
 			return err
 		}

@@ -12,7 +12,6 @@ service RunWorkService {
 
 service ScriptService {
     void runFile(1:string filename)
-    void report(1:string filename)
     void setConfigParamValues (1:list<apitypes.ConfigParamValue> configParamValues)
     list<apitypes.ConfigParamValue> getConfigParamValues ()
     void IgnoreError()
@@ -55,7 +54,7 @@ service ProductService {
 }
 
 service FilesService {
-   void createNewParty(1:i8 productsCount, 2:string name)
+   void createNewParty(1:i8 productsCount, 2:string name, 3:string device, 4:string productType)
    apitypes.Party getCurrentParty()
    void setCurrentParty(1:i64 partyID)
    apitypes.Party getParty(1:i64 partyID)
@@ -70,6 +69,7 @@ service NotifyGuiService {
 service AppConfigService {
     void editConfig()
     list<string> listDevices()
+    list<string> listProductTypes(1:string device)
 
     list<apitypes.ConfigParamValue> getParamValues()
     void setParamValue(1:string key, 2:string value)

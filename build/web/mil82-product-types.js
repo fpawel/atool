@@ -92,20 +92,3 @@ const productTypes = {
         scale : 100,
     },
 };
-
-
-function concentrationErrorLimit20(concentration, prodType) {
-    if (prodType.gas !== "CO2"){
-        return 2.5 + 0.05 * concentration;
-    }
-    switch (prodType.scale) {
-        case 4:
-            return 0.2 + 0.05 * concentration;
-        case 10:
-            return 0.5;
-        case 20:
-            return 1;
-        default:
-            return NaN;
-    }
-}

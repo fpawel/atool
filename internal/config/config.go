@@ -18,8 +18,6 @@ import (
 type Config struct {
 	LogComm              bool             `yaml:"log_comm"`
 	FloatPrecision       int              `yaml:"float_precision"`
-	ProductTypes         []string         `yaml:"product_types"`
-	PartyParams          PartyParams      `yaml:"party_params"`
 	Hardware             Hardware         `yaml:"hardware"`
 	Gas                  Gas              `yaml:"gas"`
 	Temperature          Temperature      `yaml:"temperature"`
@@ -96,22 +94,6 @@ func (c Config) Validate() error {
 		}
 	}
 
-	if len(c.ProductTypes) == 0 {
-		return merry.New("список исполнений партии не должен быть пустым")
-	}
-
-	if len(c.PartyParams) == 0 {
-		return merry.New("список параметров партии не должен быть пустым")
-	}
-
-	m := make(map[string]struct{})
-	for _, x := range c.ProductTypes {
-		if _, f := m[x]; f {
-			return merry.Errorf("дублирование исполнения партии %q", x)
-		}
-		m[x] = struct{}{}
-	}
-
 	return nil
 }
 
@@ -160,13 +142,6 @@ func readFile() (Config, error) {
 }
 
 func (c *Config) validate() {
-	if len(c.ProductTypes) == 0 {
-		c.ProductTypes = []string{"00.01", "00.02"}
-	}
-
-	if len(c.PartyParams) == 0 {
-		c.PartyParams = defaultPartyParams()
-	}
 
 	if len(c.Coefficients) == 0 {
 		c.Coefficients = []Coefficients{
@@ -183,6 +158,18 @@ func (c *Config) validate() {
 		c.ParamsNames = map[int]string{
 			0: "C",
 			2: "I",
+		}
+	}
+
+	for d := range c.Hardware {
+		dv := c.Hardware[d]
+		if len(dv.PartyParams) == 0 {
+			dv.PartyParams = defaultPartyParams()
+			c.Hardware[d] = dv
+		}
+		if len(dv.ProductTypes) == 0 {
+			dv.ProductTypes = []string{"00.01", "00.02"}
+			c.Hardware[d] = dv
 		}
 	}
 }

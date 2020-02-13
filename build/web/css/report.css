@@ -3,43 +3,34 @@ body {
     font-family: Arial, sans-serif;
 }
 
-div.centered {
-    text-align: center;
-}
-
-div.centered table {
-    margin: 0 auto;
-    text-align: left;
-}
-
-.report table {
+table {
     border-collapse: collapse;
     border-spacing: 0;
 }
 
-.report table th, .report table td {
+table th, table td {
     text-align: center;
     vertical-align: middle;
     padding: 4px 4px;
     min-width: 60px;
 }
 
-.report table, .report table th, .report table td {
+table, table th, table td {
     border: 1px solid #BCBCBC;
 }
 
-.report table tr td:first-child {
+table tr td:first-child {
     font-style: italic;
     text-align: right;
     background-color: Gainsboro;
 }
 
-.report table th {
+table th {
     text-align: center;
     background-color: Gainsboro;
 }
 
-.report table tbody tr td {
+table tbody tr td {
     text-align: right;
 }
 
@@ -86,21 +77,8 @@ td.err {
     display:block;
 }
 
-.overlay-text table{
-    border-collapse: collapse;
-    border-spacing: 0;
-}
-
-.overlay-text table tr {
-    border-top: 1px solid #BCBCBC;
-}
-
-.overlay-text table tr:first-child {
-    border-top: 0;
-}
-
 .overlay-text td{
-    padding-top: 10px;
+    padding-top: 5px;
 }
 
 .overlay-text td:first-child {
@@ -109,5 +87,5 @@ td.err {
 }
 
 .overlay-text td:nth-child(2) {
-    font-weight: bold;
+    text-align: left;
 }

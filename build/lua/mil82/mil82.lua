@@ -394,6 +394,11 @@ go:SelectWorksDialog({
         gases_read_save('test_' .. t_high, { 1, 4 })
     end },
 
+    { format_temperature(80) .. ": снятие для проверки погрешности", function()
+        setupTemperature(80)
+        gases_read_save('test_t80', { 1, 4 })
+    end },
+
     { format_temperature(params.temp_norm) .. ": повторное снятие для проверки погрешности", function()
         setupTemperature(params.temp_norm)
         gases_read_save('test2_', { 1, 4 })

@@ -1,6 +1,6 @@
 -- atool: work: Газовый блок: клапан
 
-go:SwitchGasNoWarn(go:ParamsDialog({
+go:SwitchGas(go:ParamsDialog({
     x = {
         name = "Клапан",
         value = 0,

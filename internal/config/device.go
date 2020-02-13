@@ -18,6 +18,8 @@ type Device struct {
 	Pause              time.Duration `yaml:"pause"`                //пауза перед опросом
 	NetAddr            NetAddr       `yaml:"net_addr"`
 	Params             []Params      `yaml:"params"`
+	PartyParams        PartyParams   `yaml:"party_params"`
+	ProductTypes       []string      `yaml:"product_types"`
 }
 
 type NetAddr struct {
@@ -95,6 +97,22 @@ func (d Device) Validate() error {
 	}
 	if err := d.NetAddr.Format.Validate(); err != nil {
 		return merry.Append(err, "net_addr.format")
+	}
+
+	if len(d.PartyParams) == 0 {
+		return merry.New("список параметров партии не должен быть пустым")
+	}
+
+	if len(d.ProductTypes) == 0 {
+		return merry.New("список исполнений партии не должен быть пустым")
+	}
+
+	m := make(map[string]struct{})
+	for _, x := range d.ProductTypes {
+		if _, f := m[x]; f {
+			return merry.Errorf("дублирование исполнения партии %q", x)
+		}
+		m[x] = struct{}{}
 	}
 
 	return nil

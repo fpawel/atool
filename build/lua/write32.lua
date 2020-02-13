@@ -20,6 +20,6 @@ params =  go:ParamsDialog({
     },
 })
 
-for _,p in pairs(go.Products) do -- для каждого прибора партии
+for _,p in pairs(go:GetProducts()) do
     p:Write32(params.cmd, params.format, params.value)
 end

@@ -11,8 +11,7 @@ func defaultConfig() Config {
 		LogComm: false,
 
 		FloatPrecision: 6,
-		ProductTypes:   []string{"00.01", "00.02"},
-		PartyParams:    defaultPartyParams(),
+
 		Hardware: Hardware{
 			"default": Device{
 				Baud:               9600,
@@ -31,6 +30,8 @@ func defaultConfig() Config {
 					Cmd:    5,
 					Format: "bcd",
 				},
+				ProductTypes: []string{"00.01", "00.02"},
+				PartyParams:  defaultPartyParams(),
 			},
 		},
 		Gas: Gas{
@@ -70,5 +71,6 @@ func defaultPartyParams() map[string]string {
 		"c1": "ПГС1",
 		"c2": "ПГС2",
 		"c3": "ПГС3",
+		"c4": "ПГС2",
 	}
 }
