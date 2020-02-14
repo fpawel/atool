@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS party
     party_id     INTEGER PRIMARY KEY NOT NULL,
     created_at   TIMESTAMP           NOT NULL DEFAULT (datetime('now')) UNIQUE,
     name         TEXT                NOT NULL DEFAULT '(без имени)',
+    device_type  TEXT                NOT NULL DEFAULT '',
     product_type TEXT                NOT NULL DEFAULT ''
 );
 
@@ -32,6 +33,14 @@ CREATE TABLE IF NOT EXISTS product
     CONSTRAINT product_active_bool
         CHECK (active IN (0, 1) )
 );
+
+CREATE VIEW IF NOT EXISTS product_enumerated AS
+SELECT *,
+       (SELECT count() FROM product p
+        WHERE p.party_id = a.party_id
+          AND (p.created_at, p.created_order) < (a.created_at, a.created_order)) AS place
+FROM product a;
+
 
 CREATE TABLE IF NOT EXISTS party_value
 (

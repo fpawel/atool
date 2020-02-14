@@ -27,13 +27,20 @@ func (h *productSvc) SetNetAddr(_ context.Context, productID int64) error {
 		return err
 	}
 
+	party, err := data.GetCurrentParty(db)
+	if err != nil {
+		return err
+	}
+
+	device, f := config.Get().Hardware[party.DeviceType]
+	if !f {
+		return fmt.Errorf("не заданы параметры устройства %s для прибора %+v", party.DeviceType, p)
+	}
+
 	return guiwork.RunWork(log, appCtx, fmt.Sprintf("прибр %d: запись сетевого адреса %d", p.Serial, p.Addr),
 		func(log logger, ctx context.Context) error {
-			d, f := config.Get().Hardware[p.Device]
-			if !f {
-				return fmt.Errorf("не заданы параметры устройства %s для прибора %+v", p.Device, p)
-			}
-			comPort := comports.GetComport(p.Comport, d.Baud)
+
+			comPort := comports.GetComport(p.Comport, device.Baud)
 			if err := comPort.Open(); err != nil {
 				return err
 			}
@@ -41,8 +48,8 @@ func (h *productSvc) SetNetAddr(_ context.Context, productID int64) error {
 			r := modbus.RequestWrite32{
 				Addr:      0,
 				ProtoCmd:  0x10,
-				DeviceCmd: d.NetAddr.Cmd,
-				Format:    d.NetAddr.Format,
+				DeviceCmd: device.NetAddr.Cmd,
+				Format:    device.NetAddr.Format,
 				Value:     float64(p.Addr),
 			}
 			if _, err := comPort.Write(r.Request().Bytes()); err != nil {
@@ -59,7 +66,7 @@ func (h *productSvc) SetNetAddr(_ context.Context, productID int64) error {
 				Addr:           p.Addr,
 				FirstRegister:  0,
 				RegistersCount: 2,
-			}.GetResponse(log, ctx, getCommProduct(p.Comport, d))
+			}.GetResponse(log, ctx, getCommProduct(p.Comport, device))
 			return err
 		})
 }

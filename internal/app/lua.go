@@ -58,14 +58,15 @@ func (x *luaImport) GetProducts() *lua.LTable {
 	party, err := data.GetCurrentParty(db)
 	x.luaCheck(err)
 
+	device, err := config.Get().Hardware.GetDevice(party.DeviceType)
+	x.luaCheck(err)
+
 	for _, p := range party.Products {
 		p := p
 		if !p.Active {
 			continue
 		}
-		impP := &luaProduct{luaState: x.luaState}
-		x.luaCheck(impP.init(p))
-
+		impP := newLuaProduct(p, device, x.luaState)
 		Products.Append(luar.New(x.luaState, impP))
 	}
 	x.luaState.SetGlobal("Products", Products)

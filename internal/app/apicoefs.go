@@ -21,9 +21,11 @@ func (*coefficientsSvc) ReadAll(context.Context) error {
 }
 
 func (h *coefficientsSvc) ListCoefficients(_ context.Context) (r []*apitypes.Coefficient, err error) {
-	c := config.Get()
-	for _, i := range c.ListCoefficients() {
-		_, inactive := c.InactiveCoefficients[i]
+	r = []*apitypes.Coefficient{}
+	d, _ := getCurrentPartyDeviceConfig()
+	cfg := config.Get()
+	for _, i := range d.ListCoefficients() {
+		_, inactive := cfg.InactiveCoefficients[i]
 		r = append(r, &apitypes.Coefficient{
 			N:      int32(i),
 			Active: !inactive,

@@ -33,10 +33,10 @@ func (h *appConfigSvc) ListDevices(_ context.Context) ([]string, error) {
 	return config.Get().Hardware.ListDevices(), nil
 }
 
-func (h *appConfigSvc) ListProductTypes(_ context.Context, device string) ([]string, error) {
-	dv, ok := config.Get().Hardware[device]
-	if !ok {
-		return nil, fmt.Errorf("device %q not exists in config", device)
+func (h *appConfigSvc) ListProductTypes(_ context.Context) ([]string, error) {
+	dv, err := getCurrentPartyDeviceConfig()
+	if err != nil {
+		return nil, err
 	}
 	return dv.ProductTypes, nil
 }
@@ -99,6 +99,10 @@ func (h *appConfigSvc) SetParamValue(_ context.Context, key string, value string
 
 	switch key {
 
+	case "device_type":
+		_, err := db.Exec(`UPDATE party SET device_type = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)
+		return wrapErr(err)
+
 	case "product_type":
 		_, err := db.Exec(`UPDATE party SET product_type = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)
 		return wrapErr(err)
@@ -153,40 +157,8 @@ func (x configParam) List() []string {
 	return x.list()
 }
 
-func getConfigProductsTypes(products []data.Product) []string {
-	cfg := config.Get()
-	m := map[string]struct{}{}
-	for _, p := range products {
-		for _, d := range cfg.Hardware.ListDevices() {
-			if d == p.Device {
-				m[d] = struct{}{}
-			}
-		}
-	}
-	var xs []string
-	for x := range m {
-		xs = append(xs, x)
-	}
-	sort.Strings(xs)
-	return xs
-}
-
-func getConfigPartyParams(products []data.Product) config.PartyParams {
-	cfg := config.Get()
-	xs := make(config.PartyParams)
-	for _, p := range products {
-		for d, dv := range cfg.Hardware {
-			if d == p.Device {
-				for k, v := range dv.PartyParams {
-					xs[k] = d + ": " + v
-				}
-			}
-		}
-	}
-	return xs
-}
-
 func getConfigParamsValues() ([]*apitypes.ConfigParamValue, error) {
+
 	p, err := data.GetCurrentParty(db)
 	if err != nil {
 		return nil, err
@@ -197,14 +169,20 @@ func getConfigParamsValues() ([]*apitypes.ConfigParamValue, error) {
 	xs := []*apitypes.ConfigParamValue{
 		{
 			Key:   "name",
-			Name:  "Имя файла",
+			Name:  "Приборы: имя файла",
 			Value: p.Name,
 		},
 		{
+			Key:        "device_type",
+			Name:       "Приборы: тип приборов",
+			Value:      p.DeviceType,
+			ValuesList: cfg.Hardware.ListDevices(),
+		},
+		{
 			Key:        "product_type",
-			Name:       "Исполнение",
+			Name:       "Приборы: исполнение",
 			Value:      p.ProductType,
-			ValuesList: getConfigProductsTypes(p.Products),
+			ValuesList: cfg.Hardware.ListProductTypes(p.DeviceType),
 		},
 	}
 
@@ -234,7 +212,16 @@ func getConfigParamsValues() ([]*apitypes.ConfigParamValue, error) {
 	if err != nil {
 		return nil, err
 	}
-	for key, name := range getConfigPartyParams(p.Products) {
+
+	partyParamsOfDevice := func() config.PartyParams {
+		dv, _ := cfg.Hardware[p.DeviceType]
+		for k, v := range dv.PartyParams {
+			dv.PartyParams[k] = "Приборы: " + v
+		}
+		return dv.PartyParams
+	}()
+
+	for key, name := range partyParamsOfDevice {
 		if err := checkKey(key); err != nil {
 			return nil, err
 		}

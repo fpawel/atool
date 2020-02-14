@@ -130,17 +130,19 @@ func (h *currentFileSvc) DeleteProducts(ctx context.Context, productIDs []int64)
 }
 
 func (h *currentFileSvc) ListDeviceParams(_ context.Context) ([]*apitypes.DeviceParam, error) {
-	xs, err := getParamAddresses()
+
+	party, err := data.GetCurrentParty(db)
 	if err != nil {
 		return nil, err
 	}
+
+	device, _ := config.Get().Hardware.GetDevice(party.DeviceType)
+
 	r := make([]*apitypes.DeviceParam, 0)
-	m := config.Get().ParamsNames
-	for _, x := range xs {
-		name, _ := m[x]
+	for _, x := range device.ParamAddresses() {
 		r = append(r, &apitypes.DeviceParam{
 			ParamAddr: int32(x),
-			Name:      name,
+			Name:      device.ParamName(x),
 		})
 	}
 	return r, nil
@@ -287,50 +289,33 @@ func getAllProductsParamsValues(party data.Party, values map[string]mapIntFloat)
 	return result
 }
 
-func getParamAddresses() ([]int, error) {
-	var xs []string
-	if err := db.Select(&xs, `SELECT DISTINCT device FROM product WHERE party_id IN (SELECT party_id FROM app_config)`); err != nil {
-		return nil, err
-	}
-	m := make(map[string]struct{})
-	for _, x := range xs {
-		m[x] = struct{}{}
-	}
-	var r []int
-	for _, n := range config.Get().Hardware.ParamAddresses(m) {
-		r = append(r, n)
-	}
-	return r, nil
-}
-
 func processCurrentPartyChart() {
 
 	t := time.Now()
 
-	partyID, err := data.GetCurrentPartyID(db)
+	party, err := data.GetCurrentParty(db)
 	if err != nil {
 		err = merry.Append(err, "не удалось получить номер текущего файла")
-		log.PrintErr(err)
-		guiwork.JournalErr(log, err)
-	}
-
-	paramAddresses, err := getParamAddresses()
-	if err != nil {
-		err = merry.Append(err, "не удалось получить номера параметров текущего файла")
 		log.PrintErr(err)
 		guiwork.JournalErr(log, err)
 		return
 	}
 
-	log := pkg.LogPrependSuffixKeys(log, "party", partyID, "params", fmt.Sprintf("%d", paramAddresses))
+	cfg := config.Get().Hardware
+
+	paramsAddresses := cfg.GetDeviceParamAddresses(party.DeviceType)
+
+	log := pkg.LogPrependSuffixKeys(log, "party",
+		party.PartyID, "params", fmt.Sprintf("%d", paramsAddresses))
 
 	printErr := func(err error) {
-		guiwork.JournalWarnError(log, merry.Appendf(err, "график текущего файла %d: % d, %v", partyID, paramAddresses, time.Since(t)))
+		guiwork.JournalWarnError(log, merry.Appendf(err, "график текущего файла %d: % d, %v",
+			party.PartyID, paramsAddresses, time.Since(t)))
 	}
 
-	gui.Popupf("открывается график файла %d", partyID)
+	gui.Popupf("открывается график файла %d", party.PartyID)
 
-	xs, err := data.GetPartyChart(db, partyID, paramAddresses)
+	xs, err := data.GetPartyChart(db, party.PartyID, paramsAddresses)
 
 	log = pkg.LogPrependSuffixKeys(log, "duration", time.Since(t))
 
@@ -341,7 +326,7 @@ func processCurrentPartyChart() {
 	log.Debug("open chart", "measurements_count", len(xs), "duration", time.Since(t))
 	t2 := time.Now()
 	gui.NotifyChart(xs)
-	gui.Popupf("открыт график текущего файла %d, %d точек, %v", partyID, len(xs), time.Since(t))
+	gui.Popupf("открыт график текущего файла %d, %d точек, %v", party.PartyID, len(xs), time.Since(t))
 	log.Debug("load chart", "measurements_count", len(xs), "duration", time.Since(t2), "total_duration", time.Since(t))
 
 }

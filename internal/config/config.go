@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
@@ -11,7 +10,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sort"
 	"sync"
 )
 
@@ -23,9 +21,7 @@ type Config struct {
 	Temperature          Temperature      `yaml:"temperature"`
 	WarmSheets           Mil82WarmSheets  `yaml:"warm_sheets"`
 	Ktx500               ktx500.Config    `yaml:"ktx500"`
-	Coefficients         []Coefficients   `yaml:"coefficients"`
 	InactiveCoefficients map[int]struct{} `yaml:"inactive_coefficients"`
-	ParamsNames          map[int]string   `yaml:"params_names"`
 }
 
 type PartyParams = map[string]string
@@ -88,39 +84,7 @@ func (c Config) Validate() error {
 		return err
 	}
 
-	for i, c := range c.Coefficients {
-		if err := c.Validate(); err != nil {
-			return merry.Appendf(err, "диапазон к-тов номер %d", i)
-		}
-	}
-
 	return nil
-}
-
-func (c Config) GetCoefficientFormat(n int) (FloatBitsFormat, error) {
-	for _, c := range c.Coefficients {
-		if err := c.Validate(); err != nil {
-			return "", fmt.Errorf("коэффициент %d: %+v: %w", n, c, err)
-		}
-		if n >= c.Range[0] && n <= c.Range[1] {
-			return c.Format, nil
-		}
-	}
-	return "", fmt.Errorf("коэффициент %d не найден в настройках", n)
-}
-
-func (c Config) ListCoefficients() (xs []int) {
-	m := map[int]struct{}{}
-	for _, p := range c.Coefficients {
-		for i := p.Range[0]; i <= p.Range[1]; i++ {
-			m[i] = struct{}{}
-		}
-	}
-	for i := range m {
-		xs = append(xs, i)
-	}
-	sort.Ints(xs)
-	return
 }
 
 func writeFile(b []byte) error {
@@ -143,34 +107,33 @@ func readFile() (Config, error) {
 
 func (c *Config) validate() {
 
-	if len(c.Coefficients) == 0 {
-		c.Coefficients = []Coefficients{
-			{
-				Range:  [2]int{0, 50},
-				Format: "float_big_endian",
-			},
-		}
-	}
-	if c.InactiveCoefficients == nil {
-		c.InactiveCoefficients = make(map[int]struct{})
-	}
-	if c.ParamsNames == nil {
-		c.ParamsNames = map[int]string{
-			0: "C",
-			2: "I",
-		}
-	}
-
 	for d := range c.Hardware {
 		dv := c.Hardware[d]
 		if len(dv.PartyParams) == 0 {
 			dv.PartyParams = defaultPartyParams()
-			c.Hardware[d] = dv
 		}
 		if len(dv.ProductTypes) == 0 {
 			dv.ProductTypes = []string{"00.01", "00.02"}
-			c.Hardware[d] = dv
 		}
+
+		if len(dv.Coefficients) == 0 {
+			dv.Coefficients = []Coefficients{
+				{
+					Range:  [2]int{0, 50},
+					Format: "float_big_endian",
+				},
+			}
+		}
+		if c.InactiveCoefficients == nil {
+			c.InactiveCoefficients = make(map[int]struct{})
+		}
+		if dv.ParamsNames == nil {
+			dv.ParamsNames = map[int]string{
+				0: "C",
+				2: "I",
+			}
+		}
+		c.Hardware[d] = dv
 	}
 }
 

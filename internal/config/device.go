@@ -11,15 +11,17 @@ import (
 
 type Device struct {
 	//Name               string        `yaml:"name"`
-	Baud               int           `yaml:"baud"`
-	TimeoutGetResponse time.Duration `yaml:"timeout_get_response"` // таймаут получения ответа
-	TimeoutEndResponse time.Duration `yaml:"timeout_end_response"` // таймаут окончания ответа
-	MaxAttemptsRead    int           `yaml:"max_attempts_read"`    //число попыток получения ответа
-	Pause              time.Duration `yaml:"pause"`                //пауза перед опросом
-	NetAddr            NetAddr       `yaml:"net_addr"`
-	Params             []Params      `yaml:"params"`
-	PartyParams        PartyParams   `yaml:"party_params"`
-	ProductTypes       []string      `yaml:"product_types"`
+	Baud               int            `yaml:"baud"`
+	TimeoutGetResponse time.Duration  `yaml:"timeout_get_response"` // таймаут получения ответа
+	TimeoutEndResponse time.Duration  `yaml:"timeout_end_response"` // таймаут окончания ответа
+	MaxAttemptsRead    int            `yaml:"max_attempts_read"`    //число попыток получения ответа
+	Pause              time.Duration  `yaml:"pause"`                //пауза перед опросом
+	NetAddr            NetAddr        `yaml:"net_addr"`
+	Params             []Params       `yaml:"params"`
+	PartyParams        PartyParams    `yaml:"party_params"`
+	ProductTypes       []string       `yaml:"product_types"`
+	Coefficients       []Coefficients `yaml:"coefficients"`
+	ParamsNames        map[int]string `yaml:"params_names"`
 }
 
 type NetAddr struct {
@@ -45,6 +47,15 @@ func (d Device) ParamAddresses() (ps []int) {
 	}
 	sort.Ints(ps)
 	return
+}
+
+func (d Device) ParamName(paramAddr int) string {
+	for n, s := range d.ParamsNames {
+		if n == paramAddr {
+			return fmt.Sprintf("%d: %s", paramAddr, s)
+		}
+	}
+	return fmt.Sprintf("%d", paramAddr)
 }
 
 func (d Device) Validate() error {
@@ -115,6 +126,12 @@ func (d Device) Validate() error {
 		m[x] = struct{}{}
 	}
 
+	for i, c := range d.Coefficients {
+		if err := c.Validate(); err != nil {
+			return merry.Appendf(err, "диапазон к-тов номер %d", i)
+		}
+	}
+
 	return nil
 }
 
@@ -125,4 +142,30 @@ func (d Device) CommConfig() comm.Config {
 		MaxAttemptsRead:    d.MaxAttemptsRead,
 		Pause:              d.Pause,
 	}
+}
+
+func (d Device) GetCoefficientFormat(n int) (FloatBitsFormat, error) {
+	for _, c := range d.Coefficients {
+		if err := c.Validate(); err != nil {
+			return "", fmt.Errorf("коэффициент %d: %+v: %w", n, c, err)
+		}
+		if n >= c.Range[0] && n <= c.Range[1] {
+			return c.Format, nil
+		}
+	}
+	return "", fmt.Errorf("коэффициент %d не найден в настройках", n)
+}
+
+func (d Device) ListCoefficients() (xs []int) {
+	m := map[int]struct{}{}
+	for _, p := range d.Coefficients {
+		for i := p.Range[0]; i <= p.Range[1]; i++ {
+			m[i] = struct{}{}
+		}
+	}
+	for i := range m {
+		xs = append(xs, i)
+	}
+	sort.Ints(xs)
+	return
 }

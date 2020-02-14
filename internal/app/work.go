@@ -74,11 +74,12 @@ func notifyReadCoefficient(p data.Product, n int, value float64, err error) {
 }
 
 func runReadAllCoefficients() error {
+
 	return guiwork.RunWork(log, appCtx, "считывание коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
 
 		err := processEachActiveProduct(nil, func(product data.Product, device config.Device) error {
 			log := pkg.LogPrependSuffixKeys(log, "product", product.String())
-			for _, k := range config.Get().Coefficients {
+			for _, k := range device.Coefficients {
 				count := k.Range[1] - k.Range[0] + 1
 				log := pkg.LogPrependSuffixKeys(log, "range", fmt.Sprintf("%d...%d", k.Range[0], k.Range[1]))
 
@@ -110,9 +111,22 @@ func runReadAllCoefficients() error {
 }
 
 func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
+
+	party, err := data.GetCurrentParty(db)
+	if err != nil {
+		return err
+	}
+
+	cfg := config.Get()
+
+	device, f := cfg.Hardware[party.DeviceType]
+	if !f {
+		return fmt.Errorf("не заданы параметры устройства %s", party.DeviceType)
+	}
+
 	return guiwork.RunWork(log, appCtx, "запись коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
 		for _, x := range in {
-			valFmt, err := config.Get().GetCoefficientFormat(int(x.Coefficient))
+			valFmt, err := device.GetCoefficientFormat(int(x.Coefficient))
 			if err != nil {
 				return err
 			}
@@ -120,12 +134,6 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 			var product data.Product
 			if err := db.Get(&product, `SELECT * FROM product WHERE product_id = ?`, x.ProductID); err != nil {
 				return err
-			}
-
-			device, f := config.Get().Hardware[product.Device]
-			if !f {
-				return fmt.Errorf("не заданы параметры устройства %s для прибора %+v",
-					product.Device, product)
 			}
 
 			log := pkg.LogPrependSuffixKeys(log, "write_coefficient", x.Coefficient, "value", x.Value,
@@ -252,28 +260,35 @@ func writeKefProduct(log logger, ctx context.Context, product data.Product, devi
 type errorsOccurred map[string]struct{}
 
 func processEachActiveProduct(errorsOccurred errorsOccurred, work func(data.Product, config.Device) error) error {
-
+	party, err := data.GetCurrentParty(db)
+	if err != nil {
+		return err
+	}
+	device, err := config.Get().Hardware.GetDevice(party.DeviceType)
+	if err != nil {
+		return err
+	}
 	products, err := getActiveProducts()
 	if err != nil {
 		return err
 	}
 	for _, p := range products {
-		gui.Popupf("опрашивается прибор: %s %s адр.%d", p.product.Device, p.product.Comport, p.product.Addr)
-		err := work(p.product, p.device)
+		go gui.Popupf("опрашивается прибор: №%d %s адр.%d", p.Serial, p.Comport, p.Addr)
+		err := work(p, device)
 		if merry.Is(err, context.Canceled) {
 			return err
 		}
 		go gui.NotifyProductConnection(gui.ProductConnection{
-			ProductID: p.product.ProductID,
+			ProductID: p.ProductID,
 			Ok:        err == nil,
 		})
 		if err != nil {
 			if errorsOccurred == nil {
-				guiwork.JournalErr(log, merry.Errorf("ошибка связи с прибором №%d", p.product.Serial).WithCause(err))
+				guiwork.JournalErr(log, merry.Errorf("ошибка связи с прибором №%d", p.Serial).WithCause(err))
 			} else {
 				if _, f := errorsOccurred[err.Error()]; !f {
 					errorsOccurred[err.Error()] = struct{}{}
-					guiwork.JournalErr(log, merry.Errorf("ошибка связи с прибором №%d", p.product.Serial).WithCause(err))
+					guiwork.JournalErr(log, merry.Errorf("ошибка связи с прибором №%d", p.Serial).WithCause(err))
 				}
 			}
 		}

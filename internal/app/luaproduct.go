@@ -21,17 +21,15 @@ type luaProduct struct {
 	luaState *lua.LState
 }
 
-func (x *luaProduct) init(p data.Product) error {
-	device, okDevice := config.Get().Hardware[p.Device]
-	if !okDevice {
-		return fmt.Errorf("%s: не заданы параметры устройства", p)
+func newLuaProduct(p data.Product, device config.Device, luaState *lua.LState) *luaProduct {
+	return &luaProduct{
+		p:        p,
+		Serial:   p.Serial,
+		ID:       p.ProductID,
+		Addr:     p.Addr,
+		device:   device,
+		luaState: luaState,
 	}
-	x.p = p
-	x.Serial = p.Serial
-	x.device = device
-	x.ID = p.ProductID
-	x.Addr = p.Addr
-	return nil
 }
 
 func (x *luaProduct) WriteKef(k int, format modbus.FloatBitsFormat, LValue lua.LNumber) {

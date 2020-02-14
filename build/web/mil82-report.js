@@ -242,6 +242,14 @@ const App = () => {
     const [party, setParty] = React.useState(null);
     const [overlay, setOverlay] = React.useState(false);
     const [productValueDetail, setProductValueDetail] = React.useState(null);
+    const [failed, setFailed] = React.useState(null);
+
+    if (failed) {
+        return <div>
+            <h1 style={{color:"red"}}>{failed}</h1>,
+            <a href={"/"}>Вернуться на главную страницу</a>
+        </div>;
+    }
 
     if (party === null) {
         (async () => {
@@ -249,12 +257,15 @@ const App = () => {
             let party = await response.json();
             window.party = party;
             document.title = `Партия ${party.PartyID}`;
+            if (!party.Products) {
+                setFailed("Нет данных!")
+                return
+            }
             calculateProductsValues(party);
             setParty(party);
         })();
-        return <h1>получение данных</h1>;
+        return <h1>получение данных...</h1>;
     }
-
 
     const props = {party, setOverlay, setProductValueDetail, key:1};
     return [

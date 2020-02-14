@@ -32,6 +32,12 @@ func defaultConfig() Config {
 				},
 				ProductTypes: []string{"00.01", "00.02"},
 				PartyParams:  defaultPartyParams(),
+				Coefficients: []Coefficients{
+					{
+						Range:  [2]int{0, 50},
+						Format: "float_big_endian",
+					},
+				},
 			},
 		},
 		Gas: Gas{
@@ -57,12 +63,6 @@ func defaultConfig() Config {
 		},
 		Ktx500:               ktx500.NewDefaultConfig(),
 		InactiveCoefficients: make(map[int]struct{}),
-		Coefficients: []Coefficients{
-			{
-				Range:  [2]int{0, 50},
-				Format: "float_big_endian",
-			},
-		},
 	}
 }
 

@@ -11,6 +11,7 @@ type PartyInfo struct {
 	CreatedAt   time.Time `db:"created_at"`
 	Name        string    `db:"name"`
 	ProductType string    `db:"product_type"`
+	DeviceType  string    `db:"device_type"`
 }
 
 type Party struct {
@@ -26,12 +27,12 @@ type Product struct {
 	Serial       int         `db:"serial"`
 	Comport      string      `db:"comport"`
 	Addr         modbus.Addr `db:"addr"`
-	Device       string      `db:"device"`
 	Active       bool        `db:"active"`
+	Place        int         `db:"place"`
 }
 
 func (p Product) String() string {
-	return fmt.Sprintf("%s,%s,адр=%d,сер№=%d,id=%d", p.Comport, p.Device, p.Addr, p.Serial, p.ProductID)
+	return fmt.Sprintf("%s,адр=%d,сер№=%d,id=%d", p.Comport, p.Addr, p.Serial, p.ProductID)
 }
 
 type ProductParam struct {
@@ -48,6 +49,7 @@ type PartyValues struct {
 	CreatedAt   time.Time       `db:"created_at"`
 	Name        string          `db:"name"`
 	ProductType string          `db:"product_type"`
+	DeviceType  string          `db:"device_type"`
 	Values      Values          `db:"-"`
 	Products    []ProductValues `db:"-"`
 }
@@ -57,6 +59,5 @@ type ProductValues struct {
 	Place     int
 	Serial    int
 	Addr      modbus.Addr
-	Device    string
 	Values    map[string]float64
 }

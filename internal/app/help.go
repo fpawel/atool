@@ -16,35 +16,26 @@ import (
 
 type logger = *structlog.Logger
 
-type productHardware struct {
-	product data.Product
-	device  config.Device
+func getCurrentPartyDeviceConfig() (config.Device, error) {
+	party, err := data.GetCurrentParty(db)
+	if err != nil {
+		return config.Device{}, err
+	}
+	return config.Get().Hardware.GetDevice(party.DeviceType)
 }
 
-func getActiveProducts() ([]productHardware, error) {
+func getActiveProducts() ([]data.Product, error) {
 
 	var products []data.Product
 	err := db.Select(&products,
-		`SELECT * FROM product WHERE party_id = (SELECT party_id FROM app_config) AND active`)
+		`SELECT * FROM product_enumerated WHERE party_id = (SELECT party_id FROM app_config) AND active`)
 	if err != nil {
 		return nil, err
 	}
 	if len(products) == 0 {
 		return nil, errNoInterrogateObjects
 	}
-
-	var xs []productHardware
-	for _, p := range products {
-		d, f := config.Get().Hardware[p.Device]
-		if !f {
-			return nil, fmt.Errorf("не заданы параметры устройства %s для прибора %+v", p.Device, p)
-		}
-		xs = append(xs, productHardware{
-			product: p,
-			device:  d,
-		})
-	}
-	return xs, nil
+	return products, nil
 }
 
 func formatBytes(xs []byte) string {

@@ -10,20 +10,26 @@ struct Product {
   5: TimeUnixMillis partyCreatedAt
   6: string comport
   7: i8 addr
-  8: string device
+  8: i32 place
+
 }
 
 struct Party {
     1: i64 partyID
     2: TimeUnixMillis createdAt
     3: string name
-    4: list<Product> products
+    4: string deviceType
+    5: string productType
+    6: list<Product> products
+
 }
 
 struct PartyInfo {
     1: i64 partyID
     2: string name
-    3: TimeUnixMillis createdAt
+    3: string deviceType
+    4: string productType
+    5: TimeUnixMillis createdAt
 }
 
 struct ConfigParamValue {

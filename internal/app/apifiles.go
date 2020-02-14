@@ -50,10 +50,12 @@ func (h *filesSvc) GetParty(_ context.Context, partyID int64) (*apitypes.Party, 
 		return nil, err
 	}
 	party := &apitypes.Party{
-		PartyID:   dataParty.PartyID,
-		CreatedAt: timeUnixMillis(dataParty.CreatedAt),
-		Name:      dataParty.Name,
-		Products:  []*apitypes.Product{},
+		PartyID:     dataParty.PartyID,
+		CreatedAt:   timeUnixMillis(dataParty.CreatedAt),
+		Name:        dataParty.Name,
+		DeviceType:  dataParty.DeviceType,
+		ProductType: dataParty.ProductType,
+		Products:    []*apitypes.Product{},
 	}
 
 	for _, p := range dataParty.Products {
@@ -63,7 +65,6 @@ func (h *filesSvc) GetParty(_ context.Context, partyID int64) (*apitypes.Party, 
 			PartyCreatedAt: timeUnixMillis(p.CreatedAt),
 			Comport:        p.Comport,
 			Addr:           int8(p.Addr),
-			Device:         p.Device,
 			Active:         p.Active,
 			Serial:         int64(p.Serial),
 		})
@@ -71,9 +72,9 @@ func (h *filesSvc) GetParty(_ context.Context, partyID int64) (*apitypes.Party, 
 	return party, nil
 }
 
-func (h *filesSvc) CreateNewParty(ctx context.Context, productsCount int8, name, device, productType string) error {
+func (h *filesSvc) CreateNewParty(ctx context.Context, productsCount int8) error {
 	if guiwork.IsConnected() {
 		return merry.New("нельзя создать новую партию пока выполняется опрос")
 	}
-	return data.SetNewCurrentParty(ctx, db, int(productsCount), name, device, productType)
+	return data.SetNewCurrentParty(ctx, db, int(productsCount))
 }

@@ -68,7 +68,7 @@ func GetParty(db *sqlx.DB, partyID int64) (Party, error) {
 	}
 
 	if err := db.Select(&party.Products,
-		`SELECT * FROM product WHERE party_id=? ORDER BY created_at, created_order`,
+		`SELECT * FROM product_enumerated WHERE party_id=? ORDER BY place`,
 		partyID); err != nil {
 		return Party{}, err
 	}
@@ -110,12 +110,11 @@ func GetCurrentPartyValues(db *sqlx.DB, party *PartyValues) error {
 		ProductID int64       `db:"product_id"`
 		Serial    int         `db:"serial"`
 		Addr      modbus.Addr `db:"addr"`
-		Device    string      `db:"device"`
 		Key       string      `db:"key"`
 		Value     float64     `db:"value"`
 	}
 	if err := db.Select(&xs, `
-SELECT product_id, serial, addr, device, key, value FROM product_value 
+SELECT product_id, serial, addr, key, value FROM product_value 
 INNER JOIN product USING(product_id)
 WHERE party_id= (SELECT party_id FROM app_config)
 ORDER BY created_at, created_order`); err != nil {
@@ -135,7 +134,6 @@ ORDER BY created_at, created_order`); err != nil {
 				Place:     len(party.Products),
 				Serial:    x.Serial,
 				Addr:      x.Addr,
-				Device:    x.Device,
 				Values:    make(map[string]float64),
 			}
 			party.Products = append(party.Products, *p)
@@ -151,7 +149,7 @@ func CopyCurrentParty(db *sqlx.DB) error {
 		return err
 	}
 
-	newPartyID, err := createNewParty(db, prevParty.Name, prevParty.ProductType)
+	newPartyID, err := createNewParty(db, prevParty.Name, prevParty.DeviceType, prevParty.ProductType)
 	if err != nil {
 		return err
 	}
@@ -173,8 +171,8 @@ WHERE product_id = ?`, newPartyID, prevParty.PartyID); err != nil {
 		p.PartyID = newPartyID
 
 		r, err := db.NamedExec(`
-INSERT INTO product( party_id, addr, device, active, comport, created_at, created_order ) 
-VALUES (:party_id, :addr, :device, :active, :comport, :created_at, :created_order);`, p)
+INSERT INTO product( party_id, addr, active, comport, created_at, created_order ) 
+VALUES (:party_id, :addr, :active, :comport, :created_at, :created_order);`, p)
 
 		if err != nil {
 			return err
@@ -211,15 +209,24 @@ ON CONFLICT (product_id, param_addr) DO UPDATE SET series_active=:series_active,
 	return err
 }
 
-func SetNewCurrentParty(ctx context.Context, db *sqlx.DB, productsCount int, name string, device, productType string) error {
-	newPartyID, err := createNewParty(db, name, productType)
+func SetNewCurrentParty(ctx context.Context, db *sqlx.DB, productsCount int) error {
+
+	prevParty, err := GetCurrentParty(db)
+	if err != nil {
+		return err
+	}
+	t := time.Now()
+	name := fmt.Sprintf("%d %s %s, %s",
+		t.Day(), formatMonth(t), t.Format("2006"), t.Format("15:04"))
+
+	newPartyID, err := createNewParty(db, name, prevParty.DeviceType, prevParty.ProductType)
 	if err != nil {
 		return err
 	}
 	for i := 0; i < productsCount; i++ {
 		r, err := db.ExecContext(ctx,
-			`INSERT INTO product(party_id, addr, created_order, created_at, device) VALUES (?, ?, ?, ?, ?);`,
-			newPartyID, i+1, i+1, time.Now().Add(time.Second*time.Duration(i)), device)
+			`INSERT INTO product(party_id, addr, created_order, created_at) VALUES (?, ?, ?, ?);`,
+			newPartyID, i+1, i+1, time.Now().Add(time.Second*time.Duration(i)))
 		if err != nil {
 			return err
 		}
@@ -294,8 +301,9 @@ func setAppConfigPartyID(db *sqlx.DB, partyID int64) error {
 	return err
 }
 
-func createNewParty(db *sqlx.DB, name, productType string) (int64, error) {
-	r, err := db.Exec(`INSERT INTO party (created_at, name, product_type) VALUES (?,?,?)`, time.Now(), name, productType)
+func createNewParty(db *sqlx.DB, name, deviceType, productType string) (int64, error) {
+	r, err := db.Exec(`INSERT INTO party (created_at, name, device_type, product_type) VALUES (?,?,?,?)`,
+		time.Now(), name, deviceType, productType)
 	if err != nil {
 		return 0, err
 	}
@@ -311,8 +319,8 @@ func createNewParty(db *sqlx.DB, name, productType string) (int64, error) {
 
 func setPartyValues(db *sqlx.DB, p PartyValues) error {
 
-	const q1 = `UPDATE party SET name=?, product_type=? WHERE party_id=?`
-	if _, err := db.Exec(q1, p.Name, p.ProductType, p.PartyID); err != nil {
+	const q1 = `UPDATE party SET name=?, device_type = ?, product_type=? WHERE party_id=?`
+	if _, err := db.Exec(q1, p.Name, p.DeviceType, p.ProductType, p.PartyID); err != nil {
 		return err
 	}
 	if _, err := db.Exec(`DELETE FROM product WHERE party_id=?`, p.PartyID); err != nil {
