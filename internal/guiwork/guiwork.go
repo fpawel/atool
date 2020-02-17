@@ -129,7 +129,10 @@ func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, n
 		}()
 
 		for {
-			err := backgroundWork(log, ctx)
+			var err error
+			if backgroundWork != nil {
+				err = backgroundWork(log, ctx)
+			}
 			if ctxParent.Err() != nil {
 				// выполнение прервано
 				return ctxParent.Err()

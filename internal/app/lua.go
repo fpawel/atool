@@ -202,6 +202,12 @@ func (x *luaImport) WriteKef(kef int, format modbus.FloatBitsFormat, value float
 		}))
 }
 
+func (x *luaImport) Pause(strDuration string, what string) {
+	duration, err := time.ParseDuration(strDuration)
+	x.luaCheck(err)
+	x.luaCheck(guiwork.Delay(log, x.luaState.Context(), duration, what, nil))
+}
+
 func (x *luaImport) Delay(strDuration string, what string) {
 	duration, err := time.ParseDuration(strDuration)
 	x.luaCheck(err)

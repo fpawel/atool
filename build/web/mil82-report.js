@@ -1,11 +1,11 @@
 const sections = [
-    ['test_t_norm', 'НКУ', null],
-    ['test_t_low', 'низкая температура', 20],
-    ['test_t_high', 'высокая температура', 20],
-    ['test2', 'возврат НКУ', null],
-    ['test_t80', '80⁰C', 80],
-    ['tex1', 'Перед технологическим прогоном', null],
-    ['tex2', 'После технологического прогона', null],
+    ['test_t_norm', 'Погрешность: НКУ', null],
+    ['test_t_low', 'Погрешность: низкая температура', 20],
+    ['test_t_high', 'Погрешность: высокая температура', 20],
+    ['test2', 'Погрешность: возврат НКУ', null],
+    ['test_t80', 'Погрешность: 80⁰C', 80],
+    ['tex1', 'Погрешность: перед технологическим прогоном', null],
+    ['tex2', 'Погрешность: после технологического прогона', null],
 ];
 
 const gases = [1, 3, 4];
@@ -269,7 +269,9 @@ const App = () => {
 
     const props = {party, setOverlay, setProductValueDetail, key:1};
     return [
-        <h1 key={0} style={{borderBottom: "1px solid #BCBCBC", paddingBottom: "10px"}}>Расчёт погрешности МИЛ-82</h1>,
+        <h1 key={-1} style={{borderBottom: "1px solid #BCBCBC", paddingBottom: "10px"}}>
+            Загрузка {party.PartyID} {party.DeviceType}, {party.ProductType}, { (new Date(party.CreatedAt)).toLocaleDateString() }
+        </h1>,
         <Report {...props } />,
         <h4 style={{textAlign: "left"}} key={2}>
             ПГС1: <strong style={{marginRight: "30px"}}>{party.Values.c1}</strong>

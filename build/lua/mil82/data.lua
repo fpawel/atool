@@ -1,7 +1,7 @@
 -- atool: data: МИЛ-82: снятие
 
-require 'mil82/init'
---require 'print_table'
+require 'mil82/def'
+
 local lin = {}
 
 for i = 1,4 do
@@ -69,7 +69,7 @@ for pt_key, pt_name in pairs({
     local x = {}
     for _,var in pairs(vars) do
         for _,gas in pairs({1,3,4}) do
-            table.insert(x, { pt_key ..'_'.. db_key_gas_var( gas, var), formatVar(var)..': '..formatGas(gas)})
+            table.insert(x, { pt_key ..'_'.. mil82_db_key_gas_var( gas, var), formatVar(var)..': '..formatGas(gas)})
         end
     end
     table.insert(product_params, { pt_name, x})
@@ -79,7 +79,7 @@ for pt_key, pt_name in pairs({ tex1 = 'перед техпрогоном', tex2 
     local x = {}
     for _,var in pairs(vars) do
         for _,gas in pairs({1,4}) do
-            table.insert(x, { pt_key ..'_'.. db_key_gas_var( gas, var), formatVar(var)..': '..formatGas(gas)})
+            table.insert(x, { pt_key ..'_'.. mil82_db_key_gas_var( gas, var), formatVar(var)..': '..formatGas(gas)})
         end
     end
     table.insert(product_params, { pt_name, x})
