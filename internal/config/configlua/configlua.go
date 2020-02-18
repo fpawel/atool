@@ -3,86 +3,23 @@ package configlua
 import (
 	"fmt"
 	lua "github.com/yuin/gopher-lua"
+	luar "layeh.com/gopher-luar"
+	"os"
+	"path/filepath"
 )
 
-type ProductParamsSection struct {
-	Name   string
-	Params []ProductParam
-}
+var (
+	Devices  = make(map[string]*Device)
+	luaState = lua.NewState()
+)
 
-type ProductParam struct {
-	Key  string
-	Name string
-}
+func init() {
+	filename := filepath.Join(filepath.Dir(os.Args[0]), "lua", "devices.lua")
+	xs := &devices{xs: make(map[string]*Device)}
+	luaState.SetGlobal("devices", luar.New(luaState, xs))
 
-type ProductParamsSectionsList []ProductParamsSection
-
-func (xs ProductParamsSectionsList) Keys() map[string]struct{} {
-	r := map[string]struct{}{}
-	for _, x := range xs {
-		for _, p := range x.Params {
-			r[p.Key] = struct{}{}
-		}
+	if err := luaState.DoFile(filename); err != nil {
+		panic(fmt.Errorf("devices.lua: %w", err))
 	}
-	return r
-}
-
-func (xs ProductParamsSectionsList) HasKey(key string) bool {
-	for _, x := range xs {
-		for _, p := range x.Params {
-			if p.Key == key {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func GetProductParamsSectionsList(filename string) (ProductParamsSectionsList, error) {
-	L := lua.NewState()
-	if err := L.DoFile(filename); err != nil {
-		return nil, err
-	}
-
-	var err error
-
-	getStrAt := func(luaValue lua.LValue, n int) string {
-		vt, ok := luaValue.(*lua.LTable)
-		if !ok {
-			err = fmt.Errorf("type error: %+v: table excepted", luaValue)
-			return ""
-		}
-		v, ok := vt.RawGetInt(n).(lua.LString)
-		if !ok {
-			err = fmt.Errorf("type error: %+v[%d]: string excepted", luaValue, n)
-			return ""
-		}
-		return string(v)
-	}
-	getTblAt := func(luaValue lua.LValue, n int) *lua.LTable {
-		return luaValue.(*lua.LTable).RawGetInt(n).(*lua.LTable)
-	}
-
-	retValue := L.Get(-1)
-	retTab, ok := retValue.(*lua.LTable)
-	if !ok {
-		return nil, fmt.Errorf("type error: %+v: table expected", retValue)
-	}
-
-	var sections ProductParamsSectionsList
-
-	retTab.ForEach(func(_ lua.LValue, aSect lua.LValue) {
-		var sect ProductParamsSection
-		sect.Name = getStrAt(aSect, 1)
-		getTblAt(aSect, 2).ForEach(func(_ lua.LValue, aParam lua.LValue) {
-			key := getStrAt(aParam, 1)
-			name := getStrAt(aParam, 2)
-			sect.Params = append(sect.Params, ProductParam{
-				Key:  key,
-				Name: name,
-			})
-		})
-		sections = append(sections, sect)
-	})
-	return sections, nil
+	Devices = xs.xs
 }

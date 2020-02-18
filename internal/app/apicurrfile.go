@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
-	"github.com/fpawel/atool/internal/config/configlua"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/guiwork"
@@ -19,7 +18,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime/debug"
-	"sort"
 	"time"
 )
 
@@ -36,74 +34,6 @@ func (h *currentFileSvc) RequestChart(_ context.Context) error {
 }
 
 type mapIntFloat map[int64]float64
-
-func (h *currentFileSvc) GetAllProductsParamsValues(_ context.Context) (r *apitypes.SectionProductParamsValues, err error) {
-
-	party, err := data.GetCurrentParty(db)
-	if err != nil {
-		return nil, err
-	}
-
-	values, err := getPartyProductsParamsValues(party.PartyID)
-	if err != nil {
-		return nil, err
-	}
-
-	result := getAllProductsParamsValues(party, values)
-	return &result, nil
-}
-
-func (h *currentFileSvc) GetProductsParamsValues(_ context.Context, configFilename string) ([]*apitypes.SectionProductParamsValues, error) {
-
-	productParamsSections, err := configlua.GetProductParamsSectionsList(configFilename)
-	if err != nil {
-		return nil, err
-	}
-
-	party, err := data.GetCurrentParty(db)
-	if err != nil {
-		return nil, err
-	}
-
-	values, err := getPartyProductsParamsValues(party.PartyID)
-	if err != nil {
-		return nil, err
-	}
-
-	var result []*apitypes.SectionProductParamsValues
-
-	for nSect, sect := range productParamsSections {
-		y := &apitypes.SectionProductParamsValues{
-			Section: fmt.Sprintf("%d. %s", nSect+1, sect.Name),
-			Values:  [][]string{{"Прибор"}},
-		}
-
-		for _, prm := range sect.Params {
-			y.Keys = append(y.Keys, prm.Key)
-		}
-
-		for _, p := range party.Products {
-			y.Values[0] = append(y.Values[0], fmt.Sprintf("№%d ID%d", p.Serial, p.ProductID))
-		}
-		for _, prm := range sect.Params {
-			xs := []string{prm.Name}
-			for _, p := range party.Products {
-				var s string
-				if m, f := values[prm.Key]; f {
-					if v, f := m[p.ProductID]; f {
-						s = fmt.Sprintf("%v", v)
-					}
-				}
-				xs = append(xs, s)
-			}
-			y.Values = append(y.Values, xs)
-		}
-
-		result = append(result, y)
-	}
-
-	return result, nil
-}
 
 func (h *currentFileSvc) RenameChart(_ context.Context, oldName, newName string) error {
 	_, err := db.Exec(`
@@ -225,68 +155,6 @@ func (h *currentFileSvc) DeleteAll(_ context.Context) error {
 		gui.NotifyCurrentPartyChanged()
 	}()
 	return nil
-}
-
-func getPartyProductsParamsValues(partyID int64) (map[string]mapIntFloat, error) {
-	const q2 = `
-SELECT product_id, key, value
-FROM product_value
-WHERE product_id IN (SELECT product_id FROM product WHERE party_id = ?)`
-	var values1 []struct {
-		ProductID int64   `db:"product_id"`
-		Key       string  `db:"key"`
-		Value     float64 `db:"value"`
-	}
-	if err := db.Select(&values1, q2, partyID); err != nil {
-		return nil, err
-	}
-
-	values := map[string]mapIntFloat{}
-
-	for _, x := range values1 {
-		if values[x.Key] == nil {
-			values[x.Key] = mapIntFloat{}
-		}
-		values[x.Key][x.ProductID] = x.Value
-	}
-	return values, nil
-}
-
-func getAllProductsParamsValues(party data.Party, values map[string]mapIntFloat) apitypes.SectionProductParamsValues {
-
-	result := apitypes.SectionProductParamsValues{
-		Values: [][]string{{"Прибор"}},
-	}
-
-	for _, p := range party.Products {
-		result.Values[0] = append(result.Values[0], fmt.Sprintf("№%d ID%d", p.Serial, p.ProductID))
-	}
-	for k, m := range values {
-		xs := []string{k}
-		for _, p := range party.Products {
-			s := ""
-			if v, f := m[p.ProductID]; f {
-				s = fmt.Sprintf("%v", v)
-			}
-			xs = append(xs, s)
-		}
-		if len(xs) > 1 {
-			result.Values = append(result.Values, xs)
-			result.Keys = append(result.Keys, k)
-		}
-	}
-
-	if len(result.Values) > 1 {
-		sort.Slice(result.Keys, func(i, j int) bool {
-			return result.Keys[i] < result.Keys[j]
-		})
-		vs := result.Values[1:]
-		sort.Slice(vs, func(i, j int) bool {
-			return vs[i][0] < vs[j][0]
-		})
-	}
-
-	return result
 }
 
 func processCurrentPartyChart() {

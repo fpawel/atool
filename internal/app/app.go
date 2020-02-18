@@ -136,6 +136,10 @@ func newApiProcessor() thrift.TProcessor {
 		api.NewFilesServiceProcessor(new(filesSvc)))
 	p.RegisterProcessor("CurrentFileService",
 		api.NewCurrentFileServiceProcessor(new(currentFileSvc)))
+
+	p.RegisterProcessor("FileService",
+		api.NewFileServiceProcessor(new(fileSvc)))
+
 	p.RegisterProcessor("ProductService",
 		api.NewProductServiceProcessor(new(productSvc)))
 	p.RegisterProcessor("AppConfigService",

@@ -31,14 +31,16 @@ func (h *filesSvc) SetCurrentParty(ctx context.Context, partyID int64) error {
 
 func (h *filesSvc) ListParties(ctx context.Context) (parties []*apitypes.PartyInfo, err error) {
 	var xs []data.PartyInfo
-	if err = db.SelectContext(ctx, &xs, `SELECT * FROM party ORDER BY created_at`); err != nil {
+	if err = db.SelectContext(ctx, &xs, `SELECT * FROM party ORDER BY created_at DESC`); err != nil {
 		return
 	}
 	for _, x := range xs {
 		parties = append(parties, &apitypes.PartyInfo{
-			PartyID:   x.PartyID,
-			CreatedAt: timeUnixMillis(x.CreatedAt),
-			Name:      x.Name,
+			PartyID:     x.PartyID,
+			Name:        x.Name,
+			DeviceType:  x.DeviceType,
+			ProductType: x.ProductType,
+			CreatedAt:   timeUnixMillis(x.CreatedAt),
 		})
 	}
 	return
@@ -59,15 +61,7 @@ func (h *filesSvc) GetParty(_ context.Context, partyID int64) (*apitypes.Party, 
 	}
 
 	for _, p := range dataParty.Products {
-		party.Products = append(party.Products, &apitypes.Product{
-			ProductID:      p.ProductID,
-			PartyID:        p.PartyID,
-			PartyCreatedAt: timeUnixMillis(p.CreatedAt),
-			Comport:        p.Comport,
-			Addr:           int8(p.Addr),
-			Active:         p.Active,
-			Serial:         int64(p.Serial),
-		})
+		party.Products = append(party.Products, convertDataProductToApiProduct(p))
 	}
 	return party, nil
 }
@@ -77,4 +71,16 @@ func (h *filesSvc) CreateNewParty(ctx context.Context, productsCount int8) error
 		return merry.New("нельзя создать новую партию пока выполняется опрос")
 	}
 	return data.SetNewCurrentParty(ctx, db, int(productsCount))
+}
+
+func convertDataProductToApiProduct(p data.Product) *apitypes.Product {
+	return &apitypes.Product{
+		ProductID:      p.ProductID,
+		PartyID:        p.PartyID,
+		PartyCreatedAt: timeUnixMillis(p.CreatedAt),
+		Comport:        p.Comport,
+		Addr:           int8(p.Addr),
+		Active:         p.Active,
+		Serial:         int64(p.Serial),
+	}
 }

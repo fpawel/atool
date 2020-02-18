@@ -51,6 +51,12 @@ const i8 NoValidate = 0;
 const i8 Valid = 1;
 const i8 Invalid = 2;
 
+
+struct PartyProductsValues {
+    1:list<Product> products;
+    2:list<SectionProductParamsValues> sections;
+}
+
 struct SectionProductParamsValues {
     1: string section
     2: list<string> keys

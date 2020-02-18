@@ -1,7 +1,7 @@
 -- atool: work: МИЛ-82: автоматическая настройка
 
-require 'help'
-require 'temp_setup'
+require 'utils/help'
+require 'utils/temp_setup'
 require 'mil82/def'
 
 local Products = go:GetProducts()

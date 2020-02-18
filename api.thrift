@@ -26,13 +26,9 @@ service CurrentFileService {
     list<apitypes.DeviceParam> listDeviceParams()
     void runEdit()
     void createNewCopy()
-    list<apitypes.SectionProductParamsValues> getProductsParamsValues(1:string configFilename)
-
     void saveFile(1:string filename)
     void openFile(1:string filename)
     void deleteAll()
-
-    apitypes.SectionProductParamsValues getAllProductsParamsValues()
 }
 
 service ProductParamService {
@@ -59,6 +55,10 @@ service FilesService {
    void setCurrentParty(1:i64 partyID)
    apitypes.Party getParty(1:i64 partyID)
    list<apitypes.PartyInfo> listParties()
+}
+
+service FileService {
+   apitypes.PartyProductsValues getProductsValues(1:i64 partyID)
 }
 
 service NotifyGuiService {
