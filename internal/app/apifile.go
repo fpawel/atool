@@ -27,14 +27,17 @@ func (h *fileSvc) GetProductsValues(_ context.Context, partyID int64) (*apitypes
 		result.Products = append(result.Products, convertDataProductToApiProduct(p))
 	}
 
-	d, _ := configlua.Devices[party.DeviceType]
-
 	values, err := getPartyProductsValues(party.PartyID)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, sect := range d.Sections {
+	var sections configlua.Sections
+	if d, f := configlua.Devices[party.DeviceType]; f {
+		sections = d.Sections
+	}
+
+	for _, sect := range sections {
 		y := &apitypes.SectionProductParamsValues{
 			Section: sect.Name,
 		}
