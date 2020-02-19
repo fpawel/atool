@@ -1,13 +1,14 @@
 package devdata
 
-import "fmt"
-
-func calcMil82() {
-
-}
+import (
+	"fmt"
+	"github.com/fpawel/atool/internal/devdata/calcmil82"
+)
 
 func init() {
-	var mil82 Device
+	mil82 := Device{
+		Calc: calcmil82.Calc,
+	}
 
 	type ds = DataSection
 

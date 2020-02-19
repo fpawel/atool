@@ -1,38 +1,26 @@
 package devcalc
 
-type CalcSections []*CalcSection
+import "github.com/fpawel/atool/internal/thriftgen/apitypes"
 
-func (x *CalcSections) AddSect(name string) *CalcSection {
+type CalcSections []*CalcSection
+type CalcParam = apitypes.CalcParam
+type CalcValue = apitypes.CalcValue
+type CalcSection = apitypes.CalcSection
+
+func AddSect(x *CalcSections, name string) *CalcSection {
 	c := &CalcSection{Name: name}
 	*x = append(*x, c)
 	return c
 }
 
-type CalcSection struct {
-	Name   string
-	Params []*CalcParam
-}
-
-func (x *CalcSection) AddPrm(name string) *CalcParam {
+func AddPrm(x *CalcSection, name string) *CalcParam {
 	v := &CalcParam{Name: name}
 	x.Params = append(x.Params, v)
 	return v
 }
 
-type CalcParam struct {
-	Name   string
-	Values []*CalcValue
-}
-
-func (x *CalcParam) AddVal() *CalcValue {
+func AddVal(x *CalcParam) *CalcValue {
 	v := new(CalcValue)
 	x.Values = append(x.Values, v)
 	return v
-}
-
-type CalcValue struct {
-	Validated bool
-	Valid     bool
-	Detail    string
-	Value     string
 }

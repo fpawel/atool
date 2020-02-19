@@ -55,6 +55,8 @@ const i8 Invalid = 2;
 struct PartyProductsValues {
     1:list<Product> products;
     2:list<SectionProductParamsValues> sections;
+    3: list<CalcSection> calc
+    4: string calcError
 }
 
 struct SectionProductParamsValues {
@@ -85,4 +87,21 @@ struct ProductCoefficientValue {
 struct DeviceParam {
     1:i32 ParamAddr
     2:string name
+}
+
+struct CalcSection {
+	1:string name
+	2:list<CalcParam> params
+}
+
+struct CalcParam {
+	1:string name
+	2:list<CalcValue> values
+}
+
+struct CalcValue {
+    1:bool validated
+    2:bool	valid
+    3:string  detail
+    4: string value
 }

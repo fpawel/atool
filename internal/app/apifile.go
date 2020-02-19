@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/devdata"
+	"github.com/fpawel/atool/internal/devdata/devcalc"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"sort"
@@ -28,12 +29,9 @@ func (h *fileSvc) GetProductsValues(_ context.Context, partyID int64) (*apitypes
 		result.Products = append(result.Products, convertDataProductValuesToApiProduct(party, p))
 	}
 
-	var sections devdata.DataSections
-	if d, f := devdata.Devices[party.DeviceType]; f {
-		sections = d.DataSections
-	}
+	device, _ := devdata.Devices[party.DeviceType]
 
-	for _, sect := range sections {
+	for _, sect := range device.DataSections {
 		y := &apitypes.SectionProductParamsValues{
 			Section: sect.Name,
 		}
@@ -59,6 +57,15 @@ func (h *fileSvc) GetProductsValues(_ context.Context, partyID int64) (*apitypes
 
 	sectAll := getPartyProductsValuesAll(party)
 	result.Sections = append(result.Sections, &sectAll)
+
+	var calc devcalc.CalcSections
+	if device.Calc != nil {
+		if err := device.Calc(party, &calc); err != nil {
+			result.CalcError = err.Error()
+		} else {
+			result.Calc = calc
+		}
+	}
 
 	return result, nil
 }
