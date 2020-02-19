@@ -1,4 +1,11 @@
-json = require("dkjson")
+json = require("utils/dkjson")
+
+function value_or_nan(v)
+    if v~=nil and v == v then
+        return v
+    end
+    return 0 / 0
+end
 
 function stringify(v)
     return json.encode(v, { indent = true })

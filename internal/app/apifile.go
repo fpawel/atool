@@ -3,8 +3,8 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/fpawel/atool/internal/config/configlua"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/devdata"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"sort"
@@ -18,23 +18,19 @@ func (h *fileSvc) GetProductsValues(_ context.Context, partyID int64) (*apitypes
 
 	result := new(apitypes.PartyProductsValues)
 
-	party, err := data.GetParty(db, partyID)
-	if err != nil {
+	var party data.PartyValues
+
+	if err := data.GetPartyValues(db, partyID, &party); err != nil {
 		return nil, err
 	}
 
 	for _, p := range party.Products {
-		result.Products = append(result.Products, convertDataProductToApiProduct(p))
+		result.Products = append(result.Products, convertDataProductValuesToApiProduct(party, p))
 	}
 
-	values, err := getPartyProductsValues(party.PartyID)
-	if err != nil {
-		return nil, err
-	}
-
-	var sections configlua.Sections
-	if d, f := configlua.Devices[party.DeviceType]; f {
-		sections = d.Sections
+	var sections devdata.DataSections
+	if d, f := devdata.Devices[party.DeviceType]; f {
+		sections = d.DataSections
 	}
 
 	for _, sect := range sections {
@@ -50,10 +46,8 @@ func (h *fileSvc) GetProductsValues(_ context.Context, partyID int64) (*apitypes
 			xs := []string{prm.Name}
 			for _, p := range party.Products {
 				var s string
-				if m, f := values[prm.Key]; f {
-					if v, f := m[p.ProductID]; f {
-						s = fmt.Sprintf("%v", v)
-					}
+				if v, f := p.Values[prm.Key]; f {
+					s = fmt.Sprintf("%v", v)
 				}
 				xs = append(xs, s)
 			}
@@ -63,19 +57,32 @@ func (h *fileSvc) GetProductsValues(_ context.Context, partyID int64) (*apitypes
 		result.Sections = append(result.Sections, y)
 	}
 
-	sectAll := getPartyProductsValuesAll(party, values)
+	sectAll := getPartyProductsValuesAll(party)
 	result.Sections = append(result.Sections, &sectAll)
 
 	return result, nil
 }
 
-func getPartyProductsValuesAll(party data.Party, values mapStrIntFloat) apitypes.SectionProductParamsValues {
+func getPartyProductsValuesAll(party data.PartyValues) apitypes.SectionProductParamsValues {
 
 	result := apitypes.SectionProductParamsValues{
 		Section: "Все сохранённые значения",
 	}
 
-	for k, m := range values {
+	xs := make(map[string]map[int64]float64)
+	for _, p := range party.Products {
+
+		for k, v := range p.Values {
+			m, f := xs[k]
+			if !f {
+				m = make(map[int64]float64)
+				xs[k] = m
+			}
+			m[p.ProductID] = v
+		}
+	}
+
+	for k, m := range xs {
 		xs := []string{k}
 		for _, p := range party.Products {
 			s := ""
@@ -103,29 +110,12 @@ func getPartyProductsValuesAll(party data.Party, values mapStrIntFloat) apitypes
 	return result
 }
 
-func getPartyProductsValues(partyID int64) (mapStrIntFloat, error) {
-	const q2 = `
-SELECT product_id, key, value
-FROM product_value
-WHERE product_id IN (SELECT product_id FROM product WHERE party_id = ?)`
-	var values1 []struct {
-		ProductID int64   `db:"product_id"`
-		Key       string  `db:"key"`
-		Value     float64 `db:"value"`
+func convertDataProductValuesToApiProduct(party data.PartyValues, p data.ProductValues) *apitypes.Product {
+	return &apitypes.Product{
+		ProductID:      p.ProductID,
+		PartyID:        party.PartyID,
+		PartyCreatedAt: timeUnixMillis(party.CreatedAt),
+		Addr:           int8(p.Addr),
+		Serial:         int64(p.Serial),
 	}
-	if err := db.Select(&values1, q2, partyID); err != nil {
-		return nil, err
-	}
-
-	values := map[string]mapIntFloat{}
-
-	for _, x := range values1 {
-		if values[x.Key] == nil {
-			values[x.Key] = mapIntFloat{}
-		}
-		values[x.Key][x.ProductID] = x.Value
-	}
-	return values, nil
 }
-
-type mapStrIntFloat = map[string]mapIntFloat

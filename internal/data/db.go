@@ -87,9 +87,9 @@ func SetCurrentPartyValues(db *sqlx.DB, p PartyValues) error {
 	return nil
 }
 
-func GetCurrentPartyValues(db *sqlx.DB, party *PartyValues) error {
+func GetPartyValues(db *sqlx.DB, partyID int64, party *PartyValues) error {
 
-	err := db.Get(party, `SELECT * FROM party WHERE party_id=(SELECT party_id FROM app_config)`)
+	err := db.Get(party, `SELECT * FROM party WHERE party_id=?`, partyID)
 	if err != nil {
 		return err
 	}
@@ -99,7 +99,7 @@ func GetCurrentPartyValues(db *sqlx.DB, party *PartyValues) error {
 		Key   string  `db:"key"`
 		Value float64 `db:"value"`
 	}
-	if err := db.Select(&values, `SELECT key, value FROM party_value WHERE party_id=(SELECT party_id FROM app_config)`); err != nil {
+	if err := db.Select(&values, `SELECT key, value FROM party_value WHERE party_id=?`, partyID); err != nil {
 		return err
 	}
 	for _, x := range values {
@@ -116,8 +116,8 @@ func GetCurrentPartyValues(db *sqlx.DB, party *PartyValues) error {
 	if err := db.Select(&xs, `
 SELECT product_id, serial, addr, key, value FROM product_value 
 INNER JOIN product USING(product_id)
-WHERE party_id= (SELECT party_id FROM app_config)
-ORDER BY created_at, created_order`); err != nil {
+WHERE party_id= ?
+ORDER BY created_at, created_order`, partyID); err != nil {
 		return err
 	}
 	for _, x := range xs {
@@ -141,6 +141,14 @@ ORDER BY created_at, created_order`); err != nil {
 		p.Values[x.Key] = x.Value
 	}
 	return nil
+}
+
+func GetCurrentPartyValues(db *sqlx.DB, party *PartyValues) error {
+	partyID, err := GetCurrentPartyID(db)
+	if err != nil {
+		return err
+	}
+	return GetPartyValues(db, partyID, party)
 }
 
 func CopyCurrentParty(db *sqlx.DB) error {

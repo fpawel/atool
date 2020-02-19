@@ -1,4 +1,4 @@
-package configlua
+package luadata
 
 import (
 	"fmt"
@@ -15,11 +15,12 @@ var (
 
 func init() {
 	filename := filepath.Join(filepath.Dir(os.Args[0]), "lua", "devices.lua")
-	xs := &devices{xs: make(map[string]*Device)}
-	luaState.SetGlobal("devices", luar.New(luaState, xs))
+	luaState.SetGlobal("Device", luar.New(luaState, func(name string) *Device {
+		Devices[name] = new(Device)
+		return Devices[name]
+	}))
 
 	if err := luaState.DoFile(filename); err != nil {
 		panic(fmt.Errorf("devices.lua: %w", err))
 	}
-	Devices = xs.xs
 }

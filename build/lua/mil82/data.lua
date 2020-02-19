@@ -49,8 +49,8 @@ local function formatGas(gas)
     return 'ПГС' .. tostring(gas)
 end
 
-function mil82_data(d)
-    local lin = d:AddSection('Линеаризация')
+function mil82_init_data(d)
+    local lin = d:AddDataSection('Линеаризация')
     for i = 1, 4 do
         lin:AddParam('lin' .. tostring(i), 'ПГС' .. tostring(i))
     end
@@ -64,7 +64,7 @@ function mil82_data(d)
         ['test_' .. t_high] = 'проверка погрешности: высокая температура',
         ['test2'] = 'проверка погрешности: возврат НКУ',
     }) do
-        local section = d:AddSection(pt_name)
+        local section = d:AddDataSection(pt_name)
         for _, var in pairs(vars) do
             for _, gas in pairs({ 1, 3, 4 }) do
                 section:AddParam(pt_key .. '_' .. mil82_db_key_gas_var(gas, var), formatVar(var) .. ': ' .. formatGas(gas))
@@ -73,7 +73,7 @@ function mil82_data(d)
     end
 
     for pt_key, pt_name in pairs({ tex1 = 'перед техпрогоном', tex2 = 'после техпрогона', }) do
-        local section = d:AddSection(pt_name)
+        local section = d:AddDataSection(pt_name)
         for _, var in pairs(vars) do
             for _, gas in pairs({ 1, 4 }) do
                 section:AddParam( pt_key .. '_' .. mil82_db_key_gas_var(gas, var), formatVar(var) .. ': ' .. formatGas(gas) )
@@ -81,9 +81,3 @@ function mil82_data(d)
         end
     end
 end
-
-
-
-return product_params
-
---print_table(product_params)
