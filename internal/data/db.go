@@ -106,6 +106,12 @@ func GetPartyValues(db *sqlx.DB, partyID int64, party *PartyValues) error {
 		party.Values[x.Key] = x.Value
 	}
 
+	if err := db.Select(&party.Products,
+		`SELECT * FROM product_enumerated WHERE party_id=? ORDER BY place`,
+		partyID); err != nil {
+		return err
+	}
+
 	var xs []struct {
 		ProductID int64       `db:"product_id"`
 		Serial    int         `db:"serial"`
@@ -129,14 +135,10 @@ ORDER BY created_at, created_order`, partyID); err != nil {
 			}
 		}
 		if p == nil {
-			p = &ProductValues{
-				ProductID: x.ProductID,
-				Place:     len(party.Products),
-				Serial:    x.Serial,
-				Addr:      x.Addr,
-				Values:    make(map[string]float64),
-			}
-			party.Products = append(party.Products, *p)
+			panic("unexpected")
+		}
+		if p.Values == nil {
+			p.Values = make(map[string]float64)
 		}
 		p.Values[x.Key] = x.Value
 	}
@@ -151,8 +153,8 @@ func GetCurrentPartyValues(db *sqlx.DB, party *PartyValues) error {
 	return GetPartyValues(db, partyID, party)
 }
 
-func CopyCurrentParty(db *sqlx.DB) error {
-	prevParty, err := GetCurrentParty(db)
+func CopyParty(db *sqlx.DB, partyID int64) error {
+	prevParty, err := GetParty(db, partyID)
 	if err != nil {
 		return err
 	}
@@ -277,25 +279,29 @@ func AddNewProduct(db *sqlx.DB, order int) (int64, error) {
 	return productID, nil
 }
 
-func DeleteCurrentParty(db *sqlx.DB) error {
-	var newCurrentPartyID int64
-	const q1 = `
+func DeleteParty(db *sqlx.DB, partyID int64) error {
+
+	currentPartyID, err := GetCurrentPartyID(db)
+	if err != nil {
+		return err
+	}
+
+	if currentPartyID == partyID {
+		var newCurrentPartyID int64
+		const q1 = `
 SELECT party_id 
 FROM party 
 WHERE party_id != (SELECT party_id FROM app_config WHERE id=1)
 ORDER BY created_at  DESC 
 LIMIT 1`
-	if err := db.Get(&newCurrentPartyID, q1); err != nil {
-		return err
-	}
+		if err := db.Get(&newCurrentPartyID, q1); err != nil {
+			return err
+		}
 
-	partyID, err := GetCurrentPartyID(db)
-	if err != nil {
-		return err
-	}
+		if _, err := db.Exec(`UPDATE app_config SET party_id = ? WHERE id=1`, newCurrentPartyID); err != nil {
+			return err
+		}
 
-	if _, err := db.Exec(`UPDATE app_config SET party_id = ? WHERE id=1`, newCurrentPartyID); err != nil {
-		return err
 	}
 
 	if _, err := db.Exec(`DELETE FROM party WHERE party_id=?`, partyID); err != nil {

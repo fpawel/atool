@@ -25,6 +25,9 @@ func (h *fileSvc) GetProductsValues(_ context.Context, partyID int64) (*apitypes
 		return nil, err
 	}
 
+	sectAll := getPartyProductsValuesAll(party)
+	result.Sections = append(result.Sections, &sectAll)
+
 	for _, p := range party.Products {
 		result.Products = append(result.Products, convertDataProductValuesToApiProduct(party, p))
 	}
@@ -54,9 +57,6 @@ func (h *fileSvc) GetProductsValues(_ context.Context, partyID int64) (*apitypes
 
 		result.Sections = append(result.Sections, y)
 	}
-
-	sectAll := getPartyProductsValuesAll(party)
-	result.Sections = append(result.Sections, &sectAll)
 
 	var calc devcalc.CalcSections
 	if device.Calc != nil {
@@ -108,9 +108,9 @@ func getPartyProductsValuesAll(party data.PartyValues) apitypes.SectionProductPa
 		sort.Slice(result.Keys, func(i, j int) bool {
 			return result.Keys[i] < result.Keys[j]
 		})
-		vs := result.Values[1:]
-		sort.Slice(vs, func(i, j int) bool {
-			return vs[i][0] < vs[j][0]
+
+		sort.Slice(result.Values, func(i, j int) bool {
+			return result.Values[i][0] < result.Values[j][0]
 		})
 	}
 

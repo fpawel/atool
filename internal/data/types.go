@@ -55,9 +55,6 @@ type PartyValues struct {
 }
 
 type ProductValues struct {
-	ProductID int64
-	Place     int
-	Serial    int
-	Addr      modbus.Addr
-	Values    map[string]float64
+	Product
+	Values map[string]float64 `db:"-"`
 }

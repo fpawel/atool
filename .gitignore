@@ -2,6 +2,7 @@
 build/*
 !build/lua/
 !build/web/
+!build/config.yaml
 internal/thriftgen
 internal/data/sql_create_generated.go
 *.qtpl.go

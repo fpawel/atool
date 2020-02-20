@@ -1,4 +1,4 @@
-require 'help'
+require 'utils/help'
 
 local current_temperature
 

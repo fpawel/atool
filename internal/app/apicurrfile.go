@@ -33,8 +33,6 @@ func (h *currentFileSvc) RequestChart(_ context.Context) error {
 	return nil
 }
 
-type mapIntFloat map[int64]float64
-
 func (h *currentFileSvc) RenameChart(_ context.Context, oldName, newName string) error {
 	_, err := db.Exec(`
 UPDATE product_param
@@ -76,18 +74,6 @@ func (h *currentFileSvc) ListDeviceParams(_ context.Context) ([]*apitypes.Device
 		})
 	}
 	return r, nil
-}
-
-func (h *currentFileSvc) CreateNewCopy(_ context.Context) error {
-	go func() {
-		if err := data.CopyCurrentParty(db); err != nil {
-			guiwork.JournalErr(log, merry.Append(err, "копирование текущего файла"))
-			return
-		}
-		gui.NotifyCurrentPartyChanged()
-	}()
-	return nil
-
 }
 
 func (h *currentFileSvc) RunEdit(_ context.Context) error {
@@ -134,27 +120,12 @@ func (h *currentFileSvc) RunEdit(_ context.Context) error {
 	return nil
 }
 
-func (h *currentFileSvc) SaveFile(ctx context.Context, filename string) error {
-	return nil
-}
-
 func (h *currentFileSvc) OpenFile(_ context.Context, filename string) error {
 	err := data.LoadFile(db, filename)
 	if err == nil {
 		go gui.NotifyCurrentPartyChanged()
 	}
 	return err
-}
-
-func (h *currentFileSvc) DeleteAll(_ context.Context) error {
-	go func() {
-		if err := data.DeleteCurrentParty(db); err != nil {
-			guiwork.JournalErr(log, merry.Append(err, "удаление текущего файла"))
-			return
-		}
-		gui.NotifyCurrentPartyChanged()
-	}()
-	return nil
 }
 
 func processCurrentPartyChart() {

@@ -1,4 +1,4 @@
-json = require("utils/dkjson")
+json = require("utils/json")
 
 function value_or_nan(v)
     if v~=nil and v == v then

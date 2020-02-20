@@ -2,31 +2,23 @@
 
 require 'utils/help'
 require 'utils/temp_setup'
+require 'utils/print_table'
 require 'mil82/def'
+
+print(stringify({y=12, x = 0/0}))
 
 local Products = go:GetProducts()
 
 local Config = go:GetConfig()
-go:Info("конфигурация: " .. stringify(Config))
+go:Info("конфигурация: "..stringify(Config))
 
 local prod_type = prod_types[Config.product_type]
+--print_table(prod_type)
+go:Info("исполнение: "..stringify(prod_type))
 
 if prod_type == nil then
     error('не определено исполнение: '..Config.product_type)
 end
-
-local scale_code = scale_code[prod_type.scale]
-
-if scale_code == nil then
-    error('не определён код шкалы: '..tostring(prod_type.scale))
-end
-
-local units_code = scale_code[prod_type.gas]
-
-if units_code == nil then
-    error('не определён код единиц измерения: '..tostring(prod_type.gas))
-end
-
 
 local params = go:ParamsDialog({
     linear_degree = {
@@ -64,6 +56,19 @@ local params = go:ParamsDialog({
 })
 
 local function write_common_coefficients()
+
+    local scale_code = scale_code[prod_type.scale]
+
+    if scale_code == nil then
+        go:Err('не определён код шкалы: '..tostring(prod_type.scale))
+    end
+
+    local units_code = units_code[prod_type.gas]
+
+    if units_code == nil then
+        error('не определён код единиц измерения: '..tostring(prod_type.gas))
+    end
+
     local coefficients = {
         [2] = os.date("*t").year,
         [10] = Config.c1,

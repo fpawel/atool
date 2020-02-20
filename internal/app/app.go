@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/apache/thrift/lib/go/thrift"
@@ -17,13 +16,11 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/powerman/structlog"
 	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -58,7 +55,6 @@ func Main() {
 
 	// старт сервера
 	stopApiServer := runApiServer()
-	stopWebServer := runWebServer()
 
 	if envVarDevModeSet() {
 		log.Printf("waiting system signal because of %s=%s", internal.EnvVarDevMode, os.Getenv(internal.EnvVarDevMode))
@@ -80,9 +76,6 @@ func Main() {
 
 	log.Debug("остановка сервера api")
 	stopApiServer()
-
-	log.Debug("остановка сервера web")
-	stopWebServer()
 
 	log.Debug("закрыть соединение с базой данных")
 	log.ErrIfFail(db.Close)
@@ -157,45 +150,6 @@ func newApiProcessor() thrift.TProcessor {
 	p.RegisterProcessor("ProductParamService",
 		api.NewProductParamServiceProcessor(new(prodPrmSvc)))
 	return p
-}
-
-func runWebServer() context.CancelFunc {
-	srv := &http.Server{Addr: getTCPAddrEnvVar(internal.EnvVarWebPort)}
-	log.Debug("serve web: http://" + srv.Addr)
-
-	http.HandleFunc("/party", func(w http.ResponseWriter, r *http.Request) {
-		var party data.PartyValues
-		if err := data.GetCurrentPartyValues(db, &party); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			_, _ = w.Write([]byte("500: " + err.Error()))
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(&party)
-	})
-
-	http.Handle("/", http.FileServer(http.Dir("web")))
-
-	wg := &sync.WaitGroup{}
-
-	go func() {
-		wg.Add(1)
-		defer wg.Done()
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			// unexpected error. port in use?
-			log.Fatalf("ListenAndServe(): %v", err)
-		}
-	}()
-
-	return func() {
-		if err := srv.Shutdown(context.TODO()); err != nil {
-			panic(err) // failure/timeout shutting down the server gracefully
-		}
-		// wait for goroutine started in startHttpServer() to stop
-		wg.Wait()
-	}
 }
 
 func runApiServer() context.CancelFunc {

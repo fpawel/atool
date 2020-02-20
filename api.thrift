@@ -25,10 +25,7 @@ service CurrentFileService {
     void deleteProducts(1:list<i64> productIDs)
     list<apitypes.DeviceParam> listDeviceParams()
     void runEdit()
-    void createNewCopy()
-    void saveFile(1:string filename)
     void openFile(1:string filename)
-    void deleteAll()
 }
 
 service ProductParamService {
@@ -55,6 +52,9 @@ service FilesService {
    void setCurrentParty(1:i64 partyID)
    apitypes.Party getParty(1:i64 partyID)
    list<apitypes.PartyInfo> listParties()
+   void deleteFile(1:i64 partyID)
+   void saveFile(1:i64 partyID, 2:string filename)
+   void copyFile(1:i64 partyID)
 }
 
 service FileService {

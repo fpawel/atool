@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
@@ -12,6 +13,39 @@ import (
 type filesSvc struct{}
 
 var _ api.FilesService = new(filesSvc)
+
+func (h *filesSvc) CopyFile(_ context.Context, partyID int64) error {
+	go func() {
+		if err := data.CopyParty(db, partyID); err != nil {
+			guiwork.JournalErr(log, merry.Appendf(err, "копирование файла %d", partyID))
+			return
+		}
+		gui.NotifyCurrentPartyChanged()
+	}()
+	return nil
+
+}
+
+func (h *filesSvc) DeleteFile(_ context.Context, partyID int64) error {
+	go func() {
+		currentPartyID, err := data.GetCurrentPartyID(db)
+		if err != nil {
+			return
+		}
+		if err := data.DeleteParty(db, partyID); err != nil {
+			guiwork.JournalErr(log, merry.Appendf(err, "удаление файла %d", partyID))
+			return
+		}
+		if currentPartyID == partyID {
+			gui.NotifyCurrentPartyChanged()
+		}
+	}()
+	return nil
+}
+
+func (h *filesSvc) SaveFile(ctx context.Context, partyID int64, filename string) error {
+	return nil
+}
 
 func (h *filesSvc) GetCurrentParty(ctx context.Context) (r *apitypes.Party, err error) {
 	partyID, err := data.GetCurrentPartyID(db)

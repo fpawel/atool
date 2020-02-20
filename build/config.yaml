@@ -1,0 +1,93 @@
+log_comm: false
+float_precision: 6
+hardware:
+    Анкат:
+        baud: 115200
+        timeout_get_response: 30ms
+        timeout_end_response: 3ms
+        max_attempts_read: 5
+        pause: 0s
+        net_addr:
+            cmd: 12
+            format: bcd
+        params:
+          - format: bcd
+            reg: 0
+            count: 1
+        party_params:
+            c1: ПГС1
+            c2: ПГС2
+            c3: ПГС3
+            c4: ПГС2
+        product_types:
+          - "00.01"
+          - "00.02"
+        coefficients:
+          - range: [0, 50]
+            format: bcd
+        params_names:
+            0: C
+            2: I
+    МИЛ-82:
+        baud: 115200
+        timeout_get_response: 30ms
+        timeout_end_response: 3ms
+        max_attempts_read: 5
+        pause: 0s
+        net_addr:
+            cmd: 12
+            format: bcd
+        params:
+          - format: bcd
+            reg: 0
+            count: 8
+        party_params:
+            c1: ПГС1
+            c2: ПГС2
+            c3: ПГС3
+            c4: ПГС2
+        product_types:
+          - "00.01"
+          - "00.02"
+        coefficients:
+          - range: [0, 50]
+            format: bcd
+        params_names:
+            0: C
+            2: I
+gas:
+    type: МИЛ82
+    addr: 100
+    comport: COM2
+    timeout_get_response: 1s
+    timeout_end_response: 50ms
+    max_attempts_read: 0
+    blow_duration: 5m0s
+temperature:
+    type: T800
+    comport: COM2
+    timeout_get_response: 1s
+    timeout_end_response: 50ms
+    max_attempts_read: 1
+    hold_duration: 2h0m0s
+warm_sheets:
+    enable: true
+    addr: 0
+    temp_on: -20
+    temp_off: -30
+ktx500:
+    timeout_ms: 1000
+    pause: 2s
+    server:
+        ip: 192.168.250.1
+        port: 9600
+        network: 0
+        node: 1
+        unit: 0
+    client:
+        ip: 192.168.250.3
+        port: 9600
+        network: 0
+        node: 254
+        unit: 0
+inactive_coefficients: {}

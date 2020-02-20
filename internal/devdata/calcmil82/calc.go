@@ -14,7 +14,7 @@ func Calc(party data.PartyValues, calc *devcalc.CalcSections) error {
 		return fmt.Errorf("не правильное исполнение МИЛ-82: %s", party.ProductType)
 	}
 	for _, pt := range sections {
-		sect := devcalc.AddSect(calc, pt.name)
+		sect := devcalc.AddSect(calc, "Расчёт погрешности: "+pt.name)
 		for _, gas := range []int{1, 3, 4} {
 			prm := devcalc.AddPrm(sect, fmt.Sprintf("газ %d", gas))
 			pgs := valOrNaN(party.Values, fmt.Sprintf("c%d", gas))
@@ -74,7 +74,7 @@ func Calc(party data.PartyValues, calc *devcalc.CalcSections) error {
 					"tNorm":              jsonNaN(tNorm),
 					"product_type":       party.ProductType,
 					"gas":                prodT.gas,
-					"ПГС":                pgs,
+					"ПГС":                jsonNaN(pgs),
 					"var2":               jsonNaN(var2),
 				}, "", "\t"))
 
@@ -83,7 +83,6 @@ func Calc(party data.PartyValues, calc *devcalc.CalcSections) error {
 					v.Valid = math.Abs(absErr) < math.Abs(absErrLim)
 					v.Value = fmt.Sprintf("%.2f", relErr)
 				}
-				fmt.Printf("%+v\n", v)
 			}
 		}
 	}
