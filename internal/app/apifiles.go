@@ -2,12 +2,14 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
+	"io/ioutil"
 )
 
 type filesSvc struct{}
@@ -43,7 +45,19 @@ func (h *filesSvc) DeleteFile(_ context.Context, partyID int64) error {
 	return nil
 }
 
-func (h *filesSvc) SaveFile(ctx context.Context, partyID int64, filename string) error {
+func (h *filesSvc) SaveFile(_ context.Context, partyID int64, filename string) error {
+
+	var party data.PartyValues
+	if err := data.GetPartyValues(db, partyID, &party); err != nil {
+		return err
+	}
+	b, err := json.MarshalIndent(&party, "", "\t")
+	if err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(filename, b, 0644); err != nil {
+		return err
+	}
 	return nil
 }
 
