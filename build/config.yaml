@@ -1,4 +1,4 @@
-log_comm: false
+log_comm: true
 float_precision: 6
 hardware:
     Анкат:

@@ -9,16 +9,16 @@ import (
 func InitLog() {
 	structlog.DefaultLogger.
 		SetPrefixKeys(
-			structlog.KeyApp, structlog.KeyPID, structlog.KeyLevel, structlog.KeyUnit, structlog.KeyTime,
+			//structlog.KeyApp, structlog.KeyPID,
+			structlog.KeyLevel,
+			//structlog.KeyTime,
 		).
+		SetSuffixKeys(structlog.KeyUnit, structlog.KeySource, structlog.KeyStack).
 		SetDefaultKeyvals(
 			structlog.KeyApp, filepath.Base(os.Args[0]),
 			structlog.KeySource, structlog.Auto,
+			//structlog.KeyStack, structlog.Auto,
 		).
-		SetSuffixKeys(
-			structlog.KeyStack,
-		).
-		SetSuffixKeys(structlog.KeySource).
 		SetKeysFormat(map[string]string{
 			structlog.KeyTime:   " %[2]s",
 			structlog.KeySource: " %6[2]s",
