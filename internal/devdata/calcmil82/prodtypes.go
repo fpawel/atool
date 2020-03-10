@@ -5,7 +5,7 @@ type prodT struct {
 	scale float64
 }
 
-var prodTypes = map[string]prodT{
+var ProdTypes = map[string]prodT{
 	"00.00": {
 		gas:   "CO2",
 		scale: 4,

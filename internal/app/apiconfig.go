@@ -7,6 +7,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/devdata"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/pkg/must"
@@ -34,11 +35,12 @@ func (h *appConfigSvc) ListDevices(_ context.Context) ([]string, error) {
 }
 
 func (h *appConfigSvc) ListProductTypes(_ context.Context) ([]string, error) {
-	dv, err := getCurrentPartyDeviceConfig()
+	party, err := data.GetCurrentParty(db)
 	if err != nil {
 		return nil, err
 	}
-	return dv.ProductTypes, nil
+	device, _ := devdata.Devices[party.DeviceType]
+	return device.ProductTypes, nil
 }
 
 func (h *appConfigSvc) EditConfig(_ context.Context) error {
@@ -166,6 +168,8 @@ func getConfigParamsValues() ([]*apitypes.ConfigParamValue, error) {
 
 	cfg := config.Get()
 
+	device, _ := devdata.Devices[p.DeviceType]
+
 	xs := []*apitypes.ConfigParamValue{
 		{
 			Key:   "name",
@@ -182,7 +186,7 @@ func getConfigParamsValues() ([]*apitypes.ConfigParamValue, error) {
 			Key:        "product_type",
 			Name:       "Приборы: исполнение",
 			Value:      p.ProductType,
-			ValuesList: cfg.Hardware.ListProductTypes(p.DeviceType),
+			ValuesList: device.ProductTypes,
 		},
 	}
 

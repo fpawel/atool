@@ -3,6 +3,7 @@ package devdata
 import (
 	"fmt"
 	"github.com/fpawel/atool/internal/devdata/calcmil82"
+	"sort"
 )
 
 func init() {
@@ -94,5 +95,11 @@ func init() {
 		}
 		addDs(x)
 	}
+
+	for name := range calcmil82.ProdTypes {
+		mil82.ProductTypes = append(mil82.ProductTypes, name)
+	}
+	sort.Strings(mil82.ProductTypes)
+
 	Devices["МИЛ-82"] = mil82
 }

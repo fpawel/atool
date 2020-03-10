@@ -5,6 +5,7 @@ require 'utils/temp_setup'
 require 'utils/print_table'
 require 'mil82/def'
 
+
 print(stringify({y=12, x = 0/0}))
 
 local Products = go:GetProducts()
@@ -60,7 +61,7 @@ local function write_common_coefficients()
     local scale_code = scale_code[prod_type.scale]
 
     if scale_code == nil then
-        go:Err('не определён код шкалы: '..tostring(prod_type.scale))
+        error('не определён код шкалы: '..tostring(prod_type.scale))
     end
 
     local units_code = units_code[prod_type.gas]

@@ -19,7 +19,6 @@ type Device struct {
 	NetAddr            NetAddr        `yaml:"net_addr"`
 	Params             []Params       `yaml:"params"`
 	PartyParams        PartyParams    `yaml:"party_params"`
-	ProductTypes       []string       `yaml:"product_types"`
 	Coefficients       []Coefficients `yaml:"coefficients"`
 	ParamsNames        map[int]string `yaml:"params_names"`
 }
@@ -112,18 +111,6 @@ func (d Device) Validate() error {
 
 	if len(d.PartyParams) == 0 {
 		return merry.New("список параметров партии не должен быть пустым")
-	}
-
-	if len(d.ProductTypes) == 0 {
-		return merry.New("список исполнений партии не должен быть пустым")
-	}
-
-	m := make(map[string]struct{})
-	for _, x := range d.ProductTypes {
-		if _, f := m[x]; f {
-			return merry.Errorf("дублирование исполнения партии %q", x)
-		}
-		m[x] = struct{}{}
 	}
 
 	for i, c := range d.Coefficients {

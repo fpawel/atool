@@ -41,8 +41,3 @@ func (xs Hardware) ListDevices() (r []string) {
 	}
 	return
 }
-
-func (xs Hardware) ListProductTypes(deviceType string) []string {
-	d, _ := xs[deviceType]
-	return d.ProductTypes
-}

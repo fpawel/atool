@@ -10,4 +10,5 @@ var Devices = make(map[string]Device)
 type Device struct {
 	DataSections DataSections
 	Calc         func(party data.PartyValues, calc *devcalc.CalcSections) error
+	ProductTypes []string
 }

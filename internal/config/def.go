@@ -30,8 +30,7 @@ func defaultConfig() Config {
 					Cmd:    5,
 					Format: "bcd",
 				},
-				ProductTypes: []string{"00.01", "00.02"},
-				PartyParams:  defaultPartyParams(),
+				PartyParams: defaultPartyParams(),
 				Coefficients: []Coefficients{
 					{
 						Range:  [2]int{0, 50},

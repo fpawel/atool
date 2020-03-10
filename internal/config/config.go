@@ -112,9 +112,6 @@ func (c *Config) validate() {
 		if len(dv.PartyParams) == 0 {
 			dv.PartyParams = defaultPartyParams()
 		}
-		if len(dv.ProductTypes) == 0 {
-			dv.ProductTypes = []string{"00.01", "00.02"}
-		}
 
 		if len(dv.Coefficients) == 0 {
 			dv.Coefficients = []Coefficients{

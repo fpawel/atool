@@ -9,7 +9,7 @@ import (
 )
 
 func Calc(party data.PartyValues, calc *devcalc.CalcSections) error {
-	prodT, ok := prodTypes[party.ProductType]
+	prodT, ok := ProdTypes[party.ProductType]
 	if !ok {
 		return fmt.Errorf("не правильное исполнение МИЛ-82: %s", party.ProductType)
 	}

@@ -19,9 +19,6 @@ hardware:
             c2: ПГС2
             c3: ПГС3
             c4: ПГС2
-        product_types:
-          - "00.01"
-          - "00.02"
         coefficients:
           - range: [0, 50]
             format: bcd
@@ -46,9 +43,6 @@ hardware:
             c2: ПГС2
             c3: ПГС3
             c4: ПГС2
-        product_types:
-          - "00.01"
-          - "00.02"
         coefficients:
           - range: [0, 50]
             format: bcd
