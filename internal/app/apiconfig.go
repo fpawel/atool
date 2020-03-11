@@ -7,7 +7,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
-	"github.com/fpawel/atool/internal/devdata"
+	"github.com/fpawel/atool/internal/devtypes"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/pkg/must"
@@ -39,7 +39,8 @@ func (h *appConfigSvc) ListProductTypes(_ context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	device, _ := devdata.Devices[party.DeviceType]
+	device, _ := devtypes.DeviceTypes[party.DeviceType]
+	sort.Strings(device.ProductTypes)
 	return device.ProductTypes, nil
 }
 
@@ -168,7 +169,7 @@ func getConfigParamsValues() ([]*apitypes.ConfigParamValue, error) {
 
 	cfg := config.Get()
 
-	device, _ := devdata.Devices[p.DeviceType]
+	device, _ := devtypes.DeviceTypes[p.DeviceType]
 
 	xs := []*apitypes.ConfigParamValue{
 		{

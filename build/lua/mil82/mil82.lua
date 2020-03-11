@@ -87,7 +87,7 @@ local function write_common_coefficients()
         [23] = 0,
         [24] = 0,
         [25] = 0,
-        [26] = 0,
+        [26] = 1,
         [27] = 0,
         [28] = 0,
         [37] = 0,
@@ -280,6 +280,12 @@ end
 
 go:SelectWorksDialog({
     { "запись коэффициентов", write_common_coefficients },
+
+    { "запуск термокамеры", function()
+        go:TemperatureStop()
+        go:TemperatureStart()
+    end },
+
 
     { "установка НКУ", function()
         setupTemperature(params.temp_norm)

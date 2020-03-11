@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/comm"
@@ -74,6 +75,8 @@ func setupTemperature(log logger, ctx context.Context, destinationTemperature fl
 		return wrapErr(err)
 	}
 
+	go gui.NotifyTemperatureSetPoint(destinationTemperature)
+
 	// измерения, полученные в процесе опроса приборов во время данной задержки
 	ms := new(measurements)
 
@@ -86,11 +89,17 @@ func setupTemperature(log logger, ctx context.Context, destinationTemperature fl
 			return ctx.Err()
 		}
 		currentTemperature, err := dev.Read(log, ctx)
+
 		if err != nil {
 			err = wrapErr(merry.Append(err, "считывание температуры"))
 			guiwork.JournalErr(log, err)
 			return err
 		}
+
+		log.Info(fmt.Sprintf("температура %v⁰C", currentTemperature))
+
+		go gui.NotifyTemperature(currentTemperature)
+
 		if math.Abs(currentTemperature-destinationTemperature) < 2 {
 			guiwork.JournalInfo(log, fmt.Sprintf("термокамера вышла на температуру %v⁰C: %v⁰C", destinationTemperature, currentTemperature))
 			return nil

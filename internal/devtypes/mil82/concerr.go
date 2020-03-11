@@ -1,22 +1,30 @@
-package calcmil82
+package mil82
 
 import (
 	"fmt"
 	"github.com/fpawel/atool/internal/data"
-	"github.com/fpawel/atool/internal/devdata/devcalc"
+	"github.com/fpawel/atool/internal/devtypes/devdata"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"math"
 )
 
-func Calc(party data.PartyValues, calc *devcalc.CalcSections) error {
-	prodT, ok := ProdTypes[party.ProductType]
+func getConcentrationErrors(party data.PartyValues, sections *devdata.CalcSections) error {
+	prodT, ok := prodTypes[party.ProductType]
 	if !ok {
 		return fmt.Errorf("не правильное исполнение МИЛ-82: %s", party.ProductType)
 	}
-	for _, pt := range sections {
-		sect := devcalc.AddSect(calc, "Расчёт погрешности: "+pt.name)
+	for _, pt := range []section{
+		{key: "test_t_norm", name: "нормальная температура"},
+		{key: "test_t_low", name: "низкая температура", tNorm: ptrFloat(20)},
+		{key: "test_t_high", name: "высокая температура", tNorm: ptrFloat(20)},
+		{key: "test2", name: "возврат НКУ"},
+		{key: "test_t80", name: "80⁰C", tNorm: ptrFloat(80)},
+		{key: "tex1", name: "перед технологическим прогоном"},
+		{key: "tex1", name: "после технологического прогона"},
+	} {
+		sect := devdata.AddSect(sections, "Расчёт погрешности: "+pt.name)
 		for _, gas := range []int{1, 3, 4} {
-			prm := devcalc.AddPrm(sect, fmt.Sprintf("газ %d", gas))
+			prm := devdata.AddParam(sect, fmt.Sprintf("газ %d", gas))
 			pgs := valOrNaN(party.Values, fmt.Sprintf("c%d", gas))
 
 			for _, p := range party.Products {
@@ -62,7 +70,7 @@ func Calc(party data.PartyValues, calc *devcalc.CalcSections) error {
 				absErr := value - nominal
 				relErr := 100 * absErr / absErrLim
 
-				v := devcalc.AddVal(prm)
+				v := devdata.AddValue(prm)
 
 				v.Detail = string(must.MarshalJsonIndent(map[string]interface{}{
 					"газ":                gas,
@@ -114,14 +122,4 @@ type section struct {
 
 func ptrFloat(v float64) *float64 {
 	return &v
-}
-
-var sections = []section{
-	{key: "test_t_norm", name: "нормальная температура"},
-	{key: "test_t_low", name: "низкая температура", tNorm: ptrFloat(20)},
-	{key: "test_t_high", name: "высокая температура", tNorm: ptrFloat(20)},
-	{key: "test2", name: "возврат НКУ"},
-	{key: "test_t80", name: "80⁰C", tNorm: ptrFloat(80)},
-	{key: "tex1", name: "перед технологическим прогоном"},
-	{key: "tex1", name: "после технологического прогона"},
 }

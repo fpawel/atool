@@ -1,35 +1,31 @@
-package devdata
+package mil82
 
 import (
 	"fmt"
-	"github.com/fpawel/atool/internal/devdata/calcmil82"
-	"sort"
+	"github.com/fpawel/atool/internal/devtypes/devdata"
 )
 
-func init() {
-	mil82 := Device{
-		Calc: calcmil82.Calc,
+func dataSections() (result devdata.DataSections) {
+
+	type dataSection = devdata.DataSection
+
+	addDs := func(ds dataSection) {
+		result = append(result, ds)
 	}
 
-	type ds = DataSection
-
-	addDs := func(ds ds) {
-		mil82.DataSections = append(mil82.DataSections, ds)
-	}
-
-	x := ds{Name: "Линеаризация"}
+	x := dataSection{Name: "Линеаризация"}
 	for i := 1; i <= 4; i++ {
-		x.Params = append(x.Params, DataParam{
+		x.Params = append(x.Params, devdata.DataParam{
 			Key:  fmt.Sprintf("lin%d", i),
 			Name: fmt.Sprintf("%d", i),
 		})
 	}
 	addDs(x)
 
-	tXs1 := func(gas int) (xs []DataParam) {
+	tXs1 := func(gas int) (xs []devdata.DataParam) {
 		for _, Var := range []int{2, 16} {
 			for i, k := range []string{"t_low", "t_norm", "t_high"} {
-				xs = append(xs, DataParam{
+				xs = append(xs, devdata.DataParam{
 					Key:  fmt.Sprintf("%s_gas%d_var%d", k, gas, Var),
 					Name: fmt.Sprintf("%d: Var%d", i, Var),
 				})
@@ -38,17 +34,17 @@ func init() {
 		return
 	}
 
-	addDs(ds{
+	addDs(dataSection{
 		Name:   "Термоконмпенсация начала шкалы",
 		Params: tXs1(1),
 	})
 
-	addDs(ds{
+	addDs(dataSection{
 		Name:   "Термоконмпенсация конца шкалы",
 		Params: tXs1(4),
 	})
 
-	addDs(ds{
+	addDs(dataSection{
 		Name:   "Термоконмпенсация середины шкалы",
 		Params: tXs1(3),
 	})
@@ -84,10 +80,10 @@ func init() {
 	vars := []int{0, 2, 4, 8, 10, 12, 14, 16}
 
 	for pkKey, ptName := range pts {
-		x = ds{Name: ptName}
+		x = dataSection{Name: ptName}
 		for _, Var := range vars {
 			for _, gas := range []int{1, 3, 4} {
-				x.Params = append(x.Params, DataParam{
+				x.Params = append(x.Params, devdata.DataParam{
 					Key:  fmt.Sprintf("%s_gas%d_var%d", pkKey, gas, Var),
 					Name: fmt.Sprintf("%s: %s", fmtVar(Var), fmtGas(gas)),
 				})
@@ -95,11 +91,5 @@ func init() {
 		}
 		addDs(x)
 	}
-
-	for name := range calcmil82.ProdTypes {
-		mil82.ProductTypes = append(mil82.ProductTypes, name)
-	}
-	sort.Strings(mil82.ProductTypes)
-
-	Devices["МИЛ-82"] = mil82
+	return
 }

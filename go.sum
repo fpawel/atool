@@ -1,5 +1,7 @@
 github.com/ansel1/merry v1.5.0 h1:9E6Jj5Yda9SfY3dhbOZUq1CeHl5JA1+mItYvKqokJ7s=
 github.com/ansel1/merry v1.5.0/go.mod h1:wUy/yW0JX0ix9GYvUbciq+bi3jW/vlKPlbpI7qdZpOw=
+github.com/ansel1/merry v1.5.1 h1:/MlZd3Irx2HQsUlOcXTTYev7N1t1Rsdnxwg6xkOVJp4=
+github.com/ansel1/merry v1.5.1/go.mod h1:wUy/yW0JX0ix9GYvUbciq+bi3jW/vlKPlbpI7qdZpOw=
 github.com/apache/thrift v0.13.0 h1:5hryIiq9gtn+MiLVn0wP37kb/uTeRZgN08WoCsAhIhI=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
@@ -23,6 +25,10 @@ github.com/fpawel/hardware v0.0.0-20200121052835-14f26f485b22 h1:dPBIdQuykHs9C2n
 github.com/fpawel/hardware v0.0.0-20200121052835-14f26f485b22/go.mod h1:CwI1xvjX6rIgLlQNYvdOlUx3fDPEr2JdcfQY6dUBgNw=
 github.com/fpawel/hardware v0.0.0-20200131071246-66dd58b01c8a h1:6ylHCrYkOComvX3MYe8acFNJM2taY9+5RDTu6SOBd9Y=
 github.com/fpawel/hardware v0.0.0-20200131071246-66dd58b01c8a/go.mod h1:CwI1xvjX6rIgLlQNYvdOlUx3fDPEr2JdcfQY6dUBgNw=
+github.com/fpawel/hardware v0.0.0-20200311093204-d6b2e02d4261 h1:c5TZRq1XTYRrmQDXHb/g8uPMngheQuOeCF8d5KRARnA=
+github.com/fpawel/hardware v0.0.0-20200311093204-d6b2e02d4261/go.mod h1:CwI1xvjX6rIgLlQNYvdOlUx3fDPEr2JdcfQY6dUBgNw=
+github.com/fpawel/hardware v0.0.0-20200311115112-955defbb3045 h1:XRfna3j/dY0Trxn9K5lQNnGhB2394VrmSjbOQiAJmmA=
+github.com/fpawel/hardware v0.0.0-20200311115112-955defbb3045/go.mod h1:TVKM7nduuUVCnDkwCoARfNNlQxaIL/Z7JUWq6+s/SHw=
 github.com/go-sql-driver/mysql v1.4.0/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
 github.com/go-sql-driver/mysql v1.4.1 h1:g24URVg0OFbNUTx9qqY1IRZ9D9z3iPyi5zKhQZpNwpA=
 github.com/go-sql-driver/mysql v1.4.1/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
@@ -93,6 +99,7 @@ github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXf
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/stretchr/testify v1.4.0 h1:2E4SXV/wtOkTonXsotYi4li6zVWxYlZuYNCXe9XRJyk=
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
+github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5cxcmMvtA=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
 github.com/valyala/fasthttp v1.2.0/go.mod h1:4vX61m6KN+xDduDNwXrhIAVZaZaZiQ1luJk8LWSxF3s=
@@ -137,6 +144,8 @@ gopkg.in/yaml.v2 v2.2.2/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
 gopkg.in/yaml.v2 v2.2.4/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
 gopkg.in/yaml.v2 v2.2.7 h1:VUgggvou5XRW9mHwD/yXxIYSMtY0zoKQf/v226p2nyo=
 gopkg.in/yaml.v2 v2.2.7/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
+gopkg.in/yaml.v2 v2.2.8 h1:obN1ZagJSUGI0Ek/LBmuj4SNLPfIny3KsKFopxRdj10=
+gopkg.in/yaml.v2 v2.2.8/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
 gopkg.in/yaml.v3 v3.0.0-20191120175047-4206685974f2 h1:XZx7nhd5GMaZpmDaEHFVafUZC7ya0fuo7cSJ3UCKYmM=
 gopkg.in/yaml.v3 v3.0.0-20191120175047-4206685974f2/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427 h1:RZkKxMR3jbQxdCEcglq3j7wY3PRJIopAwBlx1RE71X0=

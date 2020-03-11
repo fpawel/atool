@@ -1,11 +1,11 @@
-package calcmil82
+package mil82
 
 type prodT struct {
 	gas   string
 	scale float64
 }
 
-var ProdTypes = map[string]prodT{
+var prodTypes = map[string]prodT{
 	"00.00": {
 		gas:   "CO2",
 		scale: 4,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/comm"
@@ -19,7 +20,9 @@ func switchGas(ctx context.Context, valve byte) error {
 		MaxAttemptsRead:    c.MaxAttemptsRead,
 	}
 	err := gas.Switch(log, ctx, c.Type, comm.New(port, commCfg), c.Addr, valve)
+
 	if err == nil {
+		go gui.NotifyGas(int(valve))
 		guiwork.JournalInfo(log, fmt.Sprintf("газовый блок: %d", valve))
 	} else {
 		guiwork.JournalErr(log, fmt.Errorf("газовый блок: %d: %s", valve, err))

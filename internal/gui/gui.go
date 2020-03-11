@@ -25,6 +25,9 @@ const (
 	MsgDelay
 	MsgLuaSuspended
 	MsgLuaSelectWorks
+	MsgGas
+	MsgTemperature
+	MsgTemperatureSetPoint
 )
 
 const (
@@ -48,6 +51,18 @@ func NotifyLuaSuspended(Text string) bool {
 
 func NotifyStatus(x Status) bool {
 	return copyData().SendJson(MsgStatus, x)
+}
+
+func NotifyGas(gas int) bool {
+	return copyData().SendString(MsgGas, fmt.Sprintf("ПГС: %d", gas))
+}
+
+func NotifyTemperature(t float64) bool {
+	return copyData().SendString(MsgTemperature, fmt.Sprintf("температура: %v⁰C", t))
+}
+
+func NotifyTemperatureSetPoint(t float64) bool {
+	return copyData().SendString(MsgTemperatureSetPoint, fmt.Sprintf("уставка: %v⁰C", t))
 }
 
 func Popup(x string) bool {

@@ -43,6 +43,20 @@ type Status struct {
 	PopupLevel PopupLevel
 }
 
+func (x Status) WithError(err error) Status {
+	if err == nil {
+		x.Ok = true
+		return x
+	}
+	if len(x.Text) > 0 {
+		x.Text += ": " + err.Error()
+	} else {
+		x.Text = err.Error()
+	}
+	x.Ok = false
+	return x
+}
+
 type CoefficientValue struct {
 	ProductID   int64
 	Read        bool

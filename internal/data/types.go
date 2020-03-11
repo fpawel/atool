@@ -19,6 +19,15 @@ type Party struct {
 	Products []Product
 }
 
+func (x Party) GetProduct(productID int64) (Product, bool) {
+	for _, p := range x.Products {
+		if p.ProductID == productID {
+			return p, true
+		}
+	}
+	return Product{}, false
+}
+
 type Product struct {
 	ProductID    int64       `db:"product_id"`
 	PartyID      int64       `db:"party_id"`

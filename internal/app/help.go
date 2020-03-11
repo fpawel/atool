@@ -158,6 +158,10 @@ func deleteProductKey(productID int64, key string) error {
 	return merry.Appendf(err, "%s, %s", q1, key)
 }
 
+func saveProductKefValue(productID int64, kef int, value float64) error {
+	return saveProductValue(productID, dbKeyCoefficient(kef), value)
+}
+
 func saveProductValue(productID int64, key string, value float64) error {
 	const q1 = `
 INSERT INTO product_value

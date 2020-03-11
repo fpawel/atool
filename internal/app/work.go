@@ -77,31 +77,28 @@ func runReadAllCoefficients() error {
 
 	return guiwork.RunWork(log, appCtx, "считывание коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
 
+		inactiveCoefficients := config.Get().InactiveCoefficients
 		err := processEachActiveProduct(nil, func(product data.Product, device config.Device) error {
 			log := pkg.LogPrependSuffixKeys(log, "product", product.String())
-			for _, k := range device.Coefficients {
-				count := k.Range[1] - k.Range[0] + 1
-				log := pkg.LogPrependSuffixKeys(log, "range", fmt.Sprintf("%d...%d", k.Range[0], k.Range[1]))
-
-				req := modbus.RequestRead3{
-					Addr:           product.Addr,
-					FirstRegister:  modbus.Var(224 + k.Range[0]*2),
-					RegistersCount: uint16(count * 2),
-				}
-				cm := getCommProduct(product.Comport, device)
-				response, err := req.GetResponse(log, ctx, cm)
-				if err != nil {
-					return err
-				}
-				n := k.Range[0]
-				d := response[3 : len(response)-2]
-				for i := 0; i < len(d); i, n = i+4, n+1 {
-					d := d[i:][:4]
-					if _, f := config.Get().InactiveCoefficients[n]; f {
+			cm := getCommProduct(product.Comport, device)
+			for _, Kr := range device.Coefficients {
+				log := pkg.LogPrependSuffixKeys(log, "range", fmt.Sprintf("%d...%d", Kr.Range[0], Kr.Range[1]))
+				for kef := Kr.Range[0]; kef <= Kr.Range[1]; kef++ {
+					if ctx.Err() != nil {
+						return ctx.Err()
+					}
+					if _, f := inactiveCoefficients[kef]; f {
 						continue
 					}
-					v, err := k.Format.ParseFloat(d)
-					notifyReadCoefficient(product, n, v, err)
+					value, err := modbus.Read3Value(log, ctx, cm, product.Addr, 224+2*modbus.Var(kef), Kr.Format)
+					notifyReadCoefficient(product, kef, value, err)
+					if err != nil {
+						continue
+					}
+					// сохранить значение к-та
+					if err := saveProductKefValue(product.ProductID, kef, value); err != nil {
+						return err
+					}
 				}
 			}
 			return nil
@@ -126,20 +123,31 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 
 	return guiwork.RunWork(log, appCtx, "запись коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
 		for _, x := range in {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+
 			valFmt, err := device.GetCoefficientFormat(int(x.Coefficient))
 			if err != nil {
 				return err
 			}
 
-			var product data.Product
-			if err := db.Get(&product, `SELECT * FROM product WHERE product_id = ?`, x.ProductID); err != nil {
-				return err
+			product, productFound := party.GetProduct(x.ProductID)
+			if !productFound {
+				return fmt.Errorf("product_id not found: %+v", x)
 			}
 
 			log := pkg.LogPrependSuffixKeys(log, "write_coefficient", x.Coefficient, "value", x.Value,
 				"product", fmt.Sprintf("%+v", product))
 
-			_ = writeKefProduct(log, ctx, product, device, int(x.Coefficient), valFmt, x.Value)
+			if err := writeKefProduct(log, ctx, product, device, int(x.Coefficient), valFmt, x.Value); err == nil {
+				continue
+			}
+
+			// сохранить значение к-та
+			if err := saveProductKefValue(x.ProductID, int(x.Coefficient), x.Value); err != nil {
+				return err
+			}
 		}
 		return nil
 	})
