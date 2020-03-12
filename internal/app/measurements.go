@@ -19,7 +19,7 @@ func (x *measurements) add(ProductID int64, ParamAddr int, Value float64) {
 }
 
 func (x *measurements) Save() {
-	if err := data.SaveMeasurements(db, x.xs); err != nil {
+	if err := data.SaveMeasurements(x.xs); err != nil {
 		log.PrintErr(merry.Append(err, "fail to insert measurements"))
 	}
 }

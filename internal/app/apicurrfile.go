@@ -34,7 +34,7 @@ func (h *currentFileSvc) RequestChart(_ context.Context) error {
 }
 
 func (h *currentFileSvc) RenameChart(_ context.Context, oldName, newName string) error {
-	_, err := db.Exec(`
+	_, err := data.DB.Exec(`
 UPDATE product_param
 SET chart = ?
 WHERE chart = ?
@@ -45,21 +45,21 @@ WHERE chart = ?
 
 func (h *currentFileSvc) AddNewProducts(_ context.Context, productsCount int8) error {
 	for i := 0; i < int(productsCount); i++ {
-		if _, err := data.AddNewProduct(db, i); err != nil {
+		if _, err := data.AddNewProduct(i); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (h *currentFileSvc) DeleteProducts(ctx context.Context, productIDs []int64) error {
-	_, err := db.ExecContext(ctx, `DELETE FROM product WHERE product_id IN (`+formatIDs(productIDs)+")")
+func (h *currentFileSvc) DeleteProducts(_ context.Context, productIDs []int64) error {
+	_, err := data.DB.Exec(`DELETE FROM product WHERE product_id IN (` + formatIDs(productIDs) + ")")
 	return err
 }
 
 func (h *currentFileSvc) ListDeviceParams(_ context.Context) ([]*apitypes.DeviceParam, error) {
 
-	party, err := data.GetCurrentParty(db)
+	party, err := data.GetCurrentParty()
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (h *currentFileSvc) ListDeviceParams(_ context.Context) ([]*apitypes.Device
 func (h *currentFileSvc) RunEdit(_ context.Context) error {
 
 	var partyValues data.PartyValues
-	if err := data.GetCurrentPartyValues(db, &partyValues); err != nil {
+	if err := data.GetCurrentPartyValues(&partyValues); err != nil {
 		return err
 	}
 
@@ -104,7 +104,7 @@ func (h *currentFileSvc) RunEdit(_ context.Context) error {
 		if err := yaml.Unmarshal(b, &partyValues); err != nil {
 			return err
 		}
-		if err := data.SetCurrentPartyValues(db, partyValues); err != nil {
+		if err := data.SetCurrentPartyValues(partyValues); err != nil {
 			return err
 		}
 		return nil
@@ -121,7 +121,7 @@ func (h *currentFileSvc) RunEdit(_ context.Context) error {
 }
 
 func (h *currentFileSvc) OpenFile(_ context.Context, filename string) error {
-	err := data.LoadFile(db, filename)
+	err := data.LoadFile(filename)
 	if err == nil {
 		go gui.NotifyCurrentPartyChanged()
 	}
@@ -132,7 +132,7 @@ func processCurrentPartyChart() {
 
 	t := time.Now()
 
-	party, err := data.GetCurrentParty(db)
+	party, err := data.GetCurrentParty()
 	if err != nil {
 		err = merry.Append(err, "не удалось получить номер текущего файла")
 		log.PrintErr(err)
@@ -154,7 +154,7 @@ func processCurrentPartyChart() {
 
 	gui.Popupf("открывается график файла %d", party.PartyID)
 
-	xs, err := data.GetPartyChart(db, party.PartyID, paramsAddresses)
+	xs, err := data.GetPartyChart(party.PartyID, paramsAddresses)
 
 	log = pkg.LogPrependSuffixKeys(log, "duration", time.Since(t))
 

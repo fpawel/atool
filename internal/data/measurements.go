@@ -3,7 +3,6 @@ package data
 import (
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/jmoiron/sqlx"
 	"strings"
 	"time"
 )
@@ -33,7 +32,7 @@ func NewMeasurement(ProductID int64, ParamAddr int, Value float64) Measurement {
 	}
 }
 
-func SaveMeasurements(db *sqlx.DB, measurements []Measurement) error {
+func SaveMeasurements(measurements []Measurement) error {
 	if len(measurements) == 0 {
 		return nil
 	}
@@ -43,15 +42,15 @@ func SaveMeasurements(db *sqlx.DB, measurements []Measurement) error {
 		xs = append(xs, fmt.Sprintf("(%v,%d,%d,%v)", m.Tm, m.ProductID, m.ParamAddr, m.Value))
 	}
 	strQueryInsert := `INSERT INTO measurement(tm, product_id, param_addr, value) VALUES ` + "  " + strings.Join(xs, ",")
-	if _, err := db.Exec(strQueryInsert); err != nil {
+	if _, err := DB.Exec(strQueryInsert); err != nil {
 		return merry.Append(err, strQueryInsert)
 	}
 	return nil
 }
 
-func GetPartyChart(db *sqlx.DB, partyID int64, paramAddresses []int) ([]Measurement, error) {
+func GetPartyChart(partyID int64, paramAddresses []int) ([]Measurement, error) {
 
-	productsIDs, err := GetPartyProductsIDs(db, partyID)
+	productsIDs, err := GetPartyProductsIDs(partyID)
 	if err != nil {
 		return nil, err
 	}
@@ -65,13 +64,13 @@ WHERE product_id IN ` +
 
 	var xs []Measurement
 
-	if err = db.Select(&xs, sQ); err != nil {
+	if err = DB.Select(&xs, sQ); err != nil {
 		err = merry.Append(err, sQ)
 	}
 	return xs, err
 }
 
-func GetPartyProductsIDs(db *sqlx.DB, partyID int64) (xs []int64, err error) {
-	err = db.Select(&xs, `SELECT product_id FROM product WHERE party_id = ?`, partyID)
+func GetPartyProductsIDs(partyID int64) (xs []int64, err error) {
+	err = DB.Select(&xs, `SELECT product_id FROM product WHERE party_id = ?`, partyID)
 	return
 }

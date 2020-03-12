@@ -21,7 +21,7 @@ func (h *fileSvc) GetProductsValues(_ context.Context, partyID int64) (*apitypes
 
 	var party data.PartyValues
 
-	if err := data.GetPartyValues(db, partyID, &party); err != nil {
+	if err := data.GetPartyValues(partyID, &party); err != nil {
 		return nil, err
 	}
 

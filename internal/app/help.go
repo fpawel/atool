@@ -17,7 +17,7 @@ import (
 type logger = *structlog.Logger
 
 func getCurrentPartyDeviceConfig() (config.Device, error) {
-	party, err := data.GetCurrentParty(db)
+	party, err := data.GetCurrentParty()
 	if err != nil {
 		return config.Device{}, err
 	}
@@ -27,7 +27,7 @@ func getCurrentPartyDeviceConfig() (config.Device, error) {
 func getActiveProducts() ([]data.Product, error) {
 
 	var products []data.Product
-	err := db.Select(&products,
+	err := data.DB.Select(&products,
 		`SELECT * FROM product_enumerated WHERE party_id = (SELECT party_id FROM app_config) AND active`)
 	if err != nil {
 		return nil, err
@@ -110,18 +110,12 @@ func timeUnixMillis(t time.Time) apitypes.TimeUnixMillis {
 	return apitypes.TimeUnixMillis(t.UnixNano() / int64(time.Millisecond))
 }
 
-func formatError1(err error) string {
-	return strings.Replace(err.Error(), ":", "\n\t", -1)
-}
-
 func unixMillisToTime(m apitypes.TimeUnixMillis) time.Time {
 	t := int64(time.Millisecond) * int64(m)
 	sec := t / int64(time.Second)
 	ns := t % int64(time.Second)
 	return time.Unix(sec, ns)
 }
-
-const timeLayout = "2006-01-02 15:04:05.000"
 
 func pause(chDone <-chan struct{}, d time.Duration) {
 	timer := time.NewTimer(d)
@@ -142,7 +136,7 @@ func getCurrentPartyValues() (map[string]float64, error) {
 		Value float64 `db:"value"`
 	}
 	const q1 = `SELECT key, value FROM party_value WHERE party_id = (SELECT party_id FROM app_config)`
-	if err := db.Select(&xs, q1); err != nil {
+	if err := data.DB.Select(&xs, q1); err != nil {
 		return nil, merry.Append(err, q1)
 	}
 	m := map[string]float64{}
@@ -154,7 +148,7 @@ func getCurrentPartyValues() (map[string]float64, error) {
 
 func deleteProductKey(productID int64, key string) error {
 	const q1 = `DELETE FROM product_value WHERE product_id = ? AND key = ?`
-	_, err := db.Exec(q1, productID, key)
+	_, err := data.DB.Exec(q1, productID, key)
 	return merry.Appendf(err, "%s, %s", q1, key)
 }
 
@@ -168,7 +162,7 @@ INSERT INTO product_value
 VALUES (?, ?, ?)
 ON CONFLICT (product_id,key) DO UPDATE
     SET value = ?`
-	_, err := db.Exec(q1, productID, key, value, value)
+	_, err := data.DB.Exec(q1, productID, key, value, value)
 	return merry.Appendf(err, "%s, %s: %v", q1, key, value)
 }
 
@@ -182,7 +176,7 @@ func getProductValues(productID int64) (map[string]float64, error) {
 		Value float64 `db:"value"`
 	}
 	const q1 = `SELECT key, value FROM product_value WHERE product_id = ?`
-	if err := db.Select(&xs, q1, productID); err != nil {
+	if err := data.DB.Select(&xs, q1, productID); err != nil {
 		return nil, merry.Append(err, q1)
 	}
 	m := map[string]float64{}

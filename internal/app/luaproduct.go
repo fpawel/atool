@@ -97,7 +97,7 @@ func (x *luaProduct) SetValue(key string, LValue lua.LNumber) {
 	value := float64(LValue)
 	if math.IsNaN(value) {
 		x.Err(fmt.Sprintf("%q: нет значения", key))
-		_, err := db.Exec(`DELETE FROM product_value WHERE product_id=? AND key=?`, x.p.ProductID, key)
+		_, err := data.DB.Exec(`DELETE FROM product_value WHERE product_id=? AND key=?`, x.p.ProductID, key)
 		x.luaCheck(err)
 		return
 	}
@@ -110,7 +110,7 @@ func (x *luaProduct) Kef(k int) lua.LNumber {
 
 func (x *luaProduct) Value(key string) lua.LNumber {
 	var v float64
-	err := db.Get(&v,
+	err := data.DB.Get(&v,
 		`SELECT value FROM product_value WHERE product_id = ? AND key = ?`,
 		x.p.ProductID, key)
 	if err == sql.ErrNoRows {

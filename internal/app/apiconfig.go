@@ -35,7 +35,7 @@ func (h *appConfigSvc) ListDevices(_ context.Context) ([]string, error) {
 }
 
 func (h *appConfigSvc) ListProductTypes(_ context.Context) ([]string, error) {
-	party, err := data.GetCurrentParty(db)
+	party, err := data.GetCurrentParty()
 	if err != nil {
 		return nil, err
 	}
@@ -103,15 +103,15 @@ func (h *appConfigSvc) SetParamValue(_ context.Context, key string, value string
 	switch key {
 
 	case "device_type":
-		_, err := db.Exec(`UPDATE party SET device_type = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)
+		_, err := data.DB.Exec(`UPDATE party SET device_type = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)
 		return wrapErr(err)
 
 	case "product_type":
-		_, err := db.Exec(`UPDATE party SET product_type = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)
+		_, err := data.DB.Exec(`UPDATE party SET product_type = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)
 		return wrapErr(err)
 
 	case "name":
-		_, err := db.Exec(`UPDATE party SET name = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)
+		_, err := data.DB.Exec(`UPDATE party SET name = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)
 		return wrapErr(err)
 
 	default:
@@ -119,7 +119,7 @@ func (h *appConfigSvc) SetParamValue(_ context.Context, key string, value string
 		if err != nil {
 			return wrapErr(err)
 		}
-		_, err = db.Exec(`
+		_, err = data.DB.Exec(`
 INSERT INTO party_value (party_id, key, value)
   VALUES ((SELECT party_id FROM app_config), ?, ?)
   ON CONFLICT (party_id,key) DO UPDATE SET value = ?`, key, value, value)
@@ -142,7 +142,7 @@ func getConfigParamValue(key string) (string, error) {
 	}
 	const q1 = `SELECT value FROM party_value WHERE party_id = (SELECT party_id FROM app_config) AND key = ?`
 	var r string
-	err := db.Get(&r, q1, key)
+	err := data.DB.Get(&r, q1, key)
 	if err == sql.ErrNoRows {
 		err = fmt.Errorf("значение ключа партии %q не задано", key)
 	}
@@ -162,7 +162,7 @@ func (x configParam) List() []string {
 
 func getConfigParamsValues() ([]*apitypes.ConfigParamValue, error) {
 
-	p, err := data.GetCurrentParty(db)
+	p, err := data.GetCurrentParty()
 	if err != nil {
 		return nil, err
 	}

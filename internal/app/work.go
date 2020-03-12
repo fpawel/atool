@@ -109,7 +109,7 @@ func runReadAllCoefficients() error {
 
 func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 
-	party, err := data.GetCurrentParty(db)
+	party, err := data.GetCurrentParty()
 	if err != nil {
 		return err
 	}
@@ -190,7 +190,7 @@ INSERT INTO product_value
 VALUES (?, ?, ?)
 ON CONFLICT (product_id,key) DO UPDATE
     SET value = ?`
-	_, err = db.Exec(query, product.ProductID, dbKey, value, value)
+	_, err = data.DB.Exec(query, product.ProductID, dbKey, value, value)
 	return wrapErr(err)
 }
 
@@ -268,7 +268,7 @@ func writeKefProduct(log logger, ctx context.Context, product data.Product, devi
 type errorsOccurred map[string]struct{}
 
 func processEachActiveProduct(errorsOccurred errorsOccurred, work func(data.Product, config.Device) error) error {
-	party, err := data.GetCurrentParty(db)
+	party, err := data.GetCurrentParty()
 	if err != nil {
 		return err
 	}

@@ -55,7 +55,7 @@ func (x *luaImport) GetConfig() *lua.LTable {
 func (x *luaImport) GetProducts() *lua.LTable {
 	Products := x.luaState.NewTable()
 
-	party, err := data.GetCurrentParty(db)
+	party, err := data.GetCurrentParty()
 	x.luaCheck(err)
 
 	device, err := config.Get().Hardware.GetDevice(party.DeviceType)

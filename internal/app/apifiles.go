@@ -18,7 +18,7 @@ var _ api.FilesService = new(filesSvc)
 
 func (h *filesSvc) CopyFile(_ context.Context, partyID int64) error {
 	go func() {
-		if err := data.CopyParty(db, partyID); err != nil {
+		if err := data.CopyParty(partyID); err != nil {
 			guiwork.JournalErr(log, merry.Appendf(err, "копирование файла %d", partyID))
 			return
 		}
@@ -30,11 +30,11 @@ func (h *filesSvc) CopyFile(_ context.Context, partyID int64) error {
 
 func (h *filesSvc) DeleteFile(_ context.Context, partyID int64) error {
 	go func() {
-		currentPartyID, err := data.GetCurrentPartyID(db)
+		currentPartyID, err := data.GetCurrentPartyID()
 		if err != nil {
 			return
 		}
-		if err := data.DeleteParty(db, partyID); err != nil {
+		if err := data.DeleteParty(partyID); err != nil {
 			guiwork.JournalErr(log, merry.Appendf(err, "удаление файла %d", partyID))
 			return
 		}
@@ -48,7 +48,7 @@ func (h *filesSvc) DeleteFile(_ context.Context, partyID int64) error {
 func (h *filesSvc) SaveFile(_ context.Context, partyID int64, filename string) error {
 
 	var party data.PartyValues
-	if err := data.GetPartyValues(db, partyID, &party); err != nil {
+	if err := data.GetPartyValues(partyID, &party); err != nil {
 		return err
 	}
 	b, err := json.MarshalIndent(&party, "", "\t")
@@ -62,7 +62,7 @@ func (h *filesSvc) SaveFile(_ context.Context, partyID int64, filename string) e
 }
 
 func (h *filesSvc) GetCurrentParty(ctx context.Context) (r *apitypes.Party, err error) {
-	partyID, err := data.GetCurrentPartyID(db)
+	partyID, err := data.GetCurrentPartyID()
 	if err != nil {
 		return nil, err
 	}
@@ -73,13 +73,13 @@ func (h *filesSvc) SetCurrentParty(ctx context.Context, partyID int64) error {
 	if guiwork.IsConnected() {
 		return merry.New("нельзя сменить активную партию пока выполняется опрос")
 	}
-	_, err := db.ExecContext(ctx, `UPDATE app_config SET party_id=? WHERE id=1`, partyID)
+	_, err := data.DB.ExecContext(ctx, `UPDATE app_config SET party_id=? WHERE id=1`, partyID)
 	return err
 }
 
 func (h *filesSvc) ListParties(ctx context.Context) (parties []*apitypes.PartyInfo, err error) {
 	var xs []data.PartyInfo
-	if err = db.SelectContext(ctx, &xs, `SELECT * FROM party ORDER BY created_at DESC`); err != nil {
+	if err = data.DB.SelectContext(ctx, &xs, `SELECT * FROM party ORDER BY created_at DESC`); err != nil {
 		return
 	}
 	for _, x := range xs {
@@ -95,7 +95,7 @@ func (h *filesSvc) ListParties(ctx context.Context) (parties []*apitypes.PartyIn
 }
 
 func (h *filesSvc) GetParty(_ context.Context, partyID int64) (*apitypes.Party, error) {
-	dataParty, err := data.GetParty(db, partyID)
+	dataParty, err := data.GetParty(partyID)
 	if err != nil {
 		return nil, err
 	}
@@ -114,11 +114,11 @@ func (h *filesSvc) GetParty(_ context.Context, partyID int64) (*apitypes.Party, 
 	return party, nil
 }
 
-func (h *filesSvc) CreateNewParty(ctx context.Context, productsCount int8) error {
+func (h *filesSvc) CreateNewParty(_ context.Context, productsCount int8) error {
 	if guiwork.IsConnected() {
 		return merry.New("нельзя создать новую партию пока выполняется опрос")
 	}
-	return data.SetNewCurrentParty(ctx, db, int(productsCount))
+	return data.SetNewCurrentParty(int(productsCount))
 }
 
 func convertDataProductToApiProduct(p data.Product) *apitypes.Product {

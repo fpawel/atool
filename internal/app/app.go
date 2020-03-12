@@ -13,7 +13,6 @@ import (
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/comm"
-	"github.com/jmoiron/sqlx"
 	"github.com/powerman/structlog"
 	"net"
 	"os"
@@ -43,8 +42,7 @@ func Main() {
 	// соединение с базой данных
 	dbFilename := filepath.Join(filepath.Dir(os.Args[0]), "atool.sqlite")
 	log.Debug("open database: " + dbFilename)
-	db, err = data.Open(dbFilename)
-	must.PanicIf(err)
+	must.PanicIf(data.Open(dbFilename))
 
 	// журнал СОМ порта
 	comportLogfile, err = logfile.New(".comport")
@@ -78,7 +76,7 @@ func Main() {
 	stopApiServer()
 
 	log.Debug("закрыть соединение с базой данных")
-	log.ErrIfFail(db.Close)
+	log.ErrIfFail(data.DB.Close)
 
 	log.Debug("закрыть журнал СОМ порта")
 	log.ErrIfFail(comportLogfile.Close)
@@ -183,7 +181,6 @@ func runApiServer() context.CancelFunc {
 var (
 	log            = structlog.New()
 	tmpDir         = filepath.Join(filepath.Dir(os.Args[0]), "tmp")
-	db             *sqlx.DB
 	appCtx         context.Context
 	comportLogfile *os.File
 )

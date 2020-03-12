@@ -1,8 +1,6 @@
 package data
 
 import (
-	"context"
-	"database/sql"
 	"fmt"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/comm/modbus"
@@ -12,23 +10,26 @@ import (
 
 //go:generate go run github.com/fpawel/gotools/cmd/sqlstr/...
 
-func Open(filename string) (*sqlx.DB, error) {
-	db, err := pkg.OpenSqliteDBx(filename)
+var DB *sqlx.DB
+
+func Open(filename string) error {
+	var err error
+	DB, err = pkg.OpenSqliteDBx(filename)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if _, err := db.Exec(SQLCreate); err != nil {
-		return nil, err
+	if _, err := DB.Exec(SQLCreate); err != nil {
+		return err
 	}
-	if _, err := GetCurrentParty(db); err != nil {
-		return nil, err
+	if _, err := GetCurrentParty(); err != nil {
+		return err
 	}
-	return db, nil
+	return nil
 }
 
-func GetCurrentPartyID(db *sqlx.DB) (int64, error) {
+func GetCurrentPartyID() (int64, error) {
 	var partyID int64
-	err := db.Get(&partyID, `SELECT party_id FROM app_config`)
+	err := DB.Get(&partyID, `SELECT party_id FROM app_config`)
 	if err != nil {
 		return 0, err
 	}
@@ -36,38 +37,38 @@ func GetCurrentPartyID(db *sqlx.DB) (int64, error) {
 }
 
 // момент времени последнего обновления текущей партии
-func GetCurrentPartyUpdatedAt(db *sqlx.DB) (time.Time, error) {
-	var tm string
-	err := db.Get(&tm, `
-WITH q AS ( SELECT party_id FROM app_config )
-SELECT STRFTIME('%Y-%m-%d %H:%M:%f', tm) AS tm
-FROM measurement
-INNER JOIN product USING (product_id)
-WHERE party_id = (SELECT q.party_id FROM q)
-ORDER BY tm DESC
-LIMIT 1`)
-	if err == sql.ErrNoRows {
-		return time.Time{}, sql.ErrNoRows
-	}
-	return parseTime(tm), nil
-}
+//func GetCurrentPartyUpdatedAt() (time.Time, error) {
+//	var tm string
+//	err := DB.Get(&tm, `
+//WITH q AS ( SELECT party_id FROM app_config )
+//SELECT STRFTIME('%Y-%m-%d %H:%M:%f', tm) AS tm
+//FROM measurement
+//INNER JOIN product USING (product_id)
+//WHERE party_id = (SELECT q.party_id FROM q)
+//ORDER BY tm DESC
+//LIMIT 1`)
+//	if err == sql.ErrNoRows {
+//		return time.Time{}, sql.ErrNoRows
+//	}
+//	return parseTime(tm), nil
+//}
 
-func GetCurrentParty(db *sqlx.DB) (Party, error) {
-	partyID, err := GetCurrentPartyID(db)
+func GetCurrentParty() (Party, error) {
+	partyID, err := GetCurrentPartyID()
 	if err != nil {
 		return Party{}, err
 	}
-	return GetParty(db, partyID)
+	return GetParty(partyID)
 }
 
-func GetParty(db *sqlx.DB, partyID int64) (Party, error) {
+func GetParty(partyID int64) (Party, error) {
 	var party Party
-	err := db.Get(&party, `SELECT * FROM party WHERE party_id=?`, partyID)
+	err := DB.Get(&party, `SELECT * FROM party WHERE party_id=?`, partyID)
 	if err != nil {
 		return Party{}, err
 	}
 
-	if err := db.Select(&party.Products,
+	if err := DB.Select(&party.Products,
 		`SELECT * FROM product_enumerated WHERE party_id=? ORDER BY place`,
 		partyID); err != nil {
 		return Party{}, err
@@ -75,21 +76,21 @@ func GetParty(db *sqlx.DB, partyID int64) (Party, error) {
 	return party, nil
 }
 
-func SetCurrentPartyValues(db *sqlx.DB, p PartyValues) error {
-	partyID, err := GetCurrentPartyID(db)
+func SetCurrentPartyValues(p PartyValues) error {
+	partyID, err := GetCurrentPartyID()
 	if err != nil {
 		return err
 	}
 	p.PartyID = partyID
-	if err := setPartyValues(db, p); err != nil {
+	if err := setPartyValues(p); err != nil {
 		return err
 	}
 	return nil
 }
 
-func GetPartyValues(db *sqlx.DB, partyID int64, party *PartyValues) error {
+func GetPartyValues(partyID int64, party *PartyValues) error {
 
-	err := db.Get(party, `SELECT * FROM party WHERE party_id=?`, partyID)
+	err := DB.Get(party, `SELECT * FROM party WHERE party_id=?`, partyID)
 	if err != nil {
 		return err
 	}
@@ -99,14 +100,14 @@ func GetPartyValues(db *sqlx.DB, partyID int64, party *PartyValues) error {
 		Key   string  `db:"key"`
 		Value float64 `db:"value"`
 	}
-	if err := db.Select(&values, `SELECT key, value FROM party_value WHERE party_id=?`, partyID); err != nil {
+	if err := DB.Select(&values, `SELECT key, value FROM party_value WHERE party_id=?`, partyID); err != nil {
 		return err
 	}
 	for _, x := range values {
 		party.Values[x.Key] = x.Value
 	}
 
-	if err := db.Select(&party.Products,
+	if err := DB.Select(&party.Products,
 		`SELECT * FROM product_enumerated WHERE party_id=? ORDER BY place`,
 		partyID); err != nil {
 		return err
@@ -119,7 +120,7 @@ func GetPartyValues(db *sqlx.DB, partyID int64, party *PartyValues) error {
 		Key       string      `db:"key"`
 		Value     float64     `db:"value"`
 	}
-	if err := db.Select(&xs, `
+	if err := DB.Select(&xs, `
 SELECT product_id, serial, addr, key, value FROM product_value 
 INNER JOIN product USING(product_id)
 WHERE party_id= ?
@@ -145,30 +146,30 @@ ORDER BY created_at, created_order`, partyID); err != nil {
 	return nil
 }
 
-func GetCurrentPartyValues(db *sqlx.DB, party *PartyValues) error {
-	partyID, err := GetCurrentPartyID(db)
+func GetCurrentPartyValues(party *PartyValues) error {
+	partyID, err := GetCurrentPartyID()
 	if err != nil {
 		return err
 	}
-	return GetPartyValues(db, partyID, party)
+	return GetPartyValues(partyID, party)
 }
 
-func CopyParty(db *sqlx.DB, partyID int64) error {
-	prevParty, err := GetParty(db, partyID)
+func CopyParty(partyID int64) error {
+	prevParty, err := GetParty(partyID)
 	if err != nil {
 		return err
 	}
 
-	newPartyID, err := createNewParty(db, prevParty.Name, prevParty.DeviceType, prevParty.ProductType)
+	newPartyID, err := createNewParty(prevParty.Name, prevParty.DeviceType, prevParty.ProductType)
 	if err != nil {
 		return err
 	}
 
-	if err := setAppConfigPartyID(db, newPartyID); err != nil {
+	if err := setAppConfigPartyID(newPartyID); err != nil {
 		return err
 	}
 
-	if _, err := db.Exec(`
+	if _, err := DB.Exec(`
 INSERT INTO party_value
 SELECT ?, key, value FROM product_value 
 WHERE product_id = ?`, newPartyID, prevParty.PartyID); err != nil {
@@ -180,7 +181,7 @@ WHERE product_id = ?`, newPartyID, prevParty.PartyID); err != nil {
 		p.CreatedOrder = i
 		p.PartyID = newPartyID
 
-		r, err := db.NamedExec(`
+		r, err := DB.NamedExec(`
 INSERT INTO product( party_id, addr, active, comport, created_at, created_order ) 
 VALUES (:party_id, :addr, :active, :comport, :created_at, :created_order);`, p)
 
@@ -192,14 +193,14 @@ VALUES (:party_id, :addr, :active, :comport, :created_at, :created_order);`, p)
 			return err
 		}
 
-		if _, err := db.Exec(`
+		if _, err := DB.Exec(`
 INSERT INTO product_param
 SELECT ?, param_addr, chart, series_active FROM product_param 
 WHERE product_id = ?`, newProductID, p.ProductID); err != nil {
 			return err
 		}
 
-		if _, err := db.Exec(`
+		if _, err := DB.Exec(`
 INSERT INTO product_value
 SELECT ?, key, value FROM product_value 
 WHERE product_id = ?`, newProductID, p.ProductID); err != nil {
@@ -210,8 +211,8 @@ WHERE product_id = ?`, newProductID, p.ProductID); err != nil {
 	return nil
 }
 
-func SetProductParam(db *sqlx.DB, p ProductParam) error {
-	_, err := db.NamedExec(`
+func SetProductParam(p ProductParam) error {
+	_, err := DB.NamedExec(`
 INSERT INTO product_param (product_id, param_addr, chart, series_active)
 VALUES (:product_id, :param_addr, :chart, :series_active)
 ON CONFLICT (product_id, param_addr) DO UPDATE SET series_active=:series_active,
@@ -219,9 +220,9 @@ ON CONFLICT (product_id, param_addr) DO UPDATE SET series_active=:series_active,
 	return err
 }
 
-func SetNewCurrentParty(ctx context.Context, db *sqlx.DB, productsCount int) error {
+func SetNewCurrentParty(productsCount int) error {
 
-	prevParty, err := GetCurrentParty(db)
+	prevParty, err := GetCurrentParty()
 	if err != nil {
 		return err
 	}
@@ -229,12 +230,12 @@ func SetNewCurrentParty(ctx context.Context, db *sqlx.DB, productsCount int) err
 	name := fmt.Sprintf("%d %s %s, %s",
 		t.Day(), formatMonth(t), t.Format("2006"), t.Format("15:04"))
 
-	newPartyID, err := createNewParty(db, name, prevParty.DeviceType, prevParty.ProductType)
+	newPartyID, err := createNewParty(name, prevParty.DeviceType, prevParty.ProductType)
 	if err != nil {
 		return err
 	}
 	for i := 0; i < productsCount; i++ {
-		r, err := db.ExecContext(ctx,
+		r, err := DB.Exec(
 			`INSERT INTO product(party_id, addr, created_order, created_at) VALUES (?, ?, ?, ?);`,
 			newPartyID, i+1, i+1, time.Now().Add(time.Second*time.Duration(i)))
 		if err != nil {
@@ -244,14 +245,14 @@ func SetNewCurrentParty(ctx context.Context, db *sqlx.DB, productsCount int) err
 			return err
 		}
 	}
-	if err := setAppConfigPartyID(db, newPartyID); err != nil {
+	if err := setAppConfigPartyID(newPartyID); err != nil {
 		return err
 	}
 	return nil
 }
 
-func AddNewProduct(db *sqlx.DB, order int) (int64, error) {
-	party, err := GetCurrentParty(db)
+func AddNewProduct(order int) (int64, error) {
+	party, err := GetCurrentParty()
 	if err != nil {
 		return 0, err
 	}
@@ -265,7 +266,7 @@ func AddNewProduct(db *sqlx.DB, order int) (int64, error) {
 			break
 		}
 	}
-	r, err := db.Exec(
+	r, err := DB.Exec(
 		`INSERT INTO product( party_id, addr, created_order) VALUES (?,?,?)`,
 		party.PartyID, addr, order)
 	if err != nil {
@@ -279,9 +280,9 @@ func AddNewProduct(db *sqlx.DB, order int) (int64, error) {
 	return productID, nil
 }
 
-func DeleteParty(db *sqlx.DB, partyID int64) error {
+func DeleteParty(partyID int64) error {
 
-	currentPartyID, err := GetCurrentPartyID(db)
+	currentPartyID, err := GetCurrentPartyID()
 	if err != nil {
 		return err
 	}
@@ -294,29 +295,29 @@ FROM party
 WHERE party_id != (SELECT party_id FROM app_config WHERE id=1)
 ORDER BY created_at  DESC 
 LIMIT 1`
-		if err := db.Get(&newCurrentPartyID, q1); err != nil {
+		if err := DB.Get(&newCurrentPartyID, q1); err != nil {
 			return err
 		}
 
-		if _, err := db.Exec(`UPDATE app_config SET party_id = ? WHERE id=1`, newCurrentPartyID); err != nil {
+		if _, err := DB.Exec(`UPDATE app_config SET party_id = ? WHERE id=1`, newCurrentPartyID); err != nil {
 			return err
 		}
 
 	}
 
-	if _, err := db.Exec(`DELETE FROM party WHERE party_id=?`, partyID); err != nil {
+	if _, err := DB.Exec(`DELETE FROM party WHERE party_id=?`, partyID); err != nil {
 		return err
 	}
 	return nil
 }
 
-func setAppConfigPartyID(db *sqlx.DB, partyID int64) error {
-	_, err := db.Exec(`UPDATE app_config SET party_id=? WHERE id=1`, partyID)
+func setAppConfigPartyID(partyID int64) error {
+	_, err := DB.Exec(`UPDATE app_config SET party_id=? WHERE id=1`, partyID)
 	return err
 }
 
-func createNewParty(db *sqlx.DB, name, deviceType, productType string) (int64, error) {
-	r, err := db.Exec(`INSERT INTO party (created_at, name, device_type, product_type) VALUES (?,?,?,?)`,
+func createNewParty(name, deviceType, productType string) (int64, error) {
+	r, err := DB.Exec(`INSERT INTO party (created_at, name, device_type, product_type) VALUES (?,?,?,?)`,
 		time.Now(), name, deviceType, productType)
 	if err != nil {
 		return 0, err
@@ -331,16 +332,16 @@ func createNewParty(db *sqlx.DB, name, deviceType, productType string) (int64, e
 	return getNewInsertedID(r)
 }
 
-func setPartyValues(db *sqlx.DB, p PartyValues) error {
+func setPartyValues(p PartyValues) error {
 
 	const q1 = `UPDATE party SET name=?, device_type = ?, product_type=? WHERE party_id=?`
-	if _, err := db.Exec(q1, p.Name, p.DeviceType, p.ProductType, p.PartyID); err != nil {
+	if _, err := DB.Exec(q1, p.Name, p.DeviceType, p.ProductType, p.PartyID); err != nil {
 		return err
 	}
-	if _, err := db.Exec(`DELETE FROM product WHERE party_id=?`, p.PartyID); err != nil {
+	if _, err := DB.Exec(`DELETE FROM product WHERE party_id=?`, p.PartyID); err != nil {
 		return err
 	}
-	if _, err := db.Exec(`DELETE FROM party_value WHERE party_id=?`, p.PartyID); err != nil {
+	if _, err := DB.Exec(`DELETE FROM party_value WHERE party_id=?`, p.PartyID); err != nil {
 		return err
 	}
 
@@ -352,7 +353,7 @@ func setPartyValues(db *sqlx.DB, p PartyValues) error {
 		sqlStr += fmt.Sprintf("(%d, '%s', %v)", p.PartyID, k, v)
 	}
 	if len(sqlStr) > 0 {
-		if _, err := db.Exec(`INSERT INTO party_value(party_id, key, value) VALUES ` + sqlStr); err != nil {
+		if _, err := DB.Exec(`INSERT INTO party_value(party_id, key, value) VALUES ` + sqlStr); err != nil {
 			return err
 		}
 	}
@@ -360,17 +361,17 @@ func setPartyValues(db *sqlx.DB, p PartyValues) error {
 	sqlStr = ""
 	for i := range p.Products {
 		var err error
-		p.Products[i].ProductID, err = AddNewProduct(db, i)
+		p.Products[i].ProductID, err = AddNewProduct(i)
 		if err != nil {
 			return err
 		}
 		p := p.Products[i]
 
-		if _, err = db.Exec(`UPDATE product SET serial = ? WHERE product_id=?`, p.Serial, p.ProductID); err != nil {
+		if _, err = DB.Exec(`UPDATE product SET serial = ? WHERE product_id=?`, p.Serial, p.ProductID); err != nil {
 			return err
 		}
 
-		_, _ = db.Exec(`UPDATE product SET addr = ? WHERE product_id=?`, p.Addr, p.ProductID)
+		_, _ = DB.Exec(`UPDATE product SET addr = ? WHERE product_id=?`, p.Addr, p.ProductID)
 
 		for k, v := range p.Values {
 			if len(sqlStr) > 0 {
@@ -380,7 +381,7 @@ func setPartyValues(db *sqlx.DB, p PartyValues) error {
 		}
 	}
 	if len(sqlStr) > 0 {
-		if _, err := db.Exec(`INSERT INTO product_value(product_id, key, value) VALUES ` + sqlStr); err != nil {
+		if _, err := DB.Exec(`INSERT INTO product_value(product_id, key, value) VALUES ` + sqlStr); err != nil {
 			return err
 		}
 	}
