@@ -82,7 +82,7 @@ func dataSections() (result devdata.DataSections) {
 	for pkKey, ptName := range pts {
 		x = dataSection{Name: ptName}
 		for _, Var := range vars {
-			for _, gas := range []int{1, 3, 4} {
+			for _, gas := range []int{1, 2, 3, 4} {
 				x.Params = append(x.Params, devdata.DataParam{
 					Key:  fmt.Sprintf("%s_gas%d_var%d", pkKey, gas, Var),
 					Name: fmt.Sprintf("%s: %s", fmtVar(Var), fmtGas(gas)),

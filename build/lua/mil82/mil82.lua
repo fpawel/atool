@@ -28,11 +28,6 @@ local params = go:ParamsDialog({
         format = 'int',
         list = { '3', '4' },
     },
-    temp_middle_scale = {
-        name = "Термокомпенсация: середина шкалы",
-        value = true,
-        format = 'bool',
-    },
     temp_norm = {
         name = "Уставка температуры НКУ,⁰C",
         value = 20,
@@ -46,6 +41,11 @@ local params = go:ParamsDialog({
     temp_high = {
         name = "Уставка высокой температуры,⁰C",
         value = prod_type.temp_high,
+        format = 'float',
+    },
+    temp90 = {
+        name = "Уставка 90⁰C",
+        value = 90,
         format = 'float',
     },
 
@@ -118,10 +118,6 @@ local function gases_read_save(db_key_section, gases)
 end
 
 local function temp_comp(pt_temp)
-    local gases = { 1, 4 }
-    if params.temp_middle_scale then
-        gases = { 1, 3, 4 }
-    end
     local temperatures = {
         [t_norm] = params.temp_norm,
         [t_low] = params.temp_low,
@@ -130,7 +126,7 @@ local function temp_comp(pt_temp)
     local temperature = temperatures[pt_temp]
     return function()
         setupTemperature(temperature)
-        gases_read_save(pt_temp, gases)
+        gases_read_save(pt_temp, { 1, 3, 4 })
     end
 end
 
@@ -326,9 +322,7 @@ go:SelectWorksDialog({
         for _, p in pairs(Products) do
             calc_T0_product(p)
             calc_TK_product(p)
-            if params.temp_middle_scale then
-                calc_TM_product(p)
-            end
+            calc_TM_product(p)
         end
     end },
 
@@ -345,35 +339,35 @@ go:SelectWorksDialog({
     { format_temperature(params.temp_norm) .. ": снятие для проверки погрешности", function()
         setupTemperature(params.temp_norm)
         adjust()
-        gases_read_save('test_' .. t_norm, { 1, 4 })
+        gases_read_save('test_' .. t_norm, { 1, 2, 3, 4 })
     end },
 
     { format_temperature(params.temp_low) .. ": снятие для проверки погрешности", function()
         setupTemperature(params.temp_low)
-        gases_read_save('test_' .. t_low, { 1, 4 })
+        gases_read_save('test_' .. t_low, { 1, 3, 4 })
     end },
 
     { format_temperature(params.temp_high) .. ": снятие для проверки погрешности", function()
         setupTemperature(params.temp_high)
-        gases_read_save('test_' .. t_high, { 1, 4 })
+        gases_read_save('test_' .. t_high, { 1, 3, 4 })
     end },
 
-    { format_temperature(80) .. ": снятие для проверки погрешности", function()
-        setupTemperature(80)
-        gases_read_save('test_t80', { 1, 4 })
+    { format_temperature(params.temp90) .. ": снятие для проверки погрешности", function()
+        setupTemperature(params.temp90)
+        gases_read_save('test_t80', { 1, 3, 4 })
     end },
 
     { format_temperature(params.temp_norm) .. ": повторное снятие для проверки погрешности", function()
         setupTemperature(params.temp_norm)
-        gases_read_save('test2_', { 1, 4 })
+        gases_read_save('test2_', { 1, 3, 4 })
     end },
 
     { "технологический прогон", function()
         adjust()
         go:Info('снятие перед технологическим прогоном')
-        gases_read_save('tex1', { 1, 4 })
+        gases_read_save('tex1', { 1, 3, 4 })
         go:Delay(params.duration_tex, 'технологический прогон')
         go:Info('снятие после технологического прогона')
-        gases_read_save('tex2', { 1, 4 })
+        gases_read_save('tex2', { 1, 3, 4 })
     end },
 })

@@ -82,11 +82,6 @@ func (h *productSvc) SetProductsComport(ctx context.Context, productIDs []int64,
 	return err
 }
 
-func (h *productSvc) SetProductsDevice(ctx context.Context, productIDs []int64, device string) error {
-	_, err := data.DB.ExecContext(ctx, `UPDATE product SET device = ? WHERE product_id IN (`+formatIDs(productIDs)+")", device)
-	return err
-}
-
 func (h *productSvc) SetProductAddr(_ context.Context, productID int64, addr int16) error {
 	_, err := data.DB.Exec(`UPDATE product SET addr=? WHERE product_id = ?`, addr, productID)
 	return err

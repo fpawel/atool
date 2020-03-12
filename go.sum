@@ -32,6 +32,10 @@ github.com/fpawel/hardware v0.0.0-20200311115112-955defbb3045 h1:XRfna3j/dY0Trxn
 github.com/fpawel/hardware v0.0.0-20200311115112-955defbb3045/go.mod h1:TVKM7nduuUVCnDkwCoARfNNlQxaIL/Z7JUWq6+s/SHw=
 github.com/fpawel/hardware v0.0.0-20200311170708-b14b53a98e6d h1:wxEam0Q3W/AL9yeOlcCCFkyCi2hpVu2l2rvGAjOhXTQ=
 github.com/fpawel/hardware v0.0.0-20200311170708-b14b53a98e6d/go.mod h1:oWICCTWYCTfevIjRj3ZOtOSr+yoMleoGwfWffnWbkRk=
+github.com/fpawel/hardware v0.0.0-20200312062418-58644fc7eacb h1:9OPQLSFN6QkDJOC2PvXpbv1E4rtg2E9futOSlmqUQzE=
+github.com/fpawel/hardware v0.0.0-20200312062418-58644fc7eacb/go.mod h1:oWICCTWYCTfevIjRj3ZOtOSr+yoMleoGwfWffnWbkRk=
+github.com/fpawel/hardware v0.0.0-20200312063250-75121f0516e1 h1:iRnTjzmGa0ndZM9EopEd0/DBS0c+uF4tq1tJyn8+J6Q=
+github.com/fpawel/hardware v0.0.0-20200312063250-75121f0516e1/go.mod h1:oWICCTWYCTfevIjRj3ZOtOSr+yoMleoGwfWffnWbkRk=
 github.com/go-sql-driver/mysql v1.4.0/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
 github.com/go-sql-driver/mysql v1.4.1 h1:g24URVg0OFbNUTx9qqY1IRZ9D9z3iPyi5zKhQZpNwpA=
 github.com/go-sql-driver/mysql v1.4.1/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=

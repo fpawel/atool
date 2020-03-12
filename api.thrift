@@ -36,7 +36,6 @@ service ProductParamService {
 service ProductService {
    void setProductSerial(1:i64 productID, 2:i64 serial)
    void setProductsComport(1:list<i64> productIDs, 2:string comport)
-   void setProductsDevice(1:list<i64> productIDs, 2:string device)
    void setProductAddr(1:i64 productID, 2:i16 addr)
    void setProductActive(1:i64 productID, 2:bool active)
    void setProductParamSeries(1:apitypes.ProductParamSeries productParam)

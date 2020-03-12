@@ -31,7 +31,19 @@ func (_ *scriptSvc) RunFile(_ context.Context, filename string) error {
 	return guiwork.RunWork(log, appCtx, filepath.Base(filename), func(log logger, ctx context.Context) error {
 		defer luaState.Close()
 		luaState.SetContext(ctx)
-		return luaState.DoFile(filename)
+		result := luaState.DoFile(filename)
+
+		log.ErrIfFail(func() error {
+			return switchGas(appCtx, 0)
+		})
+		log.ErrIfFail(func() error {
+			tempDev, err := getTemperatureDevice()
+			if err == nil {
+				return err
+			}
+			return tempDev.Stop(log, appCtx)
+		})
+		return result
 	})
 }
 

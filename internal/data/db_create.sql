@@ -15,7 +15,6 @@ CREATE TABLE IF NOT EXISTS product
     product_id    INTEGER PRIMARY KEY NOT NULL,
     party_id      INTEGER             NOT NULL,
     serial        INTEGER             NOT NULL DEFAULT 0,
-    device        TEXT                NOT NULL DEFAULT 'default',
     comport       TEXT                NOT NULL DEFAULT 'COM1',
     addr          INTEGER             NOT NULL DEFAULT 1,
     active        BOOLEAN             NOT NULL DEFAULT 1,
@@ -34,6 +33,7 @@ CREATE TABLE IF NOT EXISTS product
         CHECK (active IN (0, 1) )
 );
 
+DROP VIEW IF EXISTS product_enumerated;
 CREATE VIEW IF NOT EXISTS product_enumerated AS
 SELECT *,
        (SELECT count() FROM product p

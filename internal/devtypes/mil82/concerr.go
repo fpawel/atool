@@ -23,7 +23,11 @@ func getConcentrationErrors(party data.PartyValues, sections *devdata.CalcSectio
 		{key: "tex1", name: "после технологического прогона"},
 	} {
 		sect := devdata.AddSect(sections, "Расчёт погрешности: "+pt.name)
-		for _, gas := range []int{1, 3, 4} {
+		gases := []int{1, 3, 4}
+		if pt.key == "test_t_norm" {
+			gases = []int{1, 2, 3, 4}
+		}
+		for _, gas := range gases {
 			prm := devdata.AddParam(sect, fmt.Sprintf("газ %d", gas))
 			pgs := valOrNaN(party.Values, fmt.Sprintf("c%d", gas))
 
