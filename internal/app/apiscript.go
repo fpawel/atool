@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
@@ -19,9 +20,8 @@ func (_ *scriptSvc) SelectWorks(_ context.Context, works []bool) (err error) {
 	return nil
 }
 
-func (_ *scriptSvc) IgnoreError(_ context.Context) error {
+func (_ *scriptSvc) IgnoreError(context.Context) error {
 	luaIgnoreError()
-
 	return nil
 }
 
@@ -29,21 +29,10 @@ func (_ *scriptSvc) RunFile(_ context.Context, filename string) error {
 	luaState := lua.NewState()
 	luaState.SetGlobal("go", luar.New(luaState, &luaImport{luaState: luaState}))
 	return guiwork.RunWork(log, appCtx, filepath.Base(filename), func(log logger, ctx context.Context) error {
+		defer closeHardware()
 		defer luaState.Close()
 		luaState.SetContext(ctx)
-		result := luaState.DoFile(filename)
-
-		log.ErrIfFail(func() error {
-			return switchGas(appCtx, 0)
-		})
-		log.ErrIfFail(func() error {
-			tempDev, err := getTemperatureDevice()
-			if err == nil {
-				return err
-			}
-			return tempDev.Stop(log, appCtx)
-		})
-		return result
+		return luaState.DoFile(filename)
 	})
 }
 
@@ -56,38 +45,25 @@ func (_ *scriptSvc) GetConfigParamValues(_ context.Context) ([]*apitypes.ConfigP
 	return luaParamValues, nil
 }
 
-//func getScriptType(filename string) (scriptType, error) {
-//	file, err := os.Open(filename)
-//	if err != nil {
-//		return 0, err
-//	}
-//	defer log.ErrIfFail(file.Close)
-//	sc := bufio.NewScanner(file)
-//	if !sc.Scan() {
-//		return 0, errors.New("no lines")
-//	}
-//	if sc.Err() != nil {
-//		return 0, err
-//	}
-//	words := strings.Split(sc.Text(), ":")
-//	if len(words) < 3 {
-//		return scriptTypeUnknown, nil
-//	}
-//	switch strings.ToLower(strings.TrimSpace(words[1])) {
-//	case "work":
-//		return scriptTypeWork, nil
-//	case "report":
-//		return scriptTypeReport, nil
-//	default:
-//		return scriptTypeUnknown, nil
-//	}
-//
-//}
-//
-//type scriptType int
-//
-//const (
-//	scriptTypeUnknown scriptType = iota
-//	scriptTypeWork
-//	scriptTypeReport
-//)
+func closeHardware() {
+	if err := switchGas(appCtx, 0); err != nil {
+		guiwork.JournalErr(log, merry.Prepend(err, "отключить газ по окончании настройки"))
+	} else {
+		guiwork.JournalInfo(log, "отключен газ по окончании настройки")
+	}
+
+	if err := func() error {
+		tempDev, err := getTemperatureDevice()
+		if err != nil {
+			return err
+		}
+		if tempDev == nil {
+			panic("unexpected")
+		}
+		return tempDev.Stop(log, appCtx)
+	}(); err != nil {
+		guiwork.JournalErr(log, merry.Prepend(err, "остановить термокамеру по окончании настройки"))
+	} else {
+		guiwork.JournalInfo(log, "термокамера остановлена по окончании настройки")
+	}
+}

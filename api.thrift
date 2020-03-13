@@ -94,4 +94,5 @@ service CoefficientsService {
     void readAll()
     list<apitypes.Coefficient> listCoefficients()
     void setActive(1:i32 n, 2:bool active)
+    list<apitypes.ProductCoefficientValue> getCurrentPartyCoefficients()
 }

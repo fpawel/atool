@@ -140,7 +140,7 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 			log := pkg.LogPrependSuffixKeys(log, "write_coefficient", x.Coefficient, "value", x.Value,
 				"product", fmt.Sprintf("%+v", product))
 
-			if err := writeKefProduct(log, ctx, product, device, int(x.Coefficient), valFmt, x.Value); err == nil {
+			if err := writeKefProduct(log, ctx, product, device, int(x.Coefficient), valFmt, x.Value); err != nil {
 				continue
 			}
 

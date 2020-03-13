@@ -42,7 +42,7 @@ func getTemperatureDevice() (temp.TemperatureDevice, error) {
 		if err != nil {
 			return nil, err
 		}
-		return ktx500.NewClient(ktx500Client, confTemp.MaxAttemptsRead), err
+		return ktx500.NewClient(ktx500Client, confTemp.MaxAttemptsRead), nil
 	}
 }
 

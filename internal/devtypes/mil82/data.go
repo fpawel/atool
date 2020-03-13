@@ -13,6 +13,19 @@ func dataSections() (result devdata.DataSections) {
 		result = append(result, ds)
 	}
 
+	addDs(dataSection{
+		Name: "Коэффициенты",
+		Params: func() (xs []devdata.DataParam) {
+			for i := 0; i <= 100; i++ {
+				xs = append(xs, devdata.DataParam{
+					Key:  fmt.Sprintf("K%02d", i),
+					Name: fmt.Sprintf("%d", i),
+				})
+			}
+			return
+		}(),
+	})
+
 	x := dataSection{Name: "Линеаризация"}
 	for i := 1; i <= 4; i++ {
 		x.Params = append(x.Params, devdata.DataParam{
