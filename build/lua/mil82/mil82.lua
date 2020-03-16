@@ -312,11 +312,11 @@ go:SelectWorksDialog({
         write_coefficients({ 16, 17, 18, 19 })
     end },
 
-    { format_temperature(params.temp_low) .. ": снятие термокомпенсации", temp_comp(t_low) },
+    { "компенсация Т-: "..format_temperature(params.temp_low), temp_comp(t_low) },
 
-    { format_temperature(params.temp_high) .. ": снятие термокомпенсации", temp_comp(t_high) },
+    { "компенсация Т+: "..format_temperature(params.temp_high), temp_comp(t_high) },
 
-    { format_temperature(params.temp_norm) .. ": снятие термокомпенсации", temp_comp(t_norm) },
+    { "компенсация НКУ: "..format_temperature(params.temp_norm), temp_comp(t_norm) },
 
     { "расчёт термокомпенсации", function()
         for _, p in pairs(Products) do
@@ -336,28 +336,28 @@ go:SelectWorksDialog({
         end
     end },
 
-    { format_temperature(params.temp_norm) .. ": снятие для проверки погрешности", function()
+    { "НКУ: снятие для проверки погрешности", function()
         setupTemperature(params.temp_norm)
         adjust()
         gases_read_save('test_' .. t_norm, { 1, 2, 3, 4 })
     end },
 
-    { format_temperature(params.temp_low) .. ": снятие для проверки погрешности", function()
+    { "Т-: снятие для проверки погрешности: "..format_temperature(params.temp_low), function()
         setupTemperature(params.temp_low)
         gases_read_save('test_' .. t_low, { 1, 3, 4 })
     end },
 
-    { format_temperature(params.temp_high) .. ": снятие для проверки погрешности", function()
+    { "Т+: снятие для проверки погрешности: "..format_temperature(params.temp_high), function()
         setupTemperature(params.temp_high)
         gases_read_save('test_' .. t_high, { 1, 3, 4 })
     end },
 
-    { format_temperature(params.temp90) .. ": снятие для проверки погрешности", function()
+    { "90⁰C: снятие для проверки погрешности: "..format_temperature(params.temp90), function()
         setupTemperature(params.temp90)
         gases_read_save('test_t80', { 1, 3, 4 })
     end },
 
-    { format_temperature(params.temp_norm) .. ": повторное снятие для проверки погрешности", function()
+    { "НКУ: повторное снятие для проверки погрешности", function()
         setupTemperature(params.temp_norm)
         gases_read_save('test2_', { 1, 3, 4 })
     end },

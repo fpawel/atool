@@ -26,7 +26,7 @@ func dataSections() (result devdata.DataSections) {
 		}(),
 	})
 
-	x := dataSection{Name: "Линеаризация"}
+	x := dataSection{Name: "Снятие: линеаризация"}
 	for i := 1; i <= 4; i++ {
 		x.Params = append(x.Params, devdata.DataParam{
 			Key:  fmt.Sprintf("lin%d", i),
@@ -47,21 +47,6 @@ func dataSections() (result devdata.DataSections) {
 		return
 	}
 
-	addDs(dataSection{
-		Name:   "Термоконмпенсация начала шкалы",
-		Params: tXs1(1),
-	})
-
-	addDs(dataSection{
-		Name:   "Термоконмпенсация конца шкалы",
-		Params: tXs1(4),
-	})
-
-	addDs(dataSection{
-		Name:   "Термоконмпенсация середины шкалы",
-		Params: tXs1(3),
-	})
-
 	fmtVar := func(n int) string {
 		if s, f := (map[int]string{
 			0:  "C",
@@ -79,23 +64,29 @@ func dataSections() (result devdata.DataSections) {
 		return fmt.Sprintf("ПГС%d", n)
 	}
 
-	pts := map[string]string{
-		"t_low":       "Низкая температура",
-		"t_norm":      "Нормальная температура",
-		"t_high":      "Высокая температура",
-		"test_t_norm": "Проверка погрешности: НКУ",
-		"test_t_low":  "Проверка погрешности: низкая температура",
-		"test_t_high": "Проверка погрешности: высокая температура",
-		"test2":       "Проверка погрешности: возврат НКУ",
-		"tex1":        "Перед техпрогоном",
-		"tex2":        "После техпрогона",
+	pts := [][2]string{
+		{"t_low", "компенсация Т-"},
+		{"t_norm", "компенсация НКУ"},
+		{"t_high", "компенсация Т+"},
+		{"test_t_norm", "проверка погрешности: НКУ"},
+		{"test_t_low", "проверка погрешности: Т-"},
+		{"test_t_high", "проверка погрешности: Т+"},
+		{"test2", "проверка погрешности: возврат НКУ"},
+		{"tex1", "перед техпрогоном"},
+		{"tex2", "после техпрогона"},
 	}
 	vars := []int{0, 2, 4, 8, 10, 12, 14, 16}
 
-	for pkKey, ptName := range pts {
-		x = dataSection{Name: ptName}
+	for _, ptT := range pts {
+		pkKey := ptT[0]
+		ptName := ptT[1]
+		gases := []int{1, 3, 4}
+		if pkKey == "test_t_norm" {
+			gases = []int{1, 2, 3, 4}
+		}
+		x = dataSection{Name: "Снятие: " + ptName}
 		for _, Var := range vars {
-			for _, gas := range []int{1, 2, 3, 4} {
+			for _, gas := range gases {
 				x.Params = append(x.Params, devdata.DataParam{
 					Key:  fmt.Sprintf("%s_gas%d_var%d", pkKey, gas, Var),
 					Name: fmt.Sprintf("%s: %s", fmtVar(Var), fmtGas(gas)),
@@ -104,5 +95,19 @@ func dataSections() (result devdata.DataSections) {
 		}
 		addDs(x)
 	}
+	addDs(dataSection{
+		Name:   "Расчёт термоконмпенсации начала шкалы",
+		Params: tXs1(1),
+	})
+
+	addDs(dataSection{
+		Name:   "Расчёт термоконмпенсации конца шкалы",
+		Params: tXs1(4),
+	})
+
+	addDs(dataSection{
+		Name:   "Расчёт термоконмпенсации середины шкалы",
+		Params: tXs1(3),
+	})
 	return
 }

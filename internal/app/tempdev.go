@@ -67,6 +67,11 @@ func setupTemperature(log logger, ctx context.Context, destinationTemperature fl
 		return merry.Appendf(err, "термокамера: перевод на %v⁰C", destinationTemperature)
 	}
 
+	// отключить газ
+	log.ErrIfFail(func() error {
+		return wrapErr(switchGas(ctx, 0))
+	})
+
 	dev, err := getTemperatureDevice()
 	if err != nil {
 		return wrapErr(err)

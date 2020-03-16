@@ -34,6 +34,10 @@ func (h *fileSvc) GetProductsValues(_ context.Context, partyID int64) (*apitypes
 
 	device, _ := devtypes.DeviceTypes[party.DeviceType]
 
+	//sort.Slice(device.DataSections, func(i, j int) bool {
+	//	return device.DataSections[i].Name < device.DataSections[j].Name
+	//})
+
 	for _, sect := range device.DataSections {
 		y := &apitypes.SectionProductParamsValues{
 			Section: sect.Name,

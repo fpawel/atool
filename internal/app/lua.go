@@ -118,13 +118,13 @@ func (x *luaImport) Temperature(destinationTemperature float64) {
 func (x *luaImport) TemperatureStart() {
 	tempDevice, err := getTemperatureDevice()
 	x.luaCheck(err)
-	x.luaCheck(tempDevice.Start(log, x.luaState.Context()))
+	luaWithGuiWarn(x.luaState, tempDevice.Start(log, x.luaState.Context()))
 }
 
 func (x *luaImport) TemperatureStop() {
 	tempDevice, err := getTemperatureDevice()
 	x.luaCheck(err)
-	x.luaCheck(tempDevice.Stop(log, x.luaState.Context()))
+	luaWithGuiWarn(x.luaState, tempDevice.Stop(log, x.luaState.Context()))
 }
 
 func (x *luaImport) TemperatureSetup(temperature float64) {
