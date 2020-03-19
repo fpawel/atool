@@ -5,10 +5,10 @@ go 1.13
 require (
 	github.com/ansel1/merry v1.5.1
 	github.com/apache/thrift v0.13.0
-	github.com/fpawel/comm v0.0.0-20191223111435-ed746751e6a5
+	github.com/fpawel/comm v0.0.0-20200319090813-08b8ad2d4edb
 	github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8
 	github.com/fpawel/gotools v0.0.0-20191030125146-1d6c7465834c // indirect
-	github.com/fpawel/hardware v0.0.0-20200312063250-75121f0516e1
+	github.com/fpawel/hardware v0.0.0-20200319090920-bf11a293900e
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/layeh/gopher-json v0.0.0-20190114024228-97fed8db8427
 	github.com/lxn/win v0.0.0-20191128105842-2da648fda5b4
