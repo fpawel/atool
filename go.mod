@@ -8,7 +8,7 @@ require (
 	github.com/fpawel/comm v0.0.0-20200319090813-08b8ad2d4edb
 	github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8
 	github.com/fpawel/gotools v0.0.0-20191030125146-1d6c7465834c // indirect
-	github.com/fpawel/hardware v0.0.0-20200319090920-bf11a293900e
+	github.com/fpawel/hardware v0.0.0-20200323114143-fdba6d02667d
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/layeh/gopher-json v0.0.0-20190114024228-97fed8db8427
 	github.com/lxn/win v0.0.0-20191128105842-2da648fda5b4

@@ -40,6 +40,8 @@ github.com/fpawel/hardware v0.0.0-20200312063250-75121f0516e1 h1:iRnTjzmGa0ndZM9
 github.com/fpawel/hardware v0.0.0-20200312063250-75121f0516e1/go.mod h1:oWICCTWYCTfevIjRj3ZOtOSr+yoMleoGwfWffnWbkRk=
 github.com/fpawel/hardware v0.0.0-20200319090920-bf11a293900e h1:Sixcg8+tfIf0H/VIqHAyS18bdX7ghRwFWPH87eK+GaY=
 github.com/fpawel/hardware v0.0.0-20200319090920-bf11a293900e/go.mod h1:B/nekt2zmeq4Lm4yHQRt474TH3GikHGPz763eaxzXQg=
+github.com/fpawel/hardware v0.0.0-20200323114143-fdba6d02667d h1:c3XnzRwMVm4iqlSB/fQr0BfHjVMrmC+o5pP8KCCXpL4=
+github.com/fpawel/hardware v0.0.0-20200323114143-fdba6d02667d/go.mod h1:B/nekt2zmeq4Lm4yHQRt474TH3GikHGPz763eaxzXQg=
 github.com/go-sql-driver/mysql v1.4.0/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
 github.com/go-sql-driver/mysql v1.4.1 h1:g24URVg0OFbNUTx9qqY1IRZ9D9z3iPyi5zKhQZpNwpA=
 github.com/go-sql-driver/mysql v1.4.1/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
