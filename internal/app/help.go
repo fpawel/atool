@@ -8,7 +8,6 @@ import (
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm/modbus"
 	"github.com/powerman/structlog"
-	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -99,11 +98,14 @@ func parseHexBytes(s string) ([]byte, error) {
 
 func formatFloat(v float64) string {
 	n := config.Get().FloatPrecision
-	if n > 0 {
-		k := math.Pow10(n)
-		v = math.Round(v*k) / k
+	s := strconv.FormatFloat(v, 'f', n, 64)
+	for len(s) > 0 && s[len(s)-1] == '0' {
+		s = s[:len(s)-1]
 	}
-	return strconv.FormatFloat(v, 'g', -1, 64)
+	for len(s) > 0 && s[len(s)-1] == '.' {
+		s = s[:len(s)-1]
+	}
+	return s
 }
 
 func timeUnixMillis(t time.Time) apitypes.TimeUnixMillis {
