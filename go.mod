@@ -5,23 +5,21 @@ go 1.13
 require (
 	github.com/ansel1/merry v1.5.1
 	github.com/apache/thrift v0.13.0
-	github.com/fpawel/comm v0.0.0-20200319090813-08b8ad2d4edb
+	github.com/fpawel/comm v0.0.0-20200327053747-715b051399b8
 	github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8
-	github.com/fpawel/gotools v0.0.0-20191030125146-1d6c7465834c // indirect
-	github.com/fpawel/hardware v0.0.0-20200323114143-fdba6d02667d
+	github.com/fpawel/hardware v0.0.0-20200327053921-f0495995acce
+	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/jmoiron/sqlx v1.2.0
-	github.com/layeh/gopher-json v0.0.0-20190114024228-97fed8db8427
+	github.com/lib/pq v1.3.0 // indirect
 	github.com/lxn/win v0.0.0-20191128105842-2da648fda5b4
-	github.com/mattn/go-sqlite3 v2.0.1+incompatible
-	github.com/mitchellh/mapstructure v1.1.2 // indirect
+	github.com/mattn/go-sqlite3 v2.0.3+incompatible
+	github.com/mitchellh/mapstructure v1.2.2 // indirect
 	github.com/powerman/structlog v0.6.0
-	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.5.1
-	github.com/valyala/quicktemplate v1.4.1
 	github.com/yuin/gluamapper v0.0.0-20150323120927-d836955830e7
 	github.com/yuin/gopher-lua v0.0.0-20191220021717-ab39c6098bdb
+	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd // indirect
 	gopkg.in/yaml.v2 v2.2.8
-	gopkg.in/yaml.v3 v3.0.0-20191120175047-4206685974f2
-	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
+	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 	layeh.com/gopher-luar v1.0.7
 )
