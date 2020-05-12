@@ -5,15 +5,16 @@ go 1.13
 require (
 	github.com/ansel1/merry v1.5.1
 	github.com/apache/thrift v0.13.0
-	github.com/fpawel/comm v0.0.0-20200327053747-715b051399b8
+	github.com/fpawel/comm v0.0.0-20200512053205-8fcc91622e04
 	github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8
-	github.com/fpawel/hardware v0.0.0-20200327053921-f0495995acce
+	github.com/fpawel/hardware v0.0.0-20200512055040-77d95e206c06
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/lib/pq v1.3.0 // indirect
 	github.com/lxn/win v0.0.0-20191128105842-2da648fda5b4
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 	github.com/mitchellh/mapstructure v1.2.2 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/powerman/structlog v0.6.0
 	github.com/stretchr/testify v1.5.1
 	github.com/yuin/gluamapper v0.0.0-20150323120927-d836955830e7

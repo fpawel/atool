@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/devtypes"
 	"github.com/fpawel/atool/internal/gui"
@@ -218,7 +219,7 @@ func getConfigParamsValues() ([]*apitypes.ConfigParamValue, error) {
 		return nil, err
 	}
 
-	partyParamsOfDevice := func() config.PartyParams {
+	partyParamsOfDevice := func() devicecfg.PartyParams {
 		dv, _ := cfg.Hardware[p.DeviceType]
 		for k, v := range dv.PartyParams {
 			dv.PartyParams[k] = "Приборы: " + v

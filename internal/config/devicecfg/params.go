@@ -1,4 +1,4 @@
-package config
+package devicecfg
 
 import (
 	"fmt"

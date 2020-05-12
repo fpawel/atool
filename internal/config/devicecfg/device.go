@@ -1,4 +1,4 @@
-package config
+package devicecfg
 
 import (
 	"fmt"
@@ -22,6 +22,8 @@ type Device struct {
 	Coefficients       []Coefficients `yaml:"coefficients"`
 	ParamsNames        map[int]string `yaml:"params_names"`
 }
+
+type PartyParams = map[string]string
 
 type NetAddr struct {
 	Cmd    modbus.DevCmd          `yaml:"cmd"`
@@ -59,14 +61,6 @@ func (d Device) ParamName(paramAddr int) string {
 
 func (d Device) Validate() error {
 
-	//if len(d.Name) < 0 {
-	//	return merry.New("не задано имя устройства")
-	//}
-	//
-	//if re := regexp.MustCompile("\\s+"); re.MatchString(d.Name) {
-	//	return merry.New(`имя устройства не должно содержать пробелов`)
-	//}
-
 	if len(d.Params) == 0 {
 		return merry.New("список групп параметров устройства не должен быть пустым")
 	}
@@ -95,16 +89,14 @@ func (d Device) Validate() error {
 		}
 	}
 
-	for i, x := range d.Params {
-		for j, y := range d.Params {
-			if i == j {
-				continue
-			}
-			if x.ParamAddr >= y.ParamAddr && x.ParamAddr < y.Count*2 {
-				return merry.Errorf(`перекрываются адреса регистров групп параметров номер %d и номер %d`, i, j)
-			}
+	m := make(map[int]struct{})
+	for _, x := range d.ParamAddresses() {
+		if _, f := m[x]; f {
+			return merry.Errorf(`дублирование адреса параметра %d`, x)
 		}
+		m[x] = struct{}{}
 	}
+
 	if err := d.NetAddr.Format.Validate(); err != nil {
 		return merry.Append(err, "net_addr.format")
 	}

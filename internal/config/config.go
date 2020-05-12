@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"github.com/fpawel/atool/internal/config/devicecfg"
+	"github.com/fpawel/atool/internal/devtypes"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
@@ -23,8 +25,6 @@ type Config struct {
 	Ktx500               ktx500.Config    `yaml:"ktx500"`
 	InactiveCoefficients map[int]struct{} `yaml:"inactive_coefficients"`
 }
-
-type PartyParams = map[string]string
 
 type Mil82WarmSheets struct {
 	Enable  bool        `yaml:"enable"`
@@ -114,7 +114,7 @@ func (c *Config) validate() {
 		}
 
 		if len(dv.Coefficients) == 0 {
-			dv.Coefficients = []Coefficients{
+			dv.Coefficients = []devicecfg.Coefficients{
 				{
 					Range:  [2]int{0, 50},
 					Format: "float_big_endian",
@@ -132,6 +132,13 @@ func (c *Config) validate() {
 		}
 		c.Hardware[d] = dv
 	}
+
+	for name, d := range devtypes.DeviceTypes {
+		if _, f := c.Hardware[name]; !f {
+			c.Hardware[name] = d.Config
+		}
+	}
+
 }
 
 func init() {

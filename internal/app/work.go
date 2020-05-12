@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/guiwork"
@@ -18,6 +19,69 @@ import (
 )
 
 var errNoInterrogateObjects = merry.New("не установлены объекты опроса")
+
+func runFindProducts(log comm.Logger, ctx context.Context, comportName string) error {
+	party, err := data.GetCurrentParty()
+	if err != nil {
+		return err
+	}
+	device, err := config.Get().Hardware.GetDevice(party.DeviceType)
+	if err != nil {
+		return err
+	}
+
+	if len(device.Params) == 0 {
+		return fmt.Errorf("нет параметров устройства %q", party.DeviceType)
+	}
+
+	defer func() {
+		go gui.NotifyCurrentPartyChanged()
+	}()
+
+	party.Products = nil
+	if _, err := data.DB.Exec(`DELETE FROM product WHERE party_id=?`, party.PartyID); err != nil {
+		return err
+	}
+
+	cm := getCommProduct(comportName, device)
+
+	for addr := modbus.Addr(1); addr <= 127; addr++ {
+		param := device.Params[0]
+		_, err := modbus.Read3Value(log, ctx, cm, addr, modbus.Var(param.ParamAddr), param.Format)
+		if merry.Is(err, context.DeadlineExceeded) || merry.Is(err, modbus.Err) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		productID, err := data.AddNewProduct(int(addr))
+		if err != nil {
+			return err
+		}
+		p := data.Product{
+			ProductID:    productID,
+			Addr:         addr,
+			Serial:       int(addr),
+			Comport:      comportName,
+			CreatedAt:    time.Now(),
+			CreatedOrder: int(addr),
+		}
+
+		_, err = data.DB.NamedExec(`
+UPDATE product
+SET addr         = :addr,
+    serial       = :serial,
+    comport      = :comport,
+    created_at   = :created_at,
+    created_order=:created_order
+WHERE product_id = :product_id`, p)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+
+}
 
 func runInterrogate() error {
 	return guiwork.RunWork(log, appCtx, "опрос приборов", func(log *structlog.Logger, ctx context.Context) error {
@@ -37,7 +101,7 @@ func runInterrogate() error {
 }
 
 func readProductsParams(ctx context.Context, ms *measurements, errorsOccurred errorsOccurred) error {
-	return processEachActiveProduct(errorsOccurred, func(product data.Product, device config.Device) error {
+	return processEachActiveProduct(errorsOccurred, func(product data.Product, device devicecfg.Device) error {
 		rdr := newParamsReader(product, device)
 		for _, prm := range device.Params {
 			err := rdr.getResponse(ctx, prm)
@@ -78,7 +142,7 @@ func runReadAllCoefficients() error {
 	return guiwork.RunWork(log, appCtx, "считывание коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
 
 		inactiveCoefficients := config.Get().InactiveCoefficients
-		err := processEachActiveProduct(nil, func(product data.Product, device config.Device) error {
+		err := processEachActiveProduct(nil, func(product data.Product, device devicecfg.Device) error {
 			log := pkg.LogPrependSuffixKeys(log, "product", product.String())
 			cm := getCommProduct(product.Comport, device)
 			for _, Kr := range device.Coefficients {
@@ -155,7 +219,7 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 
 func runRawCommand(c modbus.ProtoCmd, b []byte) {
 	guiwork.RunTask(log, fmt.Sprintf("отправка команды XX %X % X", c, b), func() error {
-		err := processEachActiveProduct(nil, func(p data.Product, device config.Device) error {
+		err := processEachActiveProduct(nil, func(p data.Product, device devicecfg.Device) error {
 			cm := getCommProduct(p.Comport, device)
 			req := modbus.Request{
 				Addr:     p.Addr,
@@ -172,7 +236,7 @@ func runRawCommand(c modbus.ProtoCmd, b []byte) {
 	})
 }
 
-func readAndSaveProductValue(log logger, ctx context.Context, product data.Product, device config.Device, param modbus.Var, format modbus.FloatBitsFormat, dbKey string) error {
+func readAndSaveProductValue(log logger, ctx context.Context, product data.Product, device devicecfg.Device, param modbus.Var, format modbus.FloatBitsFormat, dbKey string) error {
 	wrapErr := func(err error) error {
 		return merry.Appendf(err, "прибор %d.%d: считать рег.%d %s: сохранить %q",
 			product.Serial, product.ProductID, param, format, dbKey)
@@ -194,7 +258,7 @@ ON CONFLICT (product_id,key) DO UPDATE
 	return wrapErr(err)
 }
 
-func write32Product(log logger, ctx context.Context, product data.Product, device config.Device, cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) error {
+func write32Product(log logger, ctx context.Context, product data.Product, device devicecfg.Device, cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) error {
 	err := modbus.RequestWrite32{
 		Addr:      product.Addr,
 		ProtoCmd:  0x10,
@@ -211,7 +275,7 @@ func write32Product(log logger, ctx context.Context, product data.Product, devic
 	return err
 }
 
-func writeKefProduct(log logger, ctx context.Context, product data.Product, device config.Device, kef int, format modbus.FloatBitsFormat, value float64) error {
+func writeKefProduct(log logger, ctx context.Context, product data.Product, device devicecfg.Device, kef int, format modbus.FloatBitsFormat, value float64) error {
 	err := modbus.RequestWrite32{
 		Addr:      product.Addr,
 		ProtoCmd:  0x10,
@@ -267,7 +331,7 @@ func writeKefProduct(log logger, ctx context.Context, product data.Product, devi
 
 type errorsOccurred map[string]struct{}
 
-func processEachActiveProduct(errorsOccurred errorsOccurred, work func(data.Product, config.Device) error) error {
+func processEachActiveProduct(errorsOccurred errorsOccurred, work func(data.Product, devicecfg.Device) error) error {
 	party, err := data.GetCurrentParty()
 	if err != nil {
 		return err
@@ -304,7 +368,7 @@ func processEachActiveProduct(errorsOccurred errorsOccurred, work func(data.Prod
 	return nil
 }
 
-func getCommProduct(comportName string, device config.Device) comm.T {
+func getCommProduct(comportName string, device devicecfg.Device) comm.T {
 	return comm.New(comports.GetComport(comportName, device.Baud), device.CommConfig())
 }
 

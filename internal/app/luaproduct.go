@@ -3,7 +3,7 @@ package app
 import (
 	"database/sql"
 	"fmt"
-	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/comm"
@@ -17,11 +17,11 @@ type luaProduct struct {
 	Serial   int
 	ID       int64
 	Addr     modbus.Addr
-	device   config.Device
+	device   devicecfg.Device
 	luaState *lua.LState
 }
 
-func newLuaProduct(p data.Product, device config.Device, luaState *lua.LState) *luaProduct {
+func newLuaProduct(p data.Product, device devicecfg.Device, luaState *lua.LState) *luaProduct {
 	return &luaProduct{
 		p:        p,
 		Serial:   p.Serial,

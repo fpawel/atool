@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/guiwork"
@@ -169,7 +170,7 @@ func (x *luaImport) ReadSave(reg modbus.Var, format modbus.FloatBitsFormat, dbKe
 	}
 	x.newWork(fmt.Sprintf("считать из СОМ и сохранить: рег.%d,%s", reg, dbKey),
 		func(s *structlog.Logger, ctx context.Context) error {
-			return processEachActiveProduct(nil, func(product data.Product, device config.Device) error {
+			return processEachActiveProduct(nil, func(product data.Product, device devicecfg.Device) error {
 				return readAndSaveProductValue(log, ctx,
 					product, device, reg, format, dbKey)
 			})
@@ -181,7 +182,7 @@ func (x *luaImport) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, va
 		x.luaState.ArgError(2, err.Error())
 	}
 	x.newWork(fmt.Sprintf("команда %d(%v)", cmd, value), func(s *structlog.Logger, ctx context.Context) error {
-		return processEachActiveProduct(nil, func(product data.Product, device config.Device) error {
+		return processEachActiveProduct(nil, func(product data.Product, device devicecfg.Device) error {
 			_ = write32Product(log, ctx, product, device, cmd, format, value)
 			return nil
 		})
@@ -195,7 +196,7 @@ func (x *luaImport) WriteKef(kef int, format modbus.FloatBitsFormat, value float
 	x.luaCheck(guiwork.PerformNewNamedWork(log, x.luaState.Context(),
 		fmt.Sprintf("запись K%d=%v", kef, value),
 		func(log *structlog.Logger, ctx context.Context) error {
-			return processEachActiveProduct(nil, func(product data.Product, device config.Device) error {
+			return processEachActiveProduct(nil, func(product data.Product, device devicecfg.Device) error {
 				_ = writeKefProduct(log, ctx, product, device, kef, format, value)
 				return nil
 			})

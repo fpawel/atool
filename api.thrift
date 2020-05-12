@@ -8,6 +8,7 @@ service RunWorkService {
     void interruptDelay()
     void command(1:i16 cmd; 2:string s)
     void switchGas(1:i8 valve)
+    void searchProducts(1:string comportName)
 }
 
 service ScriptService {

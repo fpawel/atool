@@ -2,7 +2,7 @@ package app
 
 import (
 	"context"
-	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/comm/modbus"
@@ -13,10 +13,10 @@ type paramsReader struct {
 	p  data.Product
 	dt []byte
 	rd []bool
-	dv config.Device
+	dv devicecfg.Device
 }
 
-func newParamsReader(product data.Product, device config.Device) paramsReader {
+func newParamsReader(product data.Product, device devicecfg.Device) paramsReader {
 	r := paramsReader{
 		p:  product,
 		dt: make([]byte, device.BufferSize()),
@@ -29,7 +29,7 @@ func newParamsReader(product data.Product, device config.Device) paramsReader {
 	return r
 }
 
-func (r paramsReader) getResponse(ctx context.Context, prm config.Params) error {
+func (r paramsReader) getResponse(ctx context.Context, prm devicecfg.Params) error {
 
 	regsCount := prm.Count * 2
 	bytesCount := regsCount * 2
@@ -51,7 +51,7 @@ func (r paramsReader) getResponse(ctx context.Context, prm config.Params) error 
 	return err
 }
 
-func (r paramsReader) processParamValueRead(p config.Params, i int, ms *measurements) {
+func (r paramsReader) processParamValueRead(p devicecfg.Params, i int, ms *measurements) {
 	paramAddr := p.ParamAddr + 2*i
 	offset := 2 * paramAddr
 	if !r.rd[offset] {

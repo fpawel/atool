@@ -13,10 +13,14 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/fpawel/comm v0.0.0-20200327053747-715b051399b8 h1:XC4WmPNhFktcVdITmUi0kqA1iSfqKpF9tWArzn0AHdA=
 github.com/fpawel/comm v0.0.0-20200327053747-715b051399b8/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
+github.com/fpawel/comm v0.0.0-20200512053205-8fcc91622e04 h1:AApVBlqANQeUgD7lEpioucunS21ovI2aaJqJHmqGv8k=
+github.com/fpawel/comm v0.0.0-20200512053205-8fcc91622e04/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
 github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8 h1:UM9aOtxe5LVZwoCTQltVvjEjcTtLqfWJ8cAkDmQsyhg=
 github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8/go.mod h1:mSSHEEI65myX9PxSQLbDzWS1jkYk1hAPh+qxq6CyBD4=
 github.com/fpawel/hardware v0.0.0-20200327053921-f0495995acce h1:8bPKwxC7BWYqJdrteD8LwwTcZZxf3SQv/yvWQWCQjJ4=
 github.com/fpawel/hardware v0.0.0-20200327053921-f0495995acce/go.mod h1:KIup3WbKnn/g3Zvt0dCo3FXcQT6dCfNWDXd/vYVCxQs=
+github.com/fpawel/hardware v0.0.0-20200512055040-77d95e206c06 h1:Y2nDMcF2a+MyGJpHeTkpiLW1bELu9uysTMVCwrGHH6w=
+github.com/fpawel/hardware v0.0.0-20200512055040-77d95e206c06/go.mod h1:P/rT6VSLby5mt+jhnIrot801kn3IuVMfk1Yb/VP1o+E=
 github.com/go-sql-driver/mysql v1.4.0/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
 github.com/go-sql-driver/mysql v1.5.0 h1:ozyZYNQW3x3HtqT1jira07DN2PArx2v7/mN66gGcHOs=
 github.com/go-sql-driver/mysql v1.5.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=

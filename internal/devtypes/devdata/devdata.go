@@ -1,6 +1,7 @@
 package devdata
 
 import (
+	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 )
@@ -9,6 +10,7 @@ type Device struct {
 	DataSections        DataSections
 	GetCalcSectionsFunc func(data.PartyValues, *CalcSections) error
 	ProductTypes        []string
+	Config              devicecfg.Device
 }
 
 type DataSections []DataSection
