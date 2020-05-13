@@ -11,6 +11,7 @@ import (
 	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/comports"
+	"github.com/fpawel/atool/internal/pkg/intrng"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
@@ -20,7 +21,7 @@ import (
 
 var errNoInterrogateObjects = merry.New("не установлены объекты опроса")
 
-func runFindProducts(log comm.Logger, ctx context.Context, comportName string) error {
+func searchProducts(log comm.Logger, ctx context.Context, comportName string) error {
 	party, err := data.GetCurrentParty()
 	if err != nil {
 		return err
@@ -38,47 +39,46 @@ func runFindProducts(log comm.Logger, ctx context.Context, comportName string) e
 		go gui.NotifyCurrentPartyChanged()
 	}()
 
-	party.Products = nil
-	if _, err := data.DB.Exec(`DELETE FROM product WHERE party_id=?`, party.PartyID); err != nil {
-		return err
-	}
+	cm := comm.New(comports.GetComport(comportName, device.Baud), comm.Config{
+		TimeoutGetResponse: 500,
+		TimeoutEndResponse: 50,
+	})
 
-	cm := getCommProduct(comportName, device)
-
+	toReq, ans, notAns := make(intrng.Bytes), make(intrng.Bytes), make(intrng.Bytes)
 	for addr := modbus.Addr(1); addr <= 127; addr++ {
-		param := device.Params[0]
+		toReq.Push(byte(addr))
+	}
+	param := device.Params[0]
+	for len(toReq) > 0 {
+		addr := modbus.Addr(toReq.Front())
+		go gui.NotifyStatus(gui.Status{
+			Text: fmt.Sprintf(
+				"Опрашивается: %d, ответили [%s], не ответили [%s], осталось [%s]",
+				addr, ans.Format(), notAns.Format(), toReq.Format()),
+			Ok: true,
+		})
 		_, err := modbus.Read3Value(log, ctx, cm, addr, modbus.Var(param.ParamAddr), param.Format)
+		toReq.PopFront()
 		if merry.Is(err, context.DeadlineExceeded) || merry.Is(err, modbus.Err) {
+			notAns.Push(byte(addr))
 			continue
 		}
 		if err != nil {
 			return err
 		}
-		productID, err := data.AddNewProduct(int(addr))
-		if err != nil {
-			return err
-		}
-		p := data.Product{
-			ProductID:    productID,
-			Addr:         addr,
-			Serial:       int(addr),
-			Comport:      comportName,
-			CreatedAt:    time.Now(),
-			CreatedOrder: int(addr),
-		}
-
-		_, err = data.DB.NamedExec(`
-UPDATE product
-SET addr         = :addr,
-    serial       = :serial,
-    comport      = :comport,
-    created_at   = :created_at,
-    created_order=:created_order
-WHERE product_id = :product_id`, p)
-		if err != nil {
-			return err
-		}
+		ans.Push(byte(addr))
 	}
+
+	//if err := data.UpdateProduct(data.Product{
+	//	ProductID:    productID,
+	//	Addr:         addr,
+	//	Serial:       int(addr),
+	//	Comport:      comportName,
+	//	CreatedAt:    time.Now(),
+	//	CreatedOrder: int(addr),
+	//}); err != nil {
+	//	return err
+	//}
 	return nil
 
 }

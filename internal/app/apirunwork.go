@@ -9,11 +9,18 @@ import (
 	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/comm/modbus"
+	"github.com/powerman/structlog"
 )
 
 type runWorkSvc struct{}
 
 var _ api.RunWorkService = new(runWorkSvc)
+
+func (h *runWorkSvc) SearchProducts(ctx context.Context, comportName string) error {
+	return guiwork.RunWork(log, appCtx, "поиск приборов сети", func(log *structlog.Logger, ctx context.Context) error {
+		return searchProducts(log, ctx, comportName)
+	})
+}
 
 func (h *runWorkSvc) Connect(_ context.Context) error {
 	return runInterrogate()

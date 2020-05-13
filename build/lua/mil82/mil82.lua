@@ -95,6 +95,10 @@ local function write_common_coefficients()
         [39] = 0,
     }
 
+    for k, v in pairs(prod_type.coefficient) do
+        coefficients[k] = v
+    end
+
     for _, p in pairs(Products) do
         set_coefficients_product(coefficients, p)
         write_coefficients_product(coefficients, p)
@@ -359,7 +363,7 @@ go:SelectWorksDialog({
 
     { "НКУ: повторное снятие для проверки погрешности", function()
         setupTemperature(params.temp_norm)
-        gases_read_save('test2_', { 1, 3, 4 })
+        gases_read_save('test2', { 1, 3, 4 })
     end },
 
     { "технологический прогон", function()

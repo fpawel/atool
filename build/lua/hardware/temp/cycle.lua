@@ -1,6 +1,6 @@
 -- atool: work: Термокамера: термоциклирование
 
-require 'help'
+require 'utils/help'
 
 
 local params = go:ParamsDialog({

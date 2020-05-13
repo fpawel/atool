@@ -23,6 +23,21 @@ type ProductParamValue struct {
 	Value     string
 }
 
+type ProgressInfo struct {
+	Cmd      ProgressCmd
+	Progress int
+	Max      int
+	What     string
+}
+
+type ProgressCmd int
+
+const (
+	ProgressHide ProgressCmd = iota
+	ProgressShow
+	ProgressProgress
+)
+
 type PopupLevel int
 
 const (

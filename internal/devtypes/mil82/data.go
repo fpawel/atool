@@ -109,5 +109,6 @@ func dataSections() (result devdata.DataSections) {
 		Name:   "Расчёт термоконмпенсации середины шкалы",
 		Params: tXs1(3),
 	})
+
 	return
 }

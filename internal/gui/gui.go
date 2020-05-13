@@ -28,6 +28,7 @@ const (
 	MsgGas
 	MsgTemperature
 	MsgTemperatureSetPoint
+	MsgProgress
 )
 
 const (
@@ -36,6 +37,18 @@ const (
 	wmuStopWork
 	wmuRequestConfigParams
 )
+
+func NotifyProgressShow(max int) bool {
+	return copyData().SendJson(MsgProgress, ProgressInfo{Cmd: ProgressShow, Max: max})
+}
+
+func NotifyProgressHide() bool {
+	return copyData().SendJson(MsgProgress, ProgressInfo{Cmd: ProgressHide})
+}
+
+func NotifyProgress(value int, what string) bool {
+	return copyData().SendJson(MsgProgress, ProgressInfo{Cmd: ProgressProgress, Progress: value, What: what})
+}
 
 func RequestLuaParams() {
 	sendMessage(wmuRequestConfigParams, 0, 0)

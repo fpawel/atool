@@ -251,6 +251,18 @@ func SetNewCurrentParty(productsCount int) error {
 	return nil
 }
 
+func UpdateProduct(p Product) error {
+	_, err := DB.NamedExec(`
+UPDATE product
+SET addr         = :addr,
+    serial       = :serial,
+    comport      = :comport,
+    created_at   = :created_at,
+    created_order=:created_order
+WHERE product_id = :product_id`, p)
+	return err
+}
+
 func AddNewProduct(order int) (int64, error) {
 	party, err := GetCurrentParty()
 	if err != nil {
