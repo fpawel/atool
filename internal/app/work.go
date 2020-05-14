@@ -35,30 +35,23 @@ func searchProducts(log comm.Logger, ctx context.Context, comportName string) er
 		return fmt.Errorf("нет параметров устройства %q", party.DeviceType)
 	}
 
-	defer func() {
-		go gui.NotifyCurrentPartyChanged()
-	}()
-
 	cm := comm.New(comports.GetComport(comportName, device.Baud), comm.Config{
-		TimeoutGetResponse: 500,
-		TimeoutEndResponse: 50,
+		TimeoutGetResponse: 500 * time.Millisecond,
+		TimeoutEndResponse: 50 * time.Millisecond,
 	})
 
-	toReq, ans, notAns := make(intrng.Bytes), make(intrng.Bytes), make(intrng.Bytes)
-	for addr := modbus.Addr(1); addr <= 127; addr++ {
-		toReq.Push(byte(addr))
-	}
+	ans, notAns := make(intrng.Bytes), make(intrng.Bytes)
 	param := device.Params[0]
-	for len(toReq) > 0 {
-		addr := modbus.Addr(toReq.Front())
-		go gui.NotifyStatus(gui.Status{
-			Text: fmt.Sprintf(
-				"Опрашивается: %d, ответили [%s], не ответили [%s], осталось [%s]",
-				addr, ans.Format(), notAns.Format(), toReq.Format()),
-			Ok: true,
-		})
+
+	go gui.NotifyProgressShow(127, "MODBUS: сканирование сети")
+	defer func() {
+		go gui.NotifyProgressHide()
+	}()
+
+	for addr := modbus.Addr(1); addr <= 127; addr++ {
+		go gui.NotifyProgress(int(addr), fmt.Sprintf("MODBUS: сканирование сети: %d, ответили [%s], не ответили [%s]",
+			addr, ans.Format(), notAns.Format()))
 		_, err := modbus.Read3Value(log, ctx, cm, addr, modbus.Var(param.ParamAddr), param.Format)
-		toReq.PopFront()
 		if merry.Is(err, context.DeadlineExceeded) || merry.Is(err, modbus.Err) {
 			notAns.Push(byte(addr))
 			continue
@@ -69,16 +62,40 @@ func searchProducts(log comm.Logger, ctx context.Context, comportName string) er
 		ans.Push(byte(addr))
 	}
 
-	//if err := data.UpdateProduct(data.Product{
-	//	ProductID:    productID,
-	//	Addr:         addr,
-	//	Serial:       int(addr),
-	//	Comport:      comportName,
-	//	CreatedAt:    time.Now(),
-	//	CreatedOrder: int(addr),
-	//}); err != nil {
-	//	return err
-	//}
+	if len(ans) == 0 {
+		go gui.NotifyStatus(gui.Status{
+			Text:       "сканирование сети: приборы не найдены",
+			Ok:         true,
+			PopupLevel: gui.LWarn,
+		})
+		return nil
+	}
+
+	if err := data.SetNewCurrentParty(len(ans)); err != nil {
+		return err
+	}
+	party, err = data.GetCurrentParty()
+	if err != nil {
+		return err
+	}
+
+	for i, addr := range ans.Slice() {
+		p := party.Products[i]
+		p.Addr = modbus.Addr(addr)
+		if err := data.UpdateProduct(p); err != nil {
+			return err
+		}
+	}
+	go func() {
+		gui.NotifyCurrentPartyChanged()
+		gui.NotifyStatus(gui.Status{
+			Text: fmt.Sprintf("сканирование сети: создана новая партия %d. Ответили [%s], не ответили [%s]",
+				party.PartyID, ans.Format(), notAns.Format()),
+			Ok:         true,
+			PopupLevel: gui.LWarn,
+		})
+	}()
+
 	return nil
 
 }

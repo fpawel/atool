@@ -38,8 +38,8 @@ const (
 	wmuRequestConfigParams
 )
 
-func NotifyProgressShow(max int) bool {
-	return copyData().SendJson(MsgProgress, ProgressInfo{Cmd: ProgressShow, Max: max})
+func NotifyProgressShow(max int, what string) bool {
+	return copyData().SendJson(MsgProgress, ProgressInfo{Cmd: ProgressShow, Max: max, What: what})
 }
 
 func NotifyProgressHide() bool {

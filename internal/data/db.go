@@ -234,6 +234,10 @@ func SetNewCurrentParty(productsCount int) error {
 	if err != nil {
 		return err
 	}
+	return setNewCurrentPartyProducts(newPartyID, productsCount)
+}
+
+func setNewCurrentPartyProducts(newPartyID int64, productsCount int) error {
 	for i := 0; i < productsCount; i++ {
 		r, err := DB.Exec(
 			`INSERT INTO product(party_id, addr, created_order, created_at) VALUES (?, ?, ?, ?);`,
