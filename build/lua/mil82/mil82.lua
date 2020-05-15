@@ -291,6 +291,10 @@ go:SelectWorksDialog({
         setupTemperature(params.temp_norm)
     end },
 
+    { "продувка воздуха перед нормировкой", function()
+        go:BlowGas(1)
+    end },
+
     { "нормировка", function()
         go:Write32(8, 'bcd', 1000)
     end },
