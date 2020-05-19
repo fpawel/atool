@@ -100,10 +100,9 @@ func parseHexBytes(s string) ([]byte, error) {
 func formatFloat(v float64) string {
 	n := config.Get().FloatPrecision
 	s := strconv.FormatFloat(v, 'f', n, 64)
-	if v != float64(int64(v)) {
-		for len(s) > 0 && s[len(s)-1] == '0' {
-			s = s[:len(s)-1]
-		}
+
+	for len(s) > 0 && strings.Contains(s, ".") && s[len(s)-1] == '0' {
+		s = s[:len(s)-1]
 	}
 
 	for len(s) > 0 && s[len(s)-1] == '.' {
