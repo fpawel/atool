@@ -73,7 +73,7 @@ local function write_common_coefficients()
     local coefficients = {
         [2] = os.date("*t").year,
         [10] = Config.c1,
-        [11] = Config.c3,
+        [11] = Config.c4,
         [7] = scale_code,
         [8] = prod_type.scale_begin or 0,
         [9] = prod_type.scale,
@@ -90,7 +90,7 @@ local function write_common_coefficients()
         [26] = 1,
         [27] = 0,
         [28] = 0,
-        [37] = 0,
+        [37] = 1,
         [38] = 0,
         [39] = 0,
     }
