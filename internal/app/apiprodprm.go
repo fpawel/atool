@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"strconv"
@@ -37,7 +37,7 @@ ON CONFLICT (product_id,key) DO UPDATE SET value = ? `, productID, key, value, v
 		return err
 	}
 	if n != 1 {
-		return fmt.Errorf("n=%d, expected 1", n)
+		return merry.Errorf("n=%d, expected 1", n)
 	}
 	return nil
 }

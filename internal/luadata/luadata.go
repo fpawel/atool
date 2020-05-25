@@ -1,7 +1,7 @@
 package luadata
 
 import (
-	"fmt"
+	"github.com/ansel1/merry"
 	lua "github.com/yuin/gopher-lua"
 	luar "layeh.com/gopher-luar"
 	"os"
@@ -21,6 +21,6 @@ func init() {
 	}))
 
 	if err := luaState.DoFile(filename); err != nil {
-		panic(fmt.Errorf("devices.lua: %w", err))
+		panic(merry.Errorf("devices.lua: %w", err))
 	}
 }

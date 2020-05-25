@@ -16,18 +16,20 @@ func CloseJournal() error {
 	return fileJournal.Close()
 }
 
-func NotifyLuaSuspended(log *structlog.Logger, err error) {
-	err = merry.New("произошла ошибка: выполнение приостановлено").WithCause(err)
-	writeFileJournal(log, false, err.Error())
+func NotifyLuaSuspended(err error) {
+	err = merry.Prepend(err, "произошла ошибка: выполнение приостановлено")
+	writeFileJournalError(err)
 	go gui.NotifyLuaSuspended(indentWorkLevel() + err.Error())
 }
 
 func JournalInfo(log *structlog.Logger, x string) {
 	notifyStatus(log, gui.Status{Text: x, Ok: true, PopupLevel: gui.LJournal})
+	writeFileJournal(true, x)
 }
 
 func JournalErr(log *structlog.Logger, err error) {
 	notifyStatus(log, gui.Status{Text: err.Error(), Ok: false, PopupLevel: gui.LJournal})
+	writeFileJournalError(err)
 }
 
 //func Warn(log *structlog.Logger, x string) {
@@ -36,31 +38,39 @@ func JournalErr(log *structlog.Logger, err error) {
 
 func JournalWarnError(log *structlog.Logger, err error) {
 	notifyStatus(log, gui.Status{Text: err.Error(), Ok: false, PopupLevel: gui.LWarn})
+	writeFileJournalError(err)
 }
 
-func writeFileJournal(log *structlog.Logger, ok bool, text string) {
+func writeFileJournalError(err error) {
+	writeFileJournal(false, err.Error()+"\n\t"+pkg.FormatMerryStacktrace(err, "\n\t"))
+}
+
+func writeFileJournal(ok bool, text string) {
 	strTime := time.Now().Format("15:04:05")
-	log = pkg.LogPrependSuffixKeys(log, structlog.KeyTime, strTime)
+
 	var err error
 	indent := indentWorkLevel()
 	currentWorkLevel := currentWorkLevel()
-
 	s1 := fmt.Sprintf("%s [%d]%s", strTime, currentWorkLevel, indent)
-
 	if ok {
-		log.Info(text)
 		_, err = fmt.Fprintf(fileJournal, "%s%s\n", s1, text)
-	} else {
-		log.PrintErr(text)
-		_, err = fmt.Fprintf(fileJournal, "%sERR %s\n", s1, text)
+		must.PanicIf(err)
+		return
 	}
+	_, err = fmt.Fprintf(fileJournal, "%sERR %s\n", s1, text)
 	must.PanicIf(err)
 }
 
 func notifyStatus(log *structlog.Logger, x gui.Status) {
-	log = pkg.LogPrependSuffixKeys(log, "popup_level", x.PopupLevel)
-	writeFileJournal(log, x.Ok, x.Text)
-
+	log = pkg.LogPrependSuffixKeys(log,
+		structlog.KeyTime, time.Now().Format("15:04:05"),
+		"popup_level", x.PopupLevel,
+	)
+	if x.Ok {
+		log.Info(x.Text)
+	} else {
+		log.PrintErr(x.Text)
+	}
 	x.Text = indentWorkLevel() + x.Text
 	go gui.NotifyStatus(x)
 }

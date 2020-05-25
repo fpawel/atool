@@ -81,7 +81,7 @@ func (d Device) Validate() error {
 		return merry.Errorf(`не правильное значение max_attempts_read=%v: должно не меньше нуля`, d.MaxAttemptsRead)
 	}
 	if d.Baud < 0 {
-		return fmt.Errorf(`не правильное знaчение baud=%v: должно не меньше нуля`, d.Baud)
+		return merry.Errorf(`не правильное знaчение baud=%v: должно не меньше нуля`, d.Baud)
 	}
 	for i, p := range d.Params {
 		if err := p.Validate(); err != nil {
@@ -126,13 +126,13 @@ func (d Device) CommConfig() comm.Config {
 func (d Device) GetCoefficientFormat(n int) (FloatBitsFormat, error) {
 	for _, c := range d.Coefficients {
 		if err := c.Validate(); err != nil {
-			return "", fmt.Errorf("коэффициент %d: %+v: %w", n, c, err)
+			return "", merry.Errorf("коэффициент %d: %+v: %w", n, c, err)
 		}
 		if n >= c.Range[0] && n <= c.Range[1] {
 			return c.Format, nil
 		}
 	}
-	return "", fmt.Errorf("коэффициент %d не найден в настройках", n)
+	return "", merry.Errorf("коэффициент %d не найден в настройках", n)
 }
 
 func (d Device) ListCoefficients() (xs []int) {

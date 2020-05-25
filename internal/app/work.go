@@ -32,7 +32,7 @@ func searchProducts(log comm.Logger, ctx context.Context, comportName string) er
 	}
 
 	if len(device.Params) == 0 {
-		return fmt.Errorf("нет параметров устройства %q", party.DeviceType)
+		return merry.Errorf("нет параметров устройства %q", party.DeviceType)
 	}
 
 	cm := comm.New(comports.GetComport(comportName, device.Baud), comm.Config{
@@ -146,7 +146,7 @@ func notifyReadCoefficient(p data.Product, n int, value float64, err error) {
 		x.Ok = true
 		guiwork.JournalInfo(log, fmt.Sprintf("считано: №%d K%d=%v", p.Serial, n, value))
 	} else {
-		err = fmt.Errorf("считывание №%d K%d: %w", p.Serial, n, err)
+		err = merry.Errorf("считывание №%d K%d: %w", p.Serial, n, err)
 		x.Result = err.Error()
 		guiwork.JournalErr(log, err)
 		x.Ok = false
@@ -199,7 +199,7 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 
 	device, f := cfg.Hardware[party.DeviceType]
 	if !f {
-		return fmt.Errorf("не заданы параметры устройства %s", party.DeviceType)
+		return merry.Errorf("не заданы параметры устройства %s", party.DeviceType)
 	}
 
 	return guiwork.RunWork(log, appCtx, "запись коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
@@ -215,7 +215,7 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 
 			product, productFound := party.GetProduct(x.ProductID)
 			if !productFound {
-				return fmt.Errorf("product_id not found: %+v", x)
+				return merry.Errorf("product_id not found: %+v", x)
 			}
 
 			log := pkg.LogPrependSuffixKeys(log, "write_coefficient", x.Coefficient, "value", x.Value,
@@ -287,7 +287,7 @@ func write32Product(log logger, ctx context.Context, product data.Product, devic
 	if err == nil {
 		guiwork.JournalInfo(log, fmt.Sprintf("прибор №%d: команда %d(%v)", product.Serial, cmd, value))
 	} else {
-		guiwork.JournalErr(log, fmt.Errorf("прибор №%d: команда %d(%v): %w", product.Serial, cmd, value, err))
+		guiwork.JournalErr(log, merry.Errorf("прибор №%d: команда %d(%v): %w", product.Serial, cmd, value, err))
 	}
 	return err
 }
@@ -311,7 +311,7 @@ func writeKefProduct(log logger, ctx context.Context, product data.Product, devi
 		x.Ok = true
 		guiwork.JournalInfo(log, fmt.Sprintf("№%d.id%d: записано: K%d=%v", product.Serial, product.ProductID, kef, value))
 	} else {
-		err = fmt.Errorf("запись №%d K%d=%v: %w", product.Serial, kef, value, err)
+		err = merry.Errorf("запись №%d K%d=%v: %w", product.Serial, kef, value, err)
 		x.Result = err.Error()
 		guiwork.JournalErr(log, err)
 		x.Ok = false

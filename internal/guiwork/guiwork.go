@@ -73,10 +73,10 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 
 	if err != nil {
 		if isMainWork {
-			log = pkg.LogPrependSuffixKeys(log, "stack", pkg.FormatMerryStacktrace(err), "error", err)
-			err = merry.New(newWorkName + ": завершено с ошибкой").WithCause(err)
+			pkg.LogPrependSuffixKeys(log, "stack", pkg.FormatMerryStacktrace(err, "\n\t")).PrintErr(err)
+			err = merry.Prepend(err, newWorkName+": завершено с ошибкой")
 		} else {
-			err = merry.Append(err, newWorkName)
+			err = merry.Prepend(err, newWorkName)
 		}
 		JournalErr(log, err)
 		return err

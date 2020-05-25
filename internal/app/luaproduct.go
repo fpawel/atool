@@ -3,6 +3,7 @@ package app
 import (
 	"database/sql"
 	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/guiwork"
@@ -128,7 +129,7 @@ func (x *luaProduct) Info(s string) {
 }
 
 func (x *luaProduct) Err(s string) {
-	guiwork.JournalErr(log, fmt.Errorf("№%d.id%d: %s", x.p.Serial, x.p.ProductID, s))
+	guiwork.JournalErr(log, merry.Errorf("№%d.id%d: %s", x.p.Serial, x.p.ProductID, s))
 }
 
 func (x *luaProduct) luaCheck(err error) {

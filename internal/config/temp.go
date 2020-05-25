@@ -1,7 +1,7 @@
 package config
 
 import (
-	"fmt"
+	"github.com/ansel1/merry"
 	"time"
 )
 
@@ -32,7 +32,7 @@ func (c TempDevType) Validate() error {
 	case Ktx500:
 		return nil
 	default:
-		return fmt.Errorf("не правильный тип термокамеры: %s", c)
+		return merry.Errorf("не правильный тип термокамеры: %s", c)
 	}
 }
 

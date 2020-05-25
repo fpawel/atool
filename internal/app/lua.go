@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
@@ -101,7 +100,7 @@ func (x *luaImport) InterpolationCoefficients(a *lua.LTable) lua.LValue {
 		for i := range r {
 			r[i] = math.NaN()
 		}
-		guiwork.JournalErr(log, fmt.Errorf("расёт не выполнен: %+v", dt))
+		guiwork.JournalErr(log, merry.Errorf("расёт не выполнен: %+v", dt))
 	}
 	a = x.luaState.NewTable()
 	for i, v := range r {
@@ -248,7 +247,7 @@ func (x *luaImport) Info(s string) {
 }
 
 func (x *luaImport) Err(s string) {
-	guiwork.JournalErr(log, errors.New(s))
+	guiwork.JournalErr(log, merry.New(s))
 }
 
 func (x *luaImport) SelectWorksDialog(arg *lua.LTable) {
@@ -357,13 +356,12 @@ func luaWithGuiWarn(luaState *lua.LState, err error) {
 	if err == nil {
 		return
 	}
-
 	var ctxIgnoreError context.Context
 	ctxIgnoreError, luaIgnoreError = context.WithCancel(luaState.Context())
-	guiwork.NotifyLuaSuspended(log, err)
+	guiwork.NotifyLuaSuspended(err)
 	<-ctxIgnoreError.Done()
 	luaIgnoreError()
 	if luaState.Context().Err() == nil {
-		guiwork.JournalErr(log, merry.New("ошибка проигнорирована: выполнение продолжено").WithCause(err))
+		guiwork.JournalErr(log, merry.Prepend(err, "ошибка проигнорирована: выполнение продолжено"))
 	}
 }

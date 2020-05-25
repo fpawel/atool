@@ -19,13 +19,12 @@ func switchGas(ctx context.Context, valve byte) error {
 		TimeoutEndResponse: c.TimeoutEndResponse,
 		MaxAttemptsRead:    c.MaxAttemptsRead,
 	}
-	err := gas.Switch(log, ctx, c.Type, comm.New(port, commCfg), c.Addr, valve)
+	guiwork.JournalInfo(log, fmt.Sprintf("газовый блок: переключение %d", valve))
 
+	err := gas.Switch(log, ctx, c.Type, comm.New(port, commCfg), c.Addr, valve)
 	if err == nil {
 		go gui.NotifyGas(int(valve))
-		guiwork.JournalInfo(log, fmt.Sprintf("газовый блок: %d", valve))
-	} else {
-		guiwork.JournalErr(log, fmt.Errorf("газовый блок: %d: %s", valve, err))
+		guiwork.JournalInfo(log, fmt.Sprintf("газовый блок: переключен %d", valve))
 	}
 	return err
 }

@@ -1,7 +1,7 @@
 package app
 
 import (
-	"errors"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/yuin/gluamapper"
 	lua "github.com/yuin/gopher-lua"
@@ -51,11 +51,11 @@ func setConfigParamFromLuaValue(kx, vx lua.LValue, a *apitypes.ConfigParamValue)
 
 	v, ok := vx.(*lua.LTable)
 	if !ok {
-		return errors.New("type error: value must be table")
+		return merry.New("type error: value must be table")
 	}
 	k, ok := kx.(lua.LString)
 	if !ok {
-		return errors.New("type error: key must be string")
+		return merry.New("type error: key must be string")
 	}
 
 	var c luaConfigParam
@@ -85,7 +85,7 @@ func setConfigParamFromLuaValue(kx, vx lua.LValue, a *apitypes.ConfigParamValue)
 		a.Type = "string"
 		a.Value = v
 	default:
-		return errors.New("type error: value")
+		return merry.New("type error: value")
 	}
 	return nil
 }

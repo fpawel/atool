@@ -2,6 +2,7 @@ package mil82
 
 import (
 	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/devtypes/devdata"
 	"github.com/fpawel/atool/internal/pkg/must"
@@ -47,7 +48,7 @@ func getProdOut(party data.PartyValues, sections *devdata.CalcSections) {
 func getConcentrationErrors(party data.PartyValues, sections *devdata.CalcSections) error {
 	prodT, ok := prodTypes[party.ProductType]
 	if !ok {
-		return fmt.Errorf("не правильное исполнение МИЛ-82: %s", party.ProductType)
+		return merry.Errorf("не правильное исполнение МИЛ-82: %s", party.ProductType)
 	}
 	for _, pt := range []section{
 		{key: "test_t_norm", name: "НКУ"},

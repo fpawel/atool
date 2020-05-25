@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/comm/modbus"
 	"github.com/jmoiron/sqlx"
@@ -343,7 +344,7 @@ func createNewParty(name, deviceType, productType string) (int64, error) {
 		return 0, err
 	}
 	if n != 1 {
-		return 0, fmt.Errorf("excpected 1 rows affected, got %d", n)
+		return 0, merry.Errorf("excpected 1 rows affected, got %d", n)
 	}
 	return getNewInsertedID(r)
 }

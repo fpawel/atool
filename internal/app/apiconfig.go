@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/config/devicecfg"
@@ -145,7 +144,7 @@ func getConfigParamValue(key string) (string, error) {
 	var r string
 	err := data.DB.Get(&r, q1, key)
 	if err == sql.ErrNoRows {
-		err = fmt.Errorf("значение ключа партии %q не задано", key)
+		err = merry.Errorf("значение ключа партии %q не задано", key)
 	}
 	return r, err
 }
@@ -195,7 +194,7 @@ func getConfigParamsValues() ([]*apitypes.ConfigParamValue, error) {
 	checkKey := func(k string) error {
 		for _, x := range xs {
 			if x.Key == k {
-				return fmt.Errorf("дублирование значений ключа %q", k)
+				return merry.Errorf("дублирование значений ключа %q", k)
 			}
 		}
 		return nil

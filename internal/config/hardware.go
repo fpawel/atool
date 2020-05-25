@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"sort"
@@ -12,7 +11,7 @@ type Hardware map[string]devicecfg.Device
 func (xs Hardware) GetDevice(deviceType string) (devicecfg.Device, error) {
 	device, f := xs[deviceType]
 	if !f {
-		return devicecfg.Device{}, fmt.Errorf("не заданы параметры устройства %s", deviceType)
+		return devicecfg.Device{}, merry.Errorf("не заданы параметры устройства %s", deviceType)
 	}
 	return device, nil
 }

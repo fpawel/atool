@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/guiwork"
@@ -34,7 +35,7 @@ func (h *productSvc) SetNetAddr(_ context.Context, productID int64) error {
 
 	device, f := config.Get().Hardware[party.DeviceType]
 	if !f {
-		return fmt.Errorf("не заданы параметры устройства %s для прибора %+v", party.DeviceType, p)
+		return merry.Errorf("не заданы параметры устройства %s для прибора %+v", party.DeviceType, p)
 	}
 
 	return guiwork.RunWork(log, appCtx, fmt.Sprintf("прибр %d: запись сетевого адреса %d", p.Serial, p.Addr),
