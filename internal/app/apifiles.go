@@ -19,7 +19,7 @@ var _ api.FilesService = new(filesSvc)
 func (h *filesSvc) CopyFile(_ context.Context, partyID int64) error {
 	go func() {
 		if err := data.CopyParty(partyID); err != nil {
-			guiwork.JournalErr(log, merry.Appendf(err, "копирование файла %d", partyID))
+			guiwork.NotifyErr(log, merry.Appendf(err, "копирование файла %d", partyID))
 			return
 		}
 		gui.NotifyCurrentPartyChanged()
@@ -35,7 +35,7 @@ func (h *filesSvc) DeleteFile(_ context.Context, partyID int64) error {
 			return
 		}
 		if err := data.DeleteParty(partyID); err != nil {
-			guiwork.JournalErr(log, merry.Appendf(err, "удаление файла %d", partyID))
+			guiwork.NotifyErr(log, merry.Appendf(err, "удаление файла %d", partyID))
 			return
 		}
 		if currentPartyID == partyID {

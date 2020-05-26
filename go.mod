@@ -5,9 +5,9 @@ go 1.13
 require (
 	github.com/ansel1/merry v1.5.1
 	github.com/apache/thrift v0.13.0
-	github.com/fpawel/comm v0.0.0-20200525121220-125ca834f493
+	github.com/fpawel/comm v0.0.0-20200526105002-46e1faaa15b4
 	github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8
-	github.com/fpawel/hardware v0.0.0-20200525121335-4dc92078f9d3
+	github.com/fpawel/hardware v0.0.0-20200526105107-3b1055733a5f
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/lib/pq v1.3.0 // indirect

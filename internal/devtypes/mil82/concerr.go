@@ -5,6 +5,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/devtypes/devdata"
+	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"math"
 	"strconv"
@@ -137,10 +138,10 @@ func getConcentrationErrors(party data.PartyValues, sections *devdata.CalcSectio
 						}
 					}
 				}
-				info["предел"] = jsonNaN(absErrLimit)
+				info["предел"] = jsonNaN(round3(absErrLimit))
 
 				absErr := value - nominal
-				info["погрешность"] = jsonNaN(absErr)
+				info["погрешность"] = jsonNaN(round3(absErr))
 
 				relErr := 100 * absErr / absErrLimit
 
@@ -151,13 +152,17 @@ func getConcentrationErrors(party data.PartyValues, sections *devdata.CalcSectio
 				if !math.IsNaN(relErr) {
 					v.Validated = true
 					v.Valid = math.Abs(absErr) < math.Abs(absErrLimit)
-					v.Value = fmt.Sprintf("%.2f", relErr)
+					v.Value = pkg.FormatFloat(relErr, 2)
 				}
 			}
 		}
 	}
 	getProdOut(party, sections)
 	return nil
+}
+
+func round3(v float64) float64 {
+	return math.Round(v*1000) / 1000
 }
 
 func jsonNaN(v float64) interface{} {

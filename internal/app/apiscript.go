@@ -47,9 +47,9 @@ func (_ *scriptSvc) GetConfigParamValues(_ context.Context) ([]*apitypes.ConfigP
 
 func closeHardware() {
 	if err := switchGas(appCtx, 0); err != nil {
-		guiwork.JournalErr(log, merry.Prepend(err, "отключить газ по окончании настройки"))
+		guiwork.NotifyErr(log, merry.Prepend(err, "отключить газ по окончании настройки"))
 	} else {
-		guiwork.JournalInfo(log, "отключен газ по окончании настройки")
+		guiwork.NotifyInfo(log, "отключен газ по окончании настройки")
 	}
 
 	if err := func() error {
@@ -62,8 +62,8 @@ func closeHardware() {
 		}
 		return tempDev.Stop(log, appCtx)
 	}(); err != nil {
-		guiwork.JournalErr(log, merry.Prepend(err, "остановить термокамеру по окончании настройки"))
+		guiwork.NotifyErr(log, merry.Prepend(err, "остановить термокамеру по окончании настройки"))
 	} else {
-		guiwork.JournalInfo(log, "термокамера остановлена по окончании настройки")
+		guiwork.NotifyInfo(log, "термокамера остановлена по окончании настройки")
 	}
 }

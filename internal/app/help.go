@@ -6,6 +6,7 @@ import (
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm/modbus"
 	"github.com/powerman/structlog"
@@ -98,17 +99,7 @@ func parseHexBytes(s string) ([]byte, error) {
 }
 
 func formatFloat(v float64) string {
-	n := config.Get().FloatPrecision
-	s := strconv.FormatFloat(v, 'f', n, 64)
-
-	for len(s) > 0 && strings.Contains(s, ".") && s[len(s)-1] == '0' {
-		s = s[:len(s)-1]
-	}
-
-	for len(s) > 0 && s[len(s)-1] == '.' {
-		s = s[:len(s)-1]
-	}
-	return s
+	return pkg.FormatFloat(v, config.Get().FloatPrecision)
 }
 
 func timeUnixMillis(t time.Time) apitypes.TimeUnixMillis {

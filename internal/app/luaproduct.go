@@ -125,11 +125,11 @@ func (x *luaProduct) Value(key string) lua.LNumber {
 }
 
 func (x *luaProduct) Info(s string) {
-	guiwork.JournalInfo(log, fmt.Sprintf("№%d.id%d: %s", x.p.Serial, x.p.ProductID, s))
+	guiwork.NotifyInfo(log, fmt.Sprintf("№%d.id%d: %s", x.p.Serial, x.p.ProductID, s))
 }
 
 func (x *luaProduct) Err(s string) {
-	guiwork.JournalErr(log, merry.Errorf("№%d.id%d: %s", x.p.Serial, x.p.ProductID, s))
+	guiwork.NotifyErr(log, merry.Errorf("№%d.id%d: %s", x.p.Serial, x.p.ProductID, s))
 }
 
 func (x *luaProduct) luaCheck(err error) {

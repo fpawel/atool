@@ -139,6 +139,13 @@ func NotifyChart(xs []data.Measurement) bool {
 			return false
 		}
 	}
+
+	buf := bytes.NewBuffer(nil)
+	writeBinary(buf, uint64(0))
+	if !copyData().SendBytes(MsgChart, buf.Bytes()) {
+		return false
+	}
+
 	return true
 }
 

@@ -71,7 +71,7 @@ func (h *appConfigSvc) EditConfig(_ context.Context) error {
 	go func() {
 		if err := applyConfig(); err != nil {
 			log.PrintErr(err)
-			guiwork.JournalErr(log, merry.Append(err, "Ошибка при сохранении конфигурации"))
+			guiwork.NotifyErr(log, merry.Append(err, "Ошибка при сохранении конфигурации"))
 			return
 		}
 		gui.NotifyCurrentPartyChanged()

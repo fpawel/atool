@@ -100,7 +100,7 @@ func (x *luaImport) InterpolationCoefficients(a *lua.LTable) lua.LValue {
 		for i := range r {
 			r[i] = math.NaN()
 		}
-		guiwork.JournalErr(log, merry.Errorf("расёт не выполнен: %+v", dt))
+		guiwork.NotifyErr(log, merry.Errorf("расёт не выполнен: %+v", dt))
 	}
 	a = x.luaState.NewTable()
 	for i, v := range r {
@@ -243,11 +243,11 @@ func (x *luaImport) ParamsDialog(arg *lua.LTable) *lua.LTable {
 }
 
 func (x *luaImport) Info(s string) {
-	guiwork.JournalInfo(log, s)
+	guiwork.NotifyInfo(log, s)
 }
 
 func (x *luaImport) Err(s string) {
-	guiwork.JournalErr(log, merry.New(s))
+	guiwork.NotifyErr(log, merry.New(s))
 }
 
 func (x *luaImport) SelectWorksDialog(arg *lua.LTable) {
@@ -362,6 +362,6 @@ func luaWithGuiWarn(luaState *lua.LState, err error) {
 	<-ctxIgnoreError.Done()
 	luaIgnoreError()
 	if luaState.Context().Err() == nil {
-		guiwork.JournalErr(log, merry.Prepend(err, "ошибка проигнорирована: выполнение продолжено"))
+		guiwork.NotifyErr(log, merry.Prepend(err, "ошибка проигнорирована: выполнение продолжено"))
 	}
 }

@@ -97,7 +97,7 @@ func setupTemperature(log logger, ctx context.Context, destinationTemperature fl
 
 		if err != nil {
 			err = wrapErr(merry.Append(err, "считывание температуры"))
-			guiwork.JournalErr(log, err)
+			guiwork.NotifyErr(log, err)
 			return err
 		}
 
@@ -106,12 +106,12 @@ func setupTemperature(log logger, ctx context.Context, destinationTemperature fl
 		go gui.NotifyTemperature(currentTemperature)
 
 		if math.Abs(currentTemperature-destinationTemperature) < 2 {
-			guiwork.JournalInfo(log, fmt.Sprintf("термокамера вышла на температуру %v⁰C: %v⁰C", destinationTemperature, currentTemperature))
+			guiwork.NotifyInfo(log, fmt.Sprintf("термокамера вышла на температуру %v⁰C: %v⁰C", destinationTemperature, currentTemperature))
 			return nil
 		}
 
 		if err := readProductsParams(ctx, ms, errorsOccurred); err != nil {
-			guiwork.JournalErr(log, wrapErr(err))
+			guiwork.NotifyErr(log, wrapErr(err))
 		}
 	}
 }

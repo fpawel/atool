@@ -113,7 +113,7 @@ func (h *currentFileSvc) RunEdit(_ context.Context) error {
 	go func() {
 
 		if err := save(); err != nil {
-			guiwork.JournalErr(log, merry.Append(err, "Ошибка при сохранении данных"))
+			guiwork.NotifyErr(log, merry.Append(err, "Ошибка при сохранении данных"))
 			return
 		}
 	}()
@@ -136,7 +136,7 @@ func processCurrentPartyChart() {
 	if err != nil {
 		err = merry.Append(err, "не удалось получить номер текущего файла")
 		log.PrintErr(err)
-		guiwork.JournalErr(log, err)
+		guiwork.NotifyErr(log, err)
 		return
 	}
 
@@ -148,11 +148,9 @@ func processCurrentPartyChart() {
 		party.PartyID, "params", fmt.Sprintf("%d", paramsAddresses))
 
 	printErr := func(err error) {
-		guiwork.JournalWarnError(log, merry.Appendf(err, "график текущего файла %d: % d, %v",
+		guiwork.NotifyWarnError(log, merry.Appendf(err, "график текущего файла %d: % d, %v",
 			party.PartyID, paramsAddresses, time.Since(t)))
 	}
-
-	gui.Popupf("открывается график файла %d", party.PartyID)
 
 	xs, err := data.GetPartyChart(party.PartyID, paramsAddresses)
 
@@ -165,7 +163,7 @@ func processCurrentPartyChart() {
 	log.Debug("open chart", "measurements_count", len(xs), "duration", time.Since(t))
 	t2 := time.Now()
 	gui.NotifyChart(xs)
-	gui.Popupf("открыт график текущего файла %d, %d точек, %v", party.PartyID, len(xs), time.Since(t))
+	gui.Popupf("открыт график %d, %d точек, %v", party.PartyID, len(xs), time.Since(t))
 	log.Debug("load chart", "measurements_count", len(xs), "duration", time.Since(t2), "total_duration", time.Since(t))
 
 }

@@ -82,7 +82,7 @@ func Main() {
 	log.ErrIfFail(comportLogfile.Close)
 
 	log.Debug("закрыть журнал")
-	log.ErrIfFail(guiwork.CloseJournal)
+	log.ErrIfFail(guiwork.File.Close)
 
 	// записать в лог что всё хорошо
 	log.Debug("all canceled and closed")
