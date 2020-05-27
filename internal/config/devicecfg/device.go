@@ -85,7 +85,7 @@ func (d Device) Validate() error {
 	}
 	for i, p := range d.Params {
 		if err := p.Validate(); err != nil {
-			return merry.Errorf(`группа параметров номер %d: %+v: %w`, i, p, err)
+			return merry.Appendf(err, `группа параметров номер %d: %+v`, i, p)
 		}
 	}
 
@@ -126,7 +126,7 @@ func (d Device) CommConfig() comm.Config {
 func (d Device) GetCoefficientFormat(n int) (FloatBitsFormat, error) {
 	for _, c := range d.Coefficients {
 		if err := c.Validate(); err != nil {
-			return "", merry.Errorf("коэффициент %d: %+v: %w", n, c, err)
+			return "", merry.Prependf(err, "коэффициент %d: %+v", n, c)
 		}
 		if n >= c.Range[0] && n <= c.Range[1] {
 			return c.Format, nil

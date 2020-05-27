@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
@@ -146,7 +147,7 @@ func notifyReadCoefficient(p data.Product, n int, value float64, err error) {
 		x.Ok = true
 		guiwork.NotifyInfo(log, fmt.Sprintf("считано: №%d K%d=%v", p.Serial, n, value))
 	} else {
-		err = merry.Errorf("считывание №%d K%d: %w", p.Serial, n, err)
+		err = merry.Prependf(err, "прибор №%d, считывание коэффициента K%d", p.Serial, n)
 		x.Result = err.Error()
 		guiwork.NotifyErr(log, err)
 		x.Ok = false
@@ -157,9 +158,9 @@ func notifyReadCoefficient(p data.Product, n int, value float64, err error) {
 func runReadAllCoefficients() error {
 
 	return guiwork.RunWork(log, appCtx, "считывание коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
-
 		inactiveCoefficients := config.Get().InactiveCoefficients
-		err := processEachActiveProduct(nil, func(product data.Product, device devicecfg.Device) error {
+		errs := make(errorsOccurred)
+		err := processEachActiveProduct(errs, func(product data.Product, device devicecfg.Device) error {
 			log := pkg.LogPrependSuffixKeys(log, "product", product.String())
 			cm := getCommProduct(product.Comport, device)
 			for _, Kr := range device.Coefficients {
@@ -174,6 +175,9 @@ func runReadAllCoefficients() error {
 					value, err := modbus.Read3Value(log, ctx, cm, product.Addr, 224+2*modbus.Var(kef), Kr.Format)
 					notifyReadCoefficient(product, kef, value, err)
 					if err != nil {
+						if merry.Is(err, context.DeadlineExceeded) {
+							return err
+						}
 						continue
 					}
 					// сохранить значение к-та
@@ -184,7 +188,13 @@ func runReadAllCoefficients() error {
 			}
 			return nil
 		})
-		return err
+		if err != nil {
+			return err
+		}
+		if len(errs) > 0 {
+			return errors.New("не все коэффициенты считаны")
+		}
+		return nil
 	})
 }
 
@@ -203,7 +213,14 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 	}
 
 	return guiwork.RunWork(log, appCtx, "запись коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
+		noAnswer := map[int64]struct{}{}
+		var errorsOccurred bool
 		for _, x := range in {
+
+			if _, f := noAnswer[x.ProductID]; f {
+				continue
+			}
+
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
@@ -217,11 +234,13 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 			if !productFound {
 				return merry.Errorf("product_id not found: %+v", x)
 			}
-
 			log := pkg.LogPrependSuffixKeys(log, "write_coefficient", x.Coefficient, "value", x.Value,
 				"product", fmt.Sprintf("%+v", product))
-
 			if err := writeKefProduct(log, ctx, product, device, int(x.Coefficient), valFmt, x.Value); err != nil {
+				if merry.Is(err, context.DeadlineExceeded) {
+					noAnswer[x.ProductID] = struct{}{}
+				}
+				errorsOccurred = true
 				continue
 			}
 
@@ -229,6 +248,9 @@ func runWriteAllCoefficients(in []*apitypes.ProductCoefficientValue) error {
 			if err := saveProductKefValue(x.ProductID, int(x.Coefficient), x.Value); err != nil {
 				return err
 			}
+		}
+		if errorsOccurred {
+			return errors.New("не все коэффициенты записаны")
 		}
 		return nil
 	})
@@ -287,7 +309,7 @@ func write32Product(log logger, ctx context.Context, product data.Product, devic
 	if err == nil {
 		guiwork.NotifyInfo(log, fmt.Sprintf("прибор №%d: команда %d(%v)", product.Serial, cmd, value))
 	} else {
-		guiwork.NotifyErr(log, merry.Errorf("прибор №%d: команда %d(%v): %w", product.Serial, cmd, value, err))
+		guiwork.NotifyErr(log, merry.Prependf(err, "прибор №%d: команда %d(%v)", product.Serial, cmd, value))
 	}
 	return err
 }
@@ -311,7 +333,7 @@ func writeKefProduct(log logger, ctx context.Context, product data.Product, devi
 		x.Ok = true
 		guiwork.NotifyInfo(log, fmt.Sprintf("№%d.id%d: записано: K%d=%v", product.Serial, product.ProductID, kef, value))
 	} else {
-		err = merry.Errorf("запись №%d K%d=%v: %w", product.Serial, kef, value, err)
+		err = merry.Prependf(err, "запись №%d K%d=%v", product.Serial, kef, value)
 		x.Result = err.Error()
 		guiwork.NotifyErr(log, err)
 		x.Ok = false
@@ -348,7 +370,7 @@ func writeKefProduct(log logger, ctx context.Context, product data.Product, devi
 
 type errorsOccurred map[string]struct{}
 
-func processEachActiveProduct(errorsOccurred errorsOccurred, work func(data.Product, devicecfg.Device) error) error {
+func processEachActiveProduct(errs errorsOccurred, work func(data.Product, devicecfg.Device) error) error {
 	party, err := data.GetCurrentParty()
 	if err != nil {
 		return err
@@ -361,26 +383,42 @@ func processEachActiveProduct(errorsOccurred errorsOccurred, work func(data.Prod
 	if err != nil {
 		return err
 	}
+
+	if errs == nil {
+		errs = errorsOccurred{}
+	}
+
 	for _, p := range products {
+		p := p
+		processErr := func(err error) {
+			if err == nil || merry.Is(err, context.Canceled) {
+				return
+			}
+			if _, f := errs[err.Error()]; f {
+				return
+			}
+			errs[err.Error()] = struct{}{}
+			guiwork.NotifyErr(log, merry.Prependf(err, "ошибка связи с прибором №%d", p.Serial))
+		}
+		notifyConnection := func(ok bool) {
+			go gui.NotifyProductConnection(gui.ProductConnection{
+				ProductID: p.ProductID,
+				Ok:        ok,
+			})
+		}
+
+		if err := comports.GetComport(p.Comport, device.Baud).Open(); err != nil {
+			processErr(err)
+			notifyConnection(false)
+			continue
+		}
 		go gui.Popupf("опрашивается прибор: №%d %s адр.%d", p.Serial, p.Comport, p.Addr)
 		err := work(p, device)
 		if merry.Is(err, context.Canceled) {
 			return err
 		}
-		go gui.NotifyProductConnection(gui.ProductConnection{
-			ProductID: p.ProductID,
-			Ok:        err == nil,
-		})
-		if err != nil {
-			if errorsOccurred == nil {
-				guiwork.NotifyErr(log, merry.Errorf("ошибка связи с прибором №%d", p.Serial).WithCause(err))
-			} else {
-				if _, f := errorsOccurred[err.Error()]; !f {
-					errorsOccurred[err.Error()] = struct{}{}
-					guiwork.NotifyErr(log, merry.Errorf("ошибка связи с прибором №%d", p.Serial).WithCause(err))
-				}
-			}
-		}
+		notifyConnection(err == nil)
+		processErr(err)
 	}
 	return nil
 }

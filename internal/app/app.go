@@ -168,10 +168,10 @@ func runApiServer() context.CancelFunc {
 	return func() {
 		log.ErrIfFail(func() error {
 			if err := server.Stop(); err != nil {
-				return merry.Errorf("server.Stop(): %w", err)
+				return merry.Prepend(err, "server.Stop")
 			}
 			if err := transport.Close(); err != nil {
-				return merry.Errorf("transport.Close(): %w", err)
+				return merry.Prepend(err, "transport.Close")
 			}
 			return nil
 		}, "problem", "`failed to stop server`")

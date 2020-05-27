@@ -14,7 +14,7 @@ type Params struct {
 
 func (p Params) Validate() error {
 	if err := p.Format.Validate(); err != nil {
-		return merry.Errorf(`не правильное знaчение format=%q: %w`, p.Format, err)
+		return merry.Prependf(err, `не правильное знaчение format=%q`, p.Format)
 	}
 	if p.Count < 1 {
 		return merry.Errorf(`не правильное знaчение count=%d: должно быть боьше нуля`, p.Count)
