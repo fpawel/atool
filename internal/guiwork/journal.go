@@ -31,6 +31,13 @@ func NotifyWarnError(log *structlog.Logger, err error) {
 	File.WriteError(err)
 }
 
+func NotifyJournal() {
+	_ = File.Close()
+	journalRecords := logfile.ReadJournal()
+	File = logfile.NewJournal(currentWorkLevel)
+	go gui.NotifyJournal(journalRecords)
+}
+
 func notifyStatus(log *structlog.Logger, x gui.Status) {
 	log = pkg.LogPrependSuffixKeys(log,
 		structlog.KeyTime, time.Now().Format("15:04:05"),
@@ -50,5 +57,5 @@ func indentStr() string {
 }
 
 var (
-	File = logfile.MustNewJournal(".journal", currentWorkLevel)
+	File = logfile.NewJournal(currentWorkLevel)
 )

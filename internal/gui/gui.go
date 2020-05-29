@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/pkg/logfile"
 	"github.com/fpawel/atool/internal/pkg/winapi"
 	"github.com/fpawel/atool/internal/pkg/winapi/copydata"
 	"github.com/lxn/win"
@@ -29,6 +30,7 @@ const (
 	MsgTemperature
 	MsgTemperatureSetPoint
 	MsgProgress
+	MsgJournal
 )
 
 const (
@@ -143,6 +145,40 @@ func NotifyChart(xs []data.Measurement) bool {
 	buf := bytes.NewBuffer(nil)
 	writeBinary(buf, uint64(0))
 	if !copyData().SendBytes(MsgChart, buf.Bytes()) {
+		return false
+	}
+
+	return true
+}
+
+func NotifyJournal(xs []logfile.JournalRecord) bool {
+
+	for n := 0; n < len(xs); {
+		p := xs[n:]
+		offset := len(p)
+		if offset > 100000 {
+			offset = 100000
+		}
+		p = p[:offset]
+		n += offset
+
+		buf := bytes.NewBuffer(make([]byte, 0, 3300000))
+		writeBinary(buf, int64(len(p)))
+		for _, m := range p {
+			writeBinary(buf, m.Time.UnixNano()/1000000) // количество миллисекунд метки времени
+			writeBinary(buf, byte(m.Level))
+			writeBinary(buf, m.Ok)
+			writeBinary(buf, uint64(len(m.Text)))
+			writeBinary(buf, []byte(m.Text))
+		}
+		if !copyData().SendBytes(MsgJournal, buf.Bytes()) {
+			return false
+		}
+	}
+
+	buf := bytes.NewBuffer(nil)
+	writeBinary(buf, uint64(0))
+	if !copyData().SendBytes(MsgJournal, buf.Bytes()) {
 		return false
 	}
 

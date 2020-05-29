@@ -48,7 +48,7 @@ func (h *filesSvc) DeleteFile(_ context.Context, partyID int64) error {
 func (h *filesSvc) SaveFile(_ context.Context, partyID int64, filename string) error {
 
 	var party data.PartyValues
-	if err := data.GetPartyValues(partyID, &party); err != nil {
+	if err := data.GetPartyValues(partyID, &party, -1); err != nil {
 		return err
 	}
 	b, err := json.MarshalIndent(&party, "", "\t")
@@ -77,11 +77,27 @@ func (h *filesSvc) SetCurrentParty(ctx context.Context, partyID int64) error {
 	return err
 }
 
-func (h *filesSvc) ListParties(ctx context.Context) (parties []*apitypes.PartyInfo, err error) {
+func (h *filesSvc) ListParties(ctx context.Context, filterSerial int64) ([]*apitypes.PartyInfo, error) {
 	var xs []data.PartyInfo
-	if err = data.DB.SelectContext(ctx, &xs, `SELECT * FROM party ORDER BY created_at DESC`); err != nil {
-		return
+	const (
+		query1 = `
+SELECT * FROM party
+WHERE exists(SELECT product_id FROM product WHERE product.party_id = party.party_id AND serial = ?)
+ORDER BY created_at DESC`
+		query2 = ` SELECT * FROM party ORDER BY created_at DESC`
+	)
+	var err error
+	if filterSerial > -1 {
+		err = data.DB.SelectContext(ctx, &xs, query1, filterSerial)
+	} else {
+		err = data.DB.SelectContext(ctx, &xs, query2)
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	parties := make([]*apitypes.PartyInfo, 0)
 	for _, x := range xs {
 		parties = append(parties, &apitypes.PartyInfo{
 			PartyID:     x.PartyID,
@@ -91,7 +107,7 @@ func (h *filesSvc) ListParties(ctx context.Context) (parties []*apitypes.PartyIn
 			CreatedAt:   timeUnixMillis(x.CreatedAt),
 		})
 	}
-	return
+	return parties, nil
 }
 
 func (h *filesSvc) GetParty(_ context.Context, partyID int64) (*apitypes.Party, error) {

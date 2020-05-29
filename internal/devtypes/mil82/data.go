@@ -5,7 +5,7 @@ import (
 	"github.com/fpawel/atool/internal/devtypes/devdata"
 )
 
-func dataSections() (result devdata.DataSections) {
+func DataSections() (result devdata.DataSections) {
 
 	type dataSection = devdata.DataSection
 

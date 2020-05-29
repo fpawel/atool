@@ -15,13 +15,13 @@ type fileSvc struct{}
 
 var _ api.FileService = new(fileSvc)
 
-func (h *fileSvc) GetProductsValues(_ context.Context, partyID int64) (*apitypes.PartyProductsValues, error) {
+func (h *fileSvc) GetProductsValues(_ context.Context, partyID int64, filterSerial int64) (*apitypes.PartyProductsValues, error) {
 
 	result := new(apitypes.PartyProductsValues)
 
 	var party data.PartyValues
 
-	if err := data.GetPartyValues(partyID, &party); err != nil {
+	if err := data.GetPartyValues(partyID, &party, filterSerial); err != nil {
 		return nil, err
 	}
 

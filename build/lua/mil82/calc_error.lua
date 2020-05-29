@@ -12,7 +12,7 @@ local sections = {
 }
 
 local function keyGasVar(gas, var)
-    return mil82_db_key_gas_var(gas, var)
+    return ikds4_db_key_gas_var(gas, var)
 end
 
 local function calc_error(party, calc, prod_type)

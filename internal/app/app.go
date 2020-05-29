@@ -26,8 +26,6 @@ import (
 
 func Main() {
 
-	//configlua.GetProductParamsSections()
-
 	cleanTmpDir()
 	err := os.MkdirAll(tmpDir, os.ModePerm)
 	if err != nil {

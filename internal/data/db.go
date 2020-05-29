@@ -89,7 +89,7 @@ func SetCurrentPartyValues(p PartyValues) error {
 	return nil
 }
 
-func GetPartyValues(partyID int64, party *PartyValues) error {
+func GetPartyValues(partyID int64, party *PartyValues, filterSerial int64) error {
 
 	err := DB.Get(party, `SELECT * FROM party WHERE party_id=?`, partyID)
 	if err != nil {
@@ -101,16 +101,30 @@ func GetPartyValues(partyID int64, party *PartyValues) error {
 		Key   string  `db:"key"`
 		Value float64 `db:"value"`
 	}
+
 	if err := DB.Select(&values, `SELECT key, value FROM party_value WHERE party_id=?`, partyID); err != nil {
 		return err
 	}
+
 	for _, x := range values {
 		party.Values[x.Key] = x.Value
 	}
 
-	if err := DB.Select(&party.Products,
-		`SELECT * FROM product_enumerated WHERE party_id=? ORDER BY place`,
-		partyID); err != nil {
+	const (
+		queryProducts1 = `SELECT * FROM product_enumerated WHERE party_id=? ORDER BY place`
+		queryProducts2 = `
+SELECT * FROM product_enumerated 
+WHERE party_id=? AND serial = ?
+ORDER BY place`
+	)
+
+	if filterSerial == -1 {
+		err = DB.Select(&party.Products, queryProducts1, partyID)
+	} else {
+		err = DB.Select(&party.Products, queryProducts2, partyID, filterSerial)
+	}
+
+	if err != nil {
 		return err
 	}
 
@@ -121,11 +135,27 @@ func GetPartyValues(partyID int64, party *PartyValues) error {
 		Key       string      `db:"key"`
 		Value     float64     `db:"value"`
 	}
-	if err := DB.Select(&xs, `
+
+	const (
+		queryValues1 = `
 SELECT product_id, serial, addr, key, value FROM product_value 
 INNER JOIN product USING(product_id)
 WHERE party_id= ?
-ORDER BY created_at, created_order`, partyID); err != nil {
+ORDER BY created_at, created_order`
+		queryValues2 = `
+SELECT product_id, serial, addr, key, value FROM product_value 
+INNER JOIN product USING(product_id)
+WHERE party_id= ? AND serial = ?
+ORDER BY created_at, created_order`
+	)
+
+	if filterSerial == -1 {
+		err = DB.Select(&xs, queryValues1, partyID)
+	} else {
+		err = DB.Select(&xs, queryValues2, partyID, filterSerial)
+	}
+
+	if err != nil {
 		return err
 	}
 	for _, x := range xs {
@@ -152,7 +182,7 @@ func GetCurrentPartyValues(party *PartyValues) error {
 	if err != nil {
 		return err
 	}
-	return GetPartyValues(partyID, party)
+	return GetPartyValues(partyID, party, -1)
 }
 
 func CopyParty(partyID int64) error {
@@ -231,18 +261,23 @@ func SetNewCurrentParty(productsCount int) error {
 	name := fmt.Sprintf("%d %s %s, %s",
 		t.Day(), formatMonth(t), t.Format("2006"), t.Format("15:04"))
 
+	var comport string
+	if len(prevParty.Products) > 0 {
+		comport = prevParty.Products[0].Comport
+	}
+
 	newPartyID, err := createNewParty(name, prevParty.DeviceType, prevParty.ProductType)
 	if err != nil {
 		return err
 	}
-	return setNewCurrentPartyProducts(newPartyID, productsCount)
+	return setNewCurrentPartyProducts(newPartyID, productsCount, comport)
 }
 
-func setNewCurrentPartyProducts(newPartyID int64, productsCount int) error {
+func setNewCurrentPartyProducts(newPartyID int64, productsCount int, comport string) error {
 	for i := 0; i < productsCount; i++ {
 		r, err := DB.Exec(
-			`INSERT INTO product(party_id, addr, created_order, created_at) VALUES (?, ?, ?, ?);`,
-			newPartyID, i+1, i+1, time.Now().Add(time.Second*time.Duration(i)))
+			`INSERT INTO product(party_id, addr, created_order, created_at, comport) VALUES (?, ?, ?, ?, ?);`,
+			newPartyID, i+1, i+1, time.Now().Add(time.Second*time.Duration(i)), comport)
 		if err != nil {
 			return err
 		}

@@ -10,7 +10,6 @@ import (
 )
 
 type Device struct {
-	//Name               string        `yaml:"name"`
 	Baud               int            `yaml:"baud"`
 	TimeoutGetResponse time.Duration  `yaml:"timeout_get_response"` // таймаут получения ответа
 	TimeoutEndResponse time.Duration  `yaml:"timeout_end_response"` // таймаут окончания ответа

@@ -1,9 +1,12 @@
--- atool: work: МИЛ-82: автоматическая настройка
+-- atool: work: ИКД-С4: автоматическая настройка
 
 require 'utils/help'
 require 'utils/temp_setup'
 require 'utils/print_table'
-require 'mil82/def'
+require 'ikds4/def'
+
+local temp_low = -40
+local temp_high = 50
 
 local Products = go:GetProducts()
 

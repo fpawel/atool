@@ -82,6 +82,11 @@ func (x *luaProduct) ReadKef(k modbus.Var, format modbus.FloatBitsFormat) lua.LN
 		return luaNaN
 	}
 	x.Info(fmt.Sprintf("считатно K%d=%v", k, v))
+
+	key := dbKeyCoefficient(int(k))
+	x.Info(fmt.Sprintf("сохранение %q=%v", key, v))
+	x.luaCheck(saveProductValue(x.p.ProductID, key, v))
+
 	return lua.LNumber(v)
 }
 

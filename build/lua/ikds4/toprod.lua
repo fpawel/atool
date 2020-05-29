@@ -1,4 +1,4 @@
--- atool: work: ИКД-С4: выпуск в эксплуатацию
+-- atool: work: МИЛ-82: выпуск в эксплуатацию
 
 require 'utils/help'
 require 'mil82/def'
