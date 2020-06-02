@@ -26,7 +26,7 @@ local params = go:ParamsDialog({
     },
 })
 
-go:Info("параметры: " .. stringify(params))
+go:Info( { ["параметры"] =  params})
 
 for n = 1,params.cycle_count do
     go:TemperatureSetup(params.temp_low)

@@ -22,15 +22,11 @@ var16 = 16
 varTemp = 2
 varConcentration = 0
 
-vars = { varConcentration, varTemp, 4, 8, 10, 12, 14, var16, }
+vars = { varConcentration, varTemp, 4, 8, 10, 12, 14, var16, 200}
 
 t_low = 't_low'
 t_norm = 't_norm'
 t_high = 't_high'
-
-function mil82_db_key_gas_var(gas, var)
-    return 'gas'..tostring(gas) .. '_var' .. tostring(var)
-end
 
 prod_types = {
     ['00.00'] = {

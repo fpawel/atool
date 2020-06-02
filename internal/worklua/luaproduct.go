@@ -11,6 +11,7 @@ import (
 	"github.com/fpawel/comm/modbus"
 	lua "github.com/yuin/gopher-lua"
 	"math"
+	"strings"
 )
 
 type luaProduct struct {
@@ -68,7 +69,7 @@ func (x *luaProduct) ReadReg(reg modbus.Var, format modbus.FloatBitsFormat) lua.
 		x.Err(fmt.Sprintf("считывание рег%d: %v", reg, err))
 		return luaNaN
 	}
-	x.Info(fmt.Sprintf("считатно рег%d=%v", reg, v))
+	workgui.NotifyInfo(x.log, fmt.Sprintf("считатно рег%d=%v", reg, v))
 	return lua.LNumber(v)
 }
 
@@ -81,12 +82,12 @@ func (x *luaProduct) ReadKef(k modbus.Var, format modbus.FloatBitsFormat) lua.LN
 		x.Err(fmt.Sprintf("считывание K%d: %v", k, err))
 		return luaNaN
 	}
-	x.Info(fmt.Sprintf("считатно K%d=%v", k, v))
+	x.info(fmt.Sprintf("считатно K%d=%v", k, v))
 	return lua.LNumber(v)
 }
 
 func (x *luaProduct) DeleteKey(key string) {
-	x.Info(fmt.Sprintf("удалить ключ %q", key))
+	x.info(fmt.Sprintf("удалить ключ %q", key))
 	x.check(data.DeleteProductKey(x.p.ProductID, key))
 }
 
@@ -124,12 +125,20 @@ func (x *luaProduct) Value(key string) lua.LNumber {
 	return lua.LNumber(v)
 }
 
-func (x *luaProduct) Info(s string) {
-	workgui.NotifyInfo(x.log, fmt.Sprintf("№%d.id%d: %s", x.p.Serial, x.p.ProductID, s))
+func (x *luaProduct) Info(args ...lua.LValue) {
+	xs := make([]string, len(args))
+	for i := range args {
+		xs[i] = stringify(args[i])
+	}
+	x.info(strings.Join(xs, " "))
 }
 
-func (x *luaProduct) Err(s string) {
-	workgui.NotifyErr(x.log, merry.Errorf("№%d.id%d: %s", x.p.Serial, x.p.ProductID, s))
+func (x *luaProduct) Err(err string) {
+	workgui.NotifyErr(x.log, merry.Errorf("%s: %s", x.p, err))
+}
+
+func (x *luaProduct) info(s string) {
+	workgui.NotifyInfo(x.log, fmt.Sprintf("%s: %s", x.p, s))
 }
 
 func (x *luaProduct) check(err error) {
@@ -141,11 +150,11 @@ func (x *luaProduct) journalResult(s string, err error) {
 		x.Err(fmt.Sprintf("%s: %s", s, err))
 		return
 	}
-	x.Info(fmt.Sprintf("%s: успешно", s))
+	x.info(fmt.Sprintf("%s: успешно", s))
 }
 
 func (x *luaProduct) setValue(key string, value float64) {
-	x.Info(fmt.Sprintf("сохранение %q=%v", key, value))
+	x.info(fmt.Sprintf("сохранение %q=%v", key, value))
 	x.check(data.SaveProductValue(x.p.ProductID, key, value))
 }
 

@@ -1,5 +1,3 @@
-json = require("utils/json")
-
 function value_or_nan(v)
     if v~=nil and v == v then
         return v
@@ -7,16 +5,8 @@ function value_or_nan(v)
     return 0 / 0
 end
 
-function stringify(v)
-    return json.encode(v, { indent = true })
-end
-
 function format_temperature(temperature)
     return tostring(temperature) .. '⁰C'
-end
-
-function format_product_number(p)
-    return string.format('№%d.id%d', p.Serial, p.ID)
 end
 
 function array_n(xs, n)
@@ -50,7 +40,7 @@ function write_coefficients(float_format, coefficients)
         return a < b
     end)
 
-    go:NewWork('запись коэффициентов ' .. stringify(coefficients), function()
+    go:NewWork('запись коэффициентов ' .. go:Stringify(coefficients), function()
         for _, product in pairs(Products) do
             for _, k in pairs(coefficients) do
                 product:WriteKef(k, float_format, product:Kef(k))

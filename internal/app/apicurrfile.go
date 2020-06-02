@@ -78,8 +78,12 @@ func (h *currentFileSvc) ListDeviceParams(_ context.Context) ([]*apitypes.Device
 
 func (h *currentFileSvc) RunEdit(_ context.Context) error {
 
+	partyID, err := data.GetCurrentPartyID()
+	if err != nil {
+		return err
+	}
 	var partyValues data.PartyValues
-	if err := data.GetCurrentPartyValues(&partyValues); err != nil {
+	if err := data.GetPartyValues(partyID, &partyValues, -1); err != nil {
 		return err
 	}
 

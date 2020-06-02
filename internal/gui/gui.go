@@ -24,7 +24,7 @@ const (
 	MsgCoefficient
 	MsgProductConnection
 	MsgDelay
-	MsgLuaSuspended
+	MsgWorkSuspended
 	MsgLuaSelectWorks
 	MsgGas
 	MsgTemperature
@@ -60,8 +60,8 @@ func NotifyLuaSelectWorks(works []string) bool {
 	return copyData().SendJson(MsgLuaSelectWorks, works)
 }
 
-func NotifyLuaSuspended(Text string) bool {
-	return copyData().SendString(MsgLuaSuspended, Text)
+func NotifyWorkSuspended(Text string) bool {
+	return copyData().SendString(MsgWorkSuspended, Text)
 }
 
 func NotifyStatus(x Status) bool {

@@ -197,30 +197,6 @@ ON CONFLICT (product_id,key) DO UPDATE
 	return merry.Appendf(err, "%s, %s: %v", q1, key, value)
 }
 
-func GetCurrentPartyValues2() (map[string]float64, error) {
-	var xs []struct {
-		Key   string  `db:"key"`
-		Value float64 `db:"value"`
-	}
-	const q1 = `SELECT key, value FROM party_value WHERE party_id = (SELECT party_id FROM app_config)`
-	if err := DB.Select(&xs, q1); err != nil {
-		return nil, merry.Append(err, q1)
-	}
-	m := map[string]float64{}
-	for _, x := range xs {
-		m[x.Key] = x.Value
-	}
-	return m, nil
-}
-
-func GetCurrentPartyValues(party *PartyValues) error {
-	partyID, err := GetCurrentPartyID()
-	if err != nil {
-		return err
-	}
-	return GetPartyValues(partyID, party, -1)
-}
-
 func CopyParty(partyID int64) error {
 	prevParty, err := GetParty(partyID)
 	if err != nil {

@@ -20,6 +20,7 @@ import (
 	"math"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -76,6 +77,7 @@ func (x *Import) GetProducts() *lua.LTable {
 		impP := newLuaProduct(workparty.Product{
 			Product: p,
 			Device:  device,
+			Party:   party,
 		}, x)
 		Products.Append(luar.New(x.l, impP))
 	}
@@ -110,7 +112,7 @@ func (x *Import) InterpolationCoefficients(a *lua.LTable) lua.LValue {
 		for i := range r {
 			r[i] = math.NaN()
 		}
-		workgui.NotifyErr(x.log, merry.Errorf("расёт не выполнен: %+v", dt))
+		workgui.NotifyErr(x.log, merry.Errorf("расчёт не выполнен: %+v", dt))
 	}
 	a = x.l.NewTable()
 	for i, v := range r {
@@ -177,7 +179,7 @@ func (x *Import) ReadSave(reg modbus.Var, format modbus.FloatBitsFormat, dbKey s
 	if err := format.Validate(); err != nil {
 		x.l.ArgError(2, err.Error())
 	}
-	x.newWork(fmt.Sprintf("считать из СОМ и сохранить: рег.%d,%s", reg, dbKey),
+	x.newWork(fmt.Sprintf("считать рег.%d, сохранить %s", reg, dbKey),
 		func(s *structlog.Logger, ctx context.Context) error {
 			return workparty.ProcessEachActiveProduct(x.log, nil, func(p workparty.Product) error {
 				return p.ReadAndSaveParamValue(x.log, ctx, reg, format, dbKey)
@@ -251,12 +253,20 @@ func (x *Import) ParamsDialog(arg *lua.LTable) *lua.LTable {
 	return arg
 }
 
-func (x *Import) Info(s string) {
-	workgui.NotifyInfo(x.log, s)
+func (x *Import) Stringify(v lua.LValue) string {
+	return stringify(v)
 }
 
-func (x *Import) Err(s string) {
-	workgui.NotifyErr(x.log, merry.New(s))
+func (x *Import) Info(args ...lua.LValue) {
+	xs := make([]string, len(args))
+	for i := range args {
+		xs[i] = stringify(args[i])
+	}
+	workgui.NotifyInfo(x.log, strings.Join(xs, " "))
+}
+
+func (x *Import) Err(s lua.LValue) {
+	workgui.NotifyErr(x.log, merry.New(stringify(s)))
 }
 
 func (x *Import) SelectWorksDialog(arg *lua.LTable) {
@@ -327,10 +337,10 @@ func (x *Import) newNestedWork1(name string, Func func() error) {
 
 func (x *Import) journalResult(s string, err error) {
 	if err != nil {
-		x.Err(fmt.Sprintf("%s: %s", s, err))
+		workgui.NotifyErr(x.log, fmt.Errorf("%s: %s", s, err))
 		return
 	}
-	x.Info(fmt.Sprintf("%s: успешно", s))
+	workgui.NotifyInfo(x.log, fmt.Sprintf("%s: успешно", s))
 }
 
 func (x *Import) delay(dur time.Duration, what string) {
@@ -347,7 +357,7 @@ func (x *Import) withGuiWarn(err error) {
 	}
 	var ctxIgnoreError context.Context
 	ctxIgnoreError, x.IgnoreError = context.WithCancel(x.l.Context())
-	workgui.NotifyLuaSuspended(err)
+	workgui.NotifyWorkSuspended(err)
 	<-ctxIgnoreError.Done()
 	x.IgnoreError()
 	if x.l.Context().Err() == nil {

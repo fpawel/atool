@@ -10,10 +10,10 @@ import (
 	"time"
 )
 
-func NotifyLuaSuspended(err error) {
+func NotifyWorkSuspended(err error) {
 	err = merry.Prepend(err, "произошла ошибка: выполнение приостановлено")
 	File.WriteError(err)
-	go gui.NotifyLuaSuspended(indentStr() + err.Error())
+	go gui.NotifyWorkSuspended(indentStr() + err.Error())
 }
 
 func NotifyInfo(log *structlog.Logger, x string) {

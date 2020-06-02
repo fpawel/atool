@@ -2,8 +2,9 @@
 
 require 'utils/help'
 require 'utils/temp_setup'
-require 'utils/print_table'
 require 'ikds4/ikds4def'
+
+print(go:Stringify(vars))
 
 local temp_low = -40
 local temp_high = 50
@@ -11,14 +12,14 @@ local temp_high = 50
 local Products = go:GetProducts()
 
 local Config = go:GetConfig()
-go:Info("конфигурация: "..stringify(Config))
+go:Info("конфигурация", Config )
 
 local prod_type = prod_types[Config.product_type]
---print_table(prod_type)
-go:Info("исполнение: "..stringify(prod_type))
+
+go:Info("исполнение", prod_type )
 
 if prod_type == nil then
-    error('не определено исполнение: '..Config.product_type)
+    error('не определено исполнение: ' .. Config.product_type)
 end
 
 local params = go:ParamsDialog({
@@ -56,20 +57,20 @@ local params = go:ParamsDialog({
     },
 })
 
-local IKD_S4_FLOAT_FORMAT = 'bcd'
+local IKD_S4_FLOAT_FORMAT = 'float_big_endian'
 
 local function write_common_coefficients()
 
     local scale_code = scale_code[prod_type.scale]
 
     if scale_code == nil then
-        error('не определён код шкалы: '..tostring(prod_type.scale))
+        error('не определён код шкалы: ' .. tostring(prod_type.scale))
     end
 
     local units_code = units_code[prod_type.gas]
 
     if units_code == nil then
-        error('не определён код единиц измерения: '..tostring(prod_type.gas))
+        error('не определён код единиц измерения: ' .. tostring(prod_type.gas))
     end
 
     local coefficients = {
@@ -107,15 +108,16 @@ local function write_common_coefficients()
     end
 end
 
-go:Info("параметры: " .. stringify(params))
+go:Info( "параметры", params )
 
 local function gases_read_save(db_key_section, gases)
-    go:NewWork("снятие " .. db_key_section .. ': газы: ' .. json.encode(gases, { indent = true }), function()
+    go:NewWork("снятие " .. db_key_section .. ': газы: ' .. go:Stringify(gases), function()
         for _, gas in ipairs(gases) do
             go:NewWork("снятие " .. db_key_section .. ': газ: ' .. tostring(gas), function()
                 go:BlowGas(gas)
                 for _, var in pairs(vars) do
-                    go:ReadSave(var, IKD_S4_FLOAT_FORMAT, db_key_section .. '_' .. ikds4_db_key_gas_var(gas, var))
+                    local db_key = db_key_section .. '_gas'..tostring(gas) .. '_var' .. tostring(var)
+                    go:ReadSave(var, IKD_S4_FLOAT_FORMAT, db_key)
                 end
             end)
         end
@@ -148,10 +150,9 @@ local function adjust()
     end)
 end
 
-
 local function calc_lin()
     for _, p in pairs(Products) do
-        go:NewWork(string.format('%s: расчёт линеаризации', format_product_number(p)), function()
+        go:NewWork(string.format('%s: расчёт линеаризации', p.String), function()
             local xy = {}
             local gases = { 1, 2, 3, 4 }
             if params.linear_degree == 3 then
@@ -169,7 +170,7 @@ local function calc_lin()
             if params.linear_degree == 3 then
                 LIN[4] = 0
             end
-            p:Info(stringify(xy) .. ': ' .. stringify(LIN))
+            p:Info( xy, LIN  )
             set_coefficients_product(array_n(LIN, 16), p)
         end)
     end
@@ -189,14 +190,12 @@ local function get_temp_values_product(product, gas, var)
     return values
 end
 
-
 local function calc_T0_product(p)
-    go:NewWork(string.format('%s: расчёт термокомпенсации начала шкалы', format_product_number(p)), function()
+    go:NewWork(string.format('%s: расчёт термокомпенсации начала шкалы', p.String), function()
         local t1 = get_temp_values_product(p, 1, varTemp)
         local var1 = get_temp_values_product(p, 1, var16)
 
-        p:Info('t1=' .. stringify(t1))
-        p:Info('var1=' .. stringify(var1))
+        p:Info( 't1', t1,  'var1', var1 )
 
         local d1 = {}
         for i = 1, 3 do
@@ -204,19 +203,18 @@ local function calc_T0_product(p)
         end
 
         local T0 = go:InterpolationCoefficients(d1)
-        p:Info('T0=' .. stringify(T0))
+        p:Info('T0', T0 )
         set_coefficients_product(array_n(T0, 23), p)
     end)
 end
 
 local function calc_TK_product(p)
-    go:NewWork(string.format('%s: расчёт термокомпенсации конца шкалы', format_product_number(p)), function()
+    go:NewWork(string.format('%s: расчёт термокомпенсации конца шкалы', p.String), function()
         local t4 = get_temp_values_product(p, 4, varTemp)
         local var4 = get_temp_values_product(p, 4, var16)
         local var1 = get_temp_values_product(p, 1, var16)
 
-        p:Info('t1=' .. stringify(t4))
-        p:Info('var1=' .. stringify(var4))
+        p:Info( 't4', t4, 'var4', var4, 'var1', var1 )
 
         local d4 = {}
         for i = 1, 3 do
@@ -224,13 +222,13 @@ local function calc_TK_product(p)
         end
 
         local TK = go:InterpolationCoefficients(d4)
-        p:Info('TK: ' .. stringify(TK))
+        p:Info( 'TK', TK )
         set_coefficients_product(array_n(TK, 26), p)
     end)
 end
 
 local function calc_TM_product(p)
-    go:NewWork(string.format('%s: расчёт термокомпенсации середины шкалы', format_product_number(p)), function()
+    go:NewWork(string.format('%s: расчёт термокомпенсации середины шкалы', p.String), function()
 
         local C4 = Config.c4;
 
@@ -274,7 +272,7 @@ local function calc_TM_product(p)
             { t3, y_hi },
         })
 
-        p:Info('TM: ' .. stringify(TM))
+        p:Info('TM', TM)
         set_coefficients_product(array_n(TM, 37), p)
 
     end)
@@ -319,14 +317,14 @@ go:SelectWorksDialog({
     { "расчёт линеаризации", calc_lin },
 
     { "запись линеаризации", function()
-        write_coefficients(IKD_S4_FLOAT_FORMAT,{ 16, 17, 18, 19 })
+        write_coefficients(IKD_S4_FLOAT_FORMAT, { 16, 17, 18, 19 })
     end },
 
-    { "компенсация Т-: "..format_temperature(params.temp_low), temp_comp(t_low) },
+    { "компенсация Т-: " .. format_temperature(params.temp_low), temp_comp(t_low) },
 
-    { "компенсация Т+: "..format_temperature(params.temp_high), temp_comp(t_high) },
+    { "компенсация Т+: " .. format_temperature(params.temp_high), temp_comp(t_high) },
 
-    { "компенсация НКУ: "..format_temperature(params.temp_norm), temp_comp(t_norm) },
+    { "компенсация НКУ: " .. format_temperature(params.temp_norm), temp_comp(t_norm) },
 
     { "расчёт термокомпенсации", function()
         for _, p in pairs(Products) do
@@ -336,8 +334,8 @@ go:SelectWorksDialog({
         end
     end },
 
-    { "запись термокомпенсации", function ()
-        write_coefficients(IKD_S4_FLOAT_FORMAT,{ 23, 24, 25, 26, 27, 28, 37, 38, 39 })
+    { "запись термокомпенсации", function()
+        write_coefficients(IKD_S4_FLOAT_FORMAT, { 23, 24, 25, 26, 27, 28, 37, 38, 39 })
     end },
 
     { "снятие сигналов каналов", function()
@@ -352,19 +350,14 @@ go:SelectWorksDialog({
         gases_read_save('test_' .. t_norm, { 1, 2, 3, 4 })
     end },
 
-    { "Т-: снятие для проверки погрешности: "..format_temperature(params.temp_low), function()
+    { "Т-: снятие для проверки погрешности: " .. format_temperature(params.temp_low), function()
         setupTemperature(params.temp_low)
         gases_read_save('test_' .. t_low, { 1, 3, 4 })
     end },
 
-    { "Т+: снятие для проверки погрешности: "..format_temperature(params.temp_high), function()
+    { "Т+: снятие для проверки погрешности: " .. format_temperature(params.temp_high), function()
         setupTemperature(params.temp_high)
         gases_read_save('test_' .. t_high, { 1, 3, 4 })
-    end },
-
-    { "90⁰C: снятие для проверки погрешности: "..format_temperature(params.temp90), function()
-        setupTemperature(params.temp90)
-        gases_read_save('test_t80', { 1, 3, 4 })
     end },
 
     { "НКУ: повторное снятие для проверки погрешности", function()

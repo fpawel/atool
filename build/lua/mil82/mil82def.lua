@@ -28,10 +28,6 @@ t_low = 't_low'
 t_norm = 't_norm'
 t_high = 't_high'
 
-function ikds4_db_key_gas_var(gas, var)
-    return 'gas'..tostring(gas) .. '_var' .. tostring(var)
-end
-
 prod_types = {
     ['00.00'] = {
         gas = CO2,

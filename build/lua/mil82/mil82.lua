@@ -2,17 +2,16 @@
 
 require 'utils/help'
 require 'utils/temp_setup'
-require 'utils/print_table'
 require 'mil82/mil82def'
 
 local Products = go:GetProducts()
 
 local Config = go:GetConfig()
-go:Info("конфигурация: "..stringify(Config))
+go:Info("конфигурация",Config)
 
 local prod_type = prod_types[Config.product_type]
 --print_table(prod_type)
-go:Info("исполнение: "..stringify(prod_type))
+go:Info("исполнение", prod_type)
 
 if prod_type == nil then
     error('не определено исполнение: '..Config.product_type)
@@ -104,15 +103,16 @@ local function write_common_coefficients()
     end
 end
 
-go:Info("параметры: " .. stringify(params))
+go:Info("параметры", params)
 
 local function gases_read_save(db_key_section, gases)
-    go:NewWork("снятие " .. db_key_section .. ': газы: ' .. json.encode(gases, { indent = true }), function()
+    go:NewWork("снятие " .. db_key_section .. ': газы: ' .. go:Stringify(gases), function()
         for _, gas in ipairs(gases) do
             go:NewWork("снятие " .. db_key_section .. ': газ: ' .. tostring(gas), function()
                 go:BlowGas(gas)
                 for _, var in pairs(vars) do
-                    go:ReadSave(var, MIL82_FLOAT_FORMAT, db_key_section .. '_' .. ikds4_db_key_gas_var(gas, var))
+                    local db_key = db_key_section .. '_gas'..tostring(gas) .. '_var' .. tostring(var)
+                    go:ReadSave(var, MIL82_FLOAT_FORMAT, db_key)
                 end
             end)
         end
@@ -148,7 +148,7 @@ end
 
 local function calc_lin()
     for _, p in pairs(Products) do
-        go:NewWork(string.format('%s: расчёт линеаризации', format_product_number(p)), function()
+        go:NewWork(string.format('%s: расчёт линеаризации', p.String), function()
             local xy = {}
             local gases = { 1, 2, 3, 4 }
             if params.linear_degree == 3 then
@@ -166,7 +166,7 @@ local function calc_lin()
             if params.linear_degree == 3 then
                 LIN[4] = 0
             end
-            p:Info(stringify(xy) .. ': ' .. stringify(LIN))
+            p:Info(xy,LIN)
             set_coefficients_product(array_n(LIN, 16), p)
         end)
     end
@@ -188,12 +188,11 @@ end
 
 
 local function calc_T0_product(p)
-    go:NewWork(string.format('%s: расчёт термокомпенсации начала шкалы', format_product_number(p)), function()
+    go:NewWork(string.format('%s: расчёт термокомпенсации начала шкалы', p.String), function()
         local t1 = get_temp_values_product(p, 1, varTemp)
         local var1 = get_temp_values_product(p, 1, var16)
 
-        p:Info('t1=' .. stringify(t1))
-        p:Info('var1=' .. stringify(var1))
+        p:Info('t1' , t1, 'var1', var1)
 
         local d1 = {}
         for i = 1, 3 do
@@ -201,19 +200,18 @@ local function calc_T0_product(p)
         end
 
         local T0 = go:InterpolationCoefficients(d1)
-        p:Info('T0=' .. stringify(T0))
+        p:Info('T0', T0)
         set_coefficients_product(array_n(T0, 23), p)
     end)
 end
 
 local function calc_TK_product(p)
-    go:NewWork(string.format('%s: расчёт термокомпенсации конца шкалы', format_product_number(p)), function()
+    go:NewWork(string.format('%s: расчёт термокомпенсации конца шкалы', p.String), function()
         local t4 = get_temp_values_product(p, 4, varTemp)
         local var4 = get_temp_values_product(p, 4, var16)
         local var1 = get_temp_values_product(p, 1, var16)
 
-        p:Info('t1=' .. stringify(t4))
-        p:Info('var1=' .. stringify(var4))
+        p:Info('t4',t4, 'var4', var4, var1, var1)
 
         local d4 = {}
         for i = 1, 3 do
@@ -221,13 +219,13 @@ local function calc_TK_product(p)
         end
 
         local TK = go:InterpolationCoefficients(d4)
-        p:Info('TK: ' .. stringify(TK))
+        p:Info('TK',TK)
         set_coefficients_product(array_n(TK, 26), p)
     end)
 end
 
 local function calc_TM_product(p)
-    go:NewWork(string.format('%s: расчёт термокомпенсации середины шкалы', format_product_number(p)), function()
+    go:NewWork(string.format('%s: расчёт термокомпенсации середины шкалы', p.String), function()
 
         local C4 = Config.c4;
 
@@ -271,7 +269,7 @@ local function calc_TM_product(p)
             { t3, y_hi },
         })
 
-        p:Info('TM: ' .. stringify(TM))
+        p:Info('TM', TM)
         set_coefficients_product(array_n(TM, 37), p)
 
     end)

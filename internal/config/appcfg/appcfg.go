@@ -84,7 +84,7 @@ func GetParamsValues() ([]*apitypes.ConfigParamValue, error) {
 		})
 	}
 
-	m, err := data.GetCurrentPartyValues2()
+	m, err := getCurrentPartyValues()
 	if err != nil {
 		return nil, err
 	}
@@ -308,4 +308,20 @@ func newDurationParam(name string, f func(c *config.Config) *time.Duration) Para
 
 func parseFloat(s string) (float64, error) {
 	return strconv.ParseFloat(strings.Replace(s, ",", ".", -1), 64)
+}
+
+func getCurrentPartyValues() (map[string]float64, error) {
+	var xs []struct {
+		Key   string  `db:"key"`
+		Value float64 `db:"value"`
+	}
+	const q1 = `SELECT key, value FROM party_value WHERE party_id = (SELECT party_id FROM app_config)`
+	if err := data.DB.Select(&xs, q1); err != nil {
+		return nil, merry.Append(err, q1)
+	}
+	m := map[string]float64{}
+	for _, x := range xs {
+		m[x.Key] = x.Value
+	}
+	return m, nil
 }

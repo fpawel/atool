@@ -61,10 +61,11 @@ func ProcessEachActiveProduct(log comm.Logger, errs ErrorsOccurred, work func(Pr
 			notifyConnection(false)
 			continue
 		}
-		go gui.Popupf("опрашивается прибор: №%d %s адр.%d", p.Serial, p.Comport, p.Addr)
+		go gui.Popupf("опрашивается %s: №%d %s адр.%d", party.DeviceType, p.Serial, p.Comport, p.Addr)
 		err := work(Product{
 			Product: p,
 			Device:  device,
+			Party:   party,
 		})
 		if merry.Is(err, context.Canceled) {
 			return err

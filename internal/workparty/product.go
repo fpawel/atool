@@ -18,7 +18,12 @@ import (
 
 type Product struct {
 	data.Product
+	Party  data.Party
 	Device devicecfg.Device
+}
+
+func (x Product) String() string {
+	return fmt.Sprintf("%s №%d.id%d", x.Party.DeviceType, x.Serial, x.ProductID)
 }
 
 func (x Product) Write32(log comm.Logger, ctx context.Context, cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) error {
@@ -30,10 +35,12 @@ func (x Product) Write32(log comm.Logger, ctx context.Context, cmd modbus.DevCmd
 		Value:     value,
 	}.GetResponse(log, ctx, x.Comm())
 
+	what := fmt.Sprintf("%s: команда %d(%v)", x, cmd, value)
+
 	if err == nil {
-		workgui.NotifyInfo(log, fmt.Sprintf("прибор №%d: команда %d(%v)", x.Serial, cmd, value))
+		workgui.NotifyInfo(log, fmt.Sprintf("%s: успешно", what))
 	} else {
-		workgui.NotifyErr(log, merry.Prependf(err, "прибор №%d: команда %d(%v)", x.Serial, cmd, value))
+		workgui.NotifyErr(log, merry.Prepend(err, what))
 	}
 	return err
 }
@@ -52,12 +59,13 @@ func (x Product) WriteKef(log comm.Logger, ctx context.Context, kef int, format 
 		Read:        false,
 		Coefficient: kef,
 	}
+	what := fmt.Sprintf("%s: запись K%d=%v", x, kef, value)
 	if err == nil {
 		kv.Result = config.Get().FormatFloat(value)
 		kv.Ok = true
-		workgui.NotifyInfo(log, fmt.Sprintf("№%d.id%d: записано: K%d=%v", x.Serial, x.ProductID, kef, value))
+		workgui.NotifyInfo(log, fmt.Sprintf("%s: успешно", what))
 	} else {
-		err = merry.Prependf(err, "запись №%d K%d=%v", x.Serial, kef, value)
+		err = merry.Prepend(err, what)
 		kv.Result = err.Error()
 		workgui.NotifyErr(log, err)
 		kv.Ok = false
@@ -68,30 +76,31 @@ func (x Product) WriteKef(log comm.Logger, ctx context.Context, kef int, format 
 }
 
 func (x Product) ReadAndSaveParamValue(log comm.Logger, ctx context.Context, param modbus.Var, format modbus.FloatBitsFormat, dbKey string) error {
-	wrapErr := func(err error) error {
-		return merry.Appendf(err, "прибор %d.%d: считать рег.%d %s: сохранить %q",
-			x.Serial, x.ProductID, param, format, dbKey)
-	}
+	what := fmt.Sprintf("%s: считать рег.%d %s: сохранить %q", x, param, format, dbKey)
+
 	value, err := x.ReadParamValue(log, ctx, param, format)
 	if err != nil {
-		workgui.NotifyErr(log, wrapErr(err))
+		workgui.NotifyErr(log, merry.Prepend(err, what))
 		return nil
 	}
-	workgui.NotifyInfo(log, fmt.Sprintf("прибор %d.%d: сохранить рег.%d,%s = %v",
-		x.Serial, x.ProductID, param, dbKey, value))
+	workgui.NotifyInfo(log, fmt.Sprintf("%s: сохранить рег.%d,%s = %v",
+		x, param, dbKey, value))
 	const query = `
 INSERT INTO product_value
 VALUES (?, ?, ?)
 ON CONFLICT (product_id,key) DO UPDATE
     SET value = ?`
 	_, err = data.DB.Exec(query, x.ProductID, dbKey, value, value)
-	return wrapErr(err)
+	if err != nil {
+		return merry.Prepend(err, what)
+	}
+	return nil
 }
 
 func (x Product) ReadParamValue(log comm.Logger, ctx context.Context, reg modbus.Var, format modbus.FloatBitsFormat) (float64, error) {
 	v, err := modbus.Read3Value(log, ctx, x.Comm(), x.Addr, reg, format)
 	if err != nil {
-		return 0, x.appendError(err)
+		return 0, merry.Prependf(err, "%s: считывание регистра %d %v", reg, format)
 	}
 	return v, nil
 }
@@ -99,10 +108,10 @@ func (x Product) ReadParamValue(log comm.Logger, ctx context.Context, reg modbus
 func (x Product) ReadKef(log comm.Logger, ctx context.Context, k modbus.Var, format modbus.FloatBitsFormat) (float64, error) {
 	v, err := modbus.Read3Value(log, ctx, x.Comm(), x.Addr, 224+2*k, format)
 	if err != nil {
-		return 0, x.appendErrorf(err, "считывание K%d: %v", k, err)
+		return 0, merry.Prependf(err, "считывание K%d %v", k, format)
 	}
 	if err := data.SaveProductValue(x.ProductID, data.KeyCoefficient(int(k)), v); err != nil {
-		return v, x.appendError(err)
+		return v, merry.Prependf(err, "считывание K%d %v", k, format)
 	}
 	return v, nil
 }
@@ -119,14 +128,6 @@ func (x Product) Comm() comm.T {
 	return comm.New(comports.GetComport(x.Comport, x.Device.Baud), x.Device.CommConfig())
 }
 
-func (x Product) appendError(err error) merry.Error {
-	return merry.Appendf(err, "№%d.id%d", x.Serial, x.ProductID)
-}
-
-func (x Product) appendErrorf(err error, format string, args ...interface{}) merry.Error {
-	return merry.Appendf(err, format, args...).Appendf("№%d.id%d", x.Serial, x.ProductID)
-}
-
 func (x Product) readAllCoefficients(log comm.Logger, ctx context.Context) error {
 	for _, Kr := range x.Device.Coefficients {
 		log := pkg.LogPrependSuffixKeys(log,
@@ -140,7 +141,7 @@ func (x Product) readAllCoefficients(log comm.Logger, ctx context.Context) error
 				continue
 			}
 			value, err := modbus.Read3Value(log, ctx, x.Comm(), x.Addr, 224+2*modbus.Var(kef), Kr.Format)
-			notifyReadCoefficient(log, x.Product, kef, value, err)
+			notifyReadCoefficient(log, x, kef, value, err)
 			if err != nil {
 				if merry.Is(err, context.DeadlineExceeded) {
 					return err
@@ -235,18 +236,19 @@ func (r productParamsReader) processParamValueRead(p devicecfg.Params, i int, ms
 	go gui.NotifyNewProductParamValue(ct)
 }
 
-func notifyReadCoefficient(log comm.Logger, p data.Product, n int, value float64, err error) {
+func notifyReadCoefficient(log comm.Logger, p Product, n int, value float64, err error) {
 	x := gui.CoefficientValue{
 		ProductID:   p.ProductID,
 		Read:        true,
 		Coefficient: n,
 	}
+
 	if err == nil {
 		x.Result = config.Get().FormatFloat(value)
 		x.Ok = true
-		workgui.NotifyInfo(log, fmt.Sprintf("считано: №%d K%d=%v", p.Serial, n, value))
+		workgui.NotifyInfo(log, fmt.Sprintf("%s: считано K%d=%v", p, n, value))
 	} else {
-		err = merry.Prependf(err, "прибор №%d, считывание коэффициента K%d", p.Serial, n)
+		err = merry.Prependf(err, "%s, считывание K%d", p, n)
 		x.Result = err.Error()
 		workgui.NotifyErr(log, err)
 		x.Ok = false
