@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"strconv"
@@ -53,5 +54,5 @@ func (h *prodPrmSvc) GetValue(_ context.Context, key string, productID int64) (s
 	if err != nil {
 		return "", err
 	}
-	return formatFloat(v), nil
+	return config.Get().FormatFloat(v), nil
 }

@@ -3,7 +3,7 @@
 require 'utils/help'
 require 'utils/temp_setup'
 require 'utils/print_table'
-require 'mil82/def'
+require 'mil82/mil82def'
 
 local Products = go:GetProducts()
 

@@ -3,8 +3,8 @@ package mil82
 import (
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/devtypes/devdata"
+	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/comm/modbus"
-	"sort"
 	"time"
 )
 
@@ -12,13 +12,7 @@ var Device = devdata.Device{
 
 	GetCalcSectionsFunc: calcSections,
 
-	ProductTypes: func() (result []string) {
-		for name := range prodTypes {
-			result = append(result, name)
-		}
-		sort.Strings(result)
-		return
-	}(),
+	ProductTypes: pkg.MustStructToMap(prodTypes),
 
 	DataSections: DataSections(),
 

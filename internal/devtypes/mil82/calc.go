@@ -11,7 +11,7 @@ import (
 	"strconv"
 )
 
-func addSectionProdOut(party data.PartyValues, sections *devdata.CalcSections) {
+func AddSectionProdOut(party data.PartyValues, sections *devdata.CalcSections) {
 	sect := devdata.AddSect(sections, "Выпуск в эксплуатацию")
 	dec2 := func(p data.ProductValues, k int) (int, int, bool) {
 		v, ok := p.Values[fmt.Sprintf("K%d", k)]
@@ -52,7 +52,7 @@ func addSectionProdOut(party data.PartyValues, sections *devdata.CalcSections) {
 			vMonth.Value = strconv.Itoa(m)
 			vKind.Value = strconv.Itoa(i)
 			for name, pt := range prodTypes {
-				if pt.index == i {
+				if pt.Index == i {
 					vKind.Value = name
 				}
 			}
@@ -98,15 +98,15 @@ func calcSections(party data.PartyValues, sections *devdata.CalcSections) error 
 				value := V(valueKey)
 
 				info := map[string]interface{}{
-					"исполнение":              party.ProductType + ", " + prodT.gas,
+					"исполнение":              party.ProductType + ", " + prodT.Gas,
 					fmt.Sprintf("ПГС%d", gas): jsonNaN(pgs),
 					"концентрация":            fmt.Sprintf("%s: %v", valueKey, jsonNaN(value)),
 				}
 
 				nominal := pgs
 				absErrLimit20, var2, tNorm := math.NaN(), math.NaN(), math.NaN()
-				if prodT.gas == "CO2" {
-					switch prodT.scale {
+				if prodT.Gas == "CO2" {
+					switch prodT.Scale {
 					case 4:
 						absErrLimit20 = 0.2 + 0.05*nominal
 					case 10:
@@ -143,7 +143,7 @@ func calcSections(party data.PartyValues, sections *devdata.CalcSections) error 
 
 					info["T"] = fmt.Sprintf("%s: %v", var2k, var2)
 
-					if prodT.gas == "CO2" {
+					if prodT.Gas == "CO2" {
 						info["расчёт_предела"] = fmt.Sprintf("CO2: LIMIT20 * 0.5 * 0.1 * |T-Tn| = %v * 0.5 * 0.1 * |%v-%v|",
 							absErrLimit, var2, tNorm)
 						absErrLimit = 0.5 * math.Abs(absErrLimit*(var2-tNorm)) / 10
@@ -177,7 +177,7 @@ func calcSections(party data.PartyValues, sections *devdata.CalcSections) error 
 			}
 		}
 	}
-	addSectionProdOut(party, sections)
+	AddSectionProdOut(party, sections)
 	return nil
 }
 

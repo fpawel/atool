@@ -4,17 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
-	"github.com/fpawel/atool/internal/guiwork"
-	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
-	"github.com/fpawel/comm"
+	"github.com/fpawel/atool/internal/workparty"
 	"github.com/fpawel/comm/modbus"
 	"strings"
-	"time"
 )
 
 type productSvc struct{}
@@ -22,54 +17,7 @@ type productSvc struct{}
 var _ api.ProductService = new(productSvc)
 
 func (h *productSvc) SetNetAddr(_ context.Context, productID int64) error {
-	var p data.Product
-	err := data.DB.Get(&p, `SELECT * FROM product WHERE product_id=?`, productID)
-	if err != nil {
-		return err
-	}
-
-	party, err := data.GetCurrentParty()
-	if err != nil {
-		return err
-	}
-
-	device, f := config.Get().Hardware[party.DeviceType]
-	if !f {
-		return merry.Errorf("не заданы параметры устройства %s для прибора %+v", party.DeviceType, p)
-	}
-
-	return guiwork.RunWork(log, appCtx, fmt.Sprintf("прибр %d: запись сетевого адреса %d", p.Serial, p.Addr),
-		func(log logger, ctx context.Context) error {
-
-			comPort := comports.GetComport(p.Comport, device.Baud)
-			if err := comPort.Open(); err != nil {
-				return err
-			}
-
-			r := modbus.RequestWrite32{
-				Addr:      0,
-				ProtoCmd:  0x10,
-				DeviceCmd: device.NetAddr.Cmd,
-				Format:    device.NetAddr.Format,
-				Value:     float64(p.Addr),
-			}
-			if _, err := comPort.Write(r.Request().Bytes()); err != nil {
-				return err
-			}
-
-			notifyComm(comm.Info{
-				Request: r.Request().Bytes(),
-				Port:    p.Comport,
-			})
-
-			pause(ctx.Done(), time.Second)
-			_, err := modbus.RequestRead3{
-				Addr:           p.Addr,
-				FirstRegister:  0,
-				RegistersCount: 2,
-			}.GetResponse(log, ctx, getCommProduct(p.Comport, device))
-			return err
-		})
+	return workparty.RunSetNetAddr(log, appCtx, productID, notifyComm)
 }
 
 func (h *productSvc) SetProductSerial(_ context.Context, productID int64, serial int64) error {

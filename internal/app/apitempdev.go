@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
-	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/thriftgen/api"
+	"github.com/fpawel/atool/internal/workgui"
+	"github.com/fpawel/atool/internal/workparty"
 	"github.com/fpawel/hardware/temp/ktx500"
 )
 
@@ -15,8 +16,8 @@ type tempDeviceSvc struct{}
 var _ api.TemperatureDeviceService = new(tempDeviceSvc)
 
 func (tempDeviceSvc) Start(context.Context) error {
-	guiwork.RunTask(log, "термокамера: старт", func() error {
-		d, err := getTemperatureDevice()
+	workgui.RunTask(log, "термокамера: старт", func() error {
+		d, err := workparty.GetTemperatureDevice()
 		if err != nil {
 			return err
 		}
@@ -26,8 +27,8 @@ func (tempDeviceSvc) Start(context.Context) error {
 }
 
 func (tempDeviceSvc) Stop(context.Context) error {
-	guiwork.RunTask(log, "термокамера: стоп", func() error {
-		d, err := getTemperatureDevice()
+	workgui.RunTask(log, "термокамера: стоп", func() error {
+		d, err := workparty.GetTemperatureDevice()
 		if err != nil {
 			return err
 		}
@@ -37,8 +38,8 @@ func (tempDeviceSvc) Stop(context.Context) error {
 }
 
 func (tempDeviceSvc) Setup(_ context.Context, temperature float64) error {
-	guiwork.RunTask(log, fmt.Sprintf("термокамера: уставка %v", temperature), func() error {
-		d, err := getTemperatureDevice()
+	workgui.RunTask(log, fmt.Sprintf("термокамера: уставка %v", temperature), func() error {
+		d, err := workparty.GetTemperatureDevice()
 		if err != nil {
 			return err
 		}
@@ -47,8 +48,8 @@ func (tempDeviceSvc) Setup(_ context.Context, temperature float64) error {
 	return nil
 }
 func (tempDeviceSvc) CoolingOn(context.Context) error {
-	guiwork.RunTask(log, "термокамера: включить охлаждение", func() error {
-		dd, err := getTemperatureDevice()
+	workgui.RunTask(log, "термокамера: включить охлаждение", func() error {
+		dd, err := workparty.GetTemperatureDevice()
 		if err != nil {
 			return err
 		}
@@ -62,8 +63,8 @@ func (tempDeviceSvc) CoolingOn(context.Context) error {
 	return nil
 }
 func (tempDeviceSvc) CoolingOff(context.Context) error {
-	guiwork.RunTask(log, "термокамера: выключить охлаждение", func() error {
-		d, err := getTemperatureDevice()
+	workgui.RunTask(log, "термокамера: выключить охлаждение", func() error {
+		d, err := workparty.GetTemperatureDevice()
 		if err != nil {
 			return err
 		}

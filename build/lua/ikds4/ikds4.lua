@@ -3,7 +3,7 @@
 require 'utils/help'
 require 'utils/temp_setup'
 require 'utils/print_table'
-require 'ikds4/def'
+require 'ikds4/ikds4def'
 
 local temp_low = -40
 local temp_high = 50
@@ -56,7 +56,7 @@ local params = go:ParamsDialog({
     },
 })
 
-local MIL82_FLOAT_FORMAT = 'bcd'
+local IKD_S4_FLOAT_FORMAT = 'bcd'
 
 local function write_common_coefficients()
 
@@ -103,7 +103,7 @@ local function write_common_coefficients()
 
     for _, p in pairs(Products) do
         set_coefficients_product(coefficients, p)
-        write_coefficients_product(MIL82_FLOAT_FORMAT, coefficients, p)
+        write_coefficients_product(IKD_S4_FLOAT_FORMAT, coefficients, p)
     end
 end
 
@@ -115,7 +115,7 @@ local function gases_read_save(db_key_section, gases)
             go:NewWork("снятие " .. db_key_section .. ': газ: ' .. tostring(gas), function()
                 go:BlowGas(gas)
                 for _, var in pairs(vars) do
-                    go:ReadSave(var, MIL82_FLOAT_FORMAT, db_key_section .. '_' .. ikds4_db_key_gas_var(gas, var))
+                    go:ReadSave(var, IKD_S4_FLOAT_FORMAT, db_key_section .. '_' .. ikds4_db_key_gas_var(gas, var))
                 end
             end)
         end
@@ -139,11 +139,11 @@ end
 local function adjust()
     go:NewWork("калибровка нуля", function()
         go:BlowGas(1)
-        go:Write32(1, MIL82_FLOAT_FORMAT, Config.c1)
+        go:Write32(1, IKD_S4_FLOAT_FORMAT, Config.c1)
     end)
     go:NewWork("калибровка чувствительности", function()
         go:BlowGas(4)
-        go:Write32(2, MIL82_FLOAT_FORMAT, Config.c4)
+        go:Write32(2, IKD_S4_FLOAT_FORMAT, Config.c4)
         go:BlowGas(1)
     end)
 end
@@ -298,20 +298,20 @@ go:SelectWorksDialog({
     end },
 
     { "нормировка", function()
-        go:Write32(8, MIL82_FLOAT_FORMAT, 1000)
+        go:Write32(8, IKD_S4_FLOAT_FORMAT, 1000)
     end },
 
     { "калибровка", adjust },
 
     { "снятие линеаризации", function()
-        go:ReadSave(varConcentration, MIL82_FLOAT_FORMAT, 'lin1')
+        go:ReadSave(varConcentration, IKD_S4_FLOAT_FORMAT, 'lin1')
         local gases = { 3, 4 }
         if params.linear_degree == 4 then
             gases = { 2, 3, 4 }
         end
         for _, gas in pairs(gases) do
             go:BlowGas(gas)
-            go:ReadSave(varConcentration, MIL82_FLOAT_FORMAT, 'lin' .. tostring(gas))
+            go:ReadSave(varConcentration, IKD_S4_FLOAT_FORMAT, 'lin' .. tostring(gas))
         end
         go:BlowGas(1)
     end },
@@ -319,7 +319,7 @@ go:SelectWorksDialog({
     { "расчёт линеаризации", calc_lin },
 
     { "запись линеаризации", function()
-        write_coefficients(MIL82_FLOAT_FORMAT,{ 16, 17, 18, 19 })
+        write_coefficients(IKD_S4_FLOAT_FORMAT,{ 16, 17, 18, 19 })
     end },
 
     { "компенсация Т-: "..format_temperature(params.temp_low), temp_comp(t_low) },
@@ -337,12 +337,12 @@ go:SelectWorksDialog({
     end },
 
     { "запись термокомпенсации", function ()
-        write_coefficients(MIL82_FLOAT_FORMAT,{ 23, 24, 25, 26, 27, 28, 37, 38, 39 })
+        write_coefficients(IKD_S4_FLOAT_FORMAT,{ 23, 24, 25, 26, 27, 28, 37, 38, 39 })
     end },
 
     { "снятие сигналов каналов", function()
         for _, k in pairs({ 21, 22, 43, 44 }) do
-            go:ReadSave(224 + k * 2, MIL82_FLOAT_FORMAT, 'K' .. tostring(k))
+            go:ReadSave(224 + k * 2, IKD_S4_FLOAT_FORMAT, 'K' .. tostring(k))
         end
     end },
 

@@ -8,10 +8,10 @@ import (
 	"github.com/fpawel/atool/internal"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
-	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/pkg/logfile"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/thriftgen/api"
+	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/comm"
 	"github.com/powerman/structlog"
 	"net"
@@ -67,8 +67,8 @@ func Main() {
 
 	log.Debug("прервать все фоновые горутины")
 	interrupt()
-	guiwork.Interrupt()
-	guiwork.Wait()
+	workgui.Interrupt()
+	workgui.Wait()
 
 	log.Debug("остановка сервера api")
 	stopApiServer()
@@ -80,7 +80,7 @@ func Main() {
 	log.ErrIfFail(comportLogfile.Close)
 
 	log.Debug("закрыть журнал")
-	log.ErrIfFail(guiwork.File.Close)
+	log.ErrIfFail(workgui.File.Close)
 
 	// записать в лог что всё хорошо
 	log.Debug("all canceled and closed")

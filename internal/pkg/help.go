@@ -1,6 +1,8 @@
 package pkg
 
 import (
+	"encoding/json"
+	"github.com/fpawel/atool/internal/pkg/must"
 	"strconv"
 	"strings"
 )
@@ -16,4 +18,23 @@ func FormatFloat(v float64, precision int) string {
 		s = s[:len(s)-1]
 	}
 	return s
+}
+
+func MustStructToMap(data interface{}) map[string]interface{} {
+	m, err := StructToMap(data)
+	must.PanicIf(err)
+	return m
+}
+
+func StructToMap(data interface{}) (map[string]interface{}, error) {
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	mapData := make(map[string]interface{})
+	err = json.Unmarshal(dataBytes, &mapData)
+	if err != nil {
+		return nil, err
+	}
+	return mapData, nil
 }

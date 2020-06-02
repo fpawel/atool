@@ -1,11 +1,13 @@
-package app
+package worklua
 
 import (
 	"github.com/ansel1/merry"
+	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/yuin/gluamapper"
 	lua "github.com/yuin/gopher-lua"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -74,7 +76,7 @@ func setConfigParamFromLuaValue(kx, vx lua.LValue, a *apitypes.ConfigParamValue)
 
 	switch v := c.Value.(type) {
 	case float64:
-		a.Value = formatFloat(v)
+		a.Value = config.Get().FormatFloat(v)
 		if len(a.Type) == 0 {
 			a.Type = "float"
 		}
@@ -88,4 +90,8 @@ func setConfigParamFromLuaValue(kx, vx lua.LValue, a *apitypes.ConfigParamValue)
 		return merry.New("type error: value")
 	}
 	return nil
+}
+
+func parseFloat(s string) (float64, error) {
+	return strconv.ParseFloat(strings.Replace(s, ",", ".", -1), 64)
 }

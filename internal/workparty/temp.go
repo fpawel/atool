@@ -1,13 +1,14 @@
-package app
+package workparty
 
 import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
-	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/pkg/comports"
+	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/gofins/fins"
 	"github.com/fpawel/hardware/temp"
@@ -20,7 +21,7 @@ var (
 	ktx500Client *fins.Client
 )
 
-func getTemperatureDevice() (temp.TemperatureDevice, error) {
+func GetTemperatureDevice() (temp.TemperatureDevice, error) {
 	comports.CloseComport(config.Get().Temperature.Comport)
 	conf := config.Get()
 	confTemp := conf.Temperature
@@ -46,19 +47,7 @@ func getTemperatureDevice() (temp.TemperatureDevice, error) {
 	}
 }
 
-func getTemperatureComportReader() comm.T {
-	c := config.Get().Temperature
-	return comm.New(
-		comports.GetComport(c.Comport, 9600),
-		comm.Config{
-			TimeoutGetResponse: c.TimeoutGetResponse,
-			TimeoutEndResponse: c.TimeoutEndResponse,
-			MaxAttemptsRead:    c.MaxAttemptsRead,
-			Pause:              0,
-		})
-}
-
-func setupTemperature(log logger, ctx context.Context, destinationTemperature float64) error {
+func SetupTemperature(log comm.Logger, ctx context.Context, destinationTemperature float64) error {
 
 	wrapErr := func(err error) error {
 		if err == nil {
@@ -69,10 +58,10 @@ func setupTemperature(log logger, ctx context.Context, destinationTemperature fl
 
 	// отключить газ
 	log.ErrIfFail(func() error {
-		return wrapErr(switchGas(ctx, 0))
+		return wrapErr(SwitchGas(log, ctx, 0))
 	})
 
-	dev, err := getTemperatureDevice()
+	dev, err := GetTemperatureDevice()
 	if err != nil {
 		return wrapErr(err)
 	}
@@ -83,11 +72,11 @@ func setupTemperature(log logger, ctx context.Context, destinationTemperature fl
 	go gui.NotifyTemperatureSetPoint(destinationTemperature)
 
 	// измерения, полученные в процесе опроса приборов во время данной задержки
-	ms := new(measurements)
+	ms := new(data.MeasurementCache)
 
 	defer ms.Save()
 
-	errorsOccurred := errorsOccurred{}
+	errorsOccurred := ErrorsOccurred{}
 
 	for {
 		if ctx.Err() != nil {
@@ -97,7 +86,7 @@ func setupTemperature(log logger, ctx context.Context, destinationTemperature fl
 
 		if err != nil {
 			err = wrapErr(merry.Append(err, "считывание температуры"))
-			guiwork.NotifyErr(log, err)
+			workgui.NotifyErr(log, err)
 			return err
 		}
 
@@ -106,12 +95,24 @@ func setupTemperature(log logger, ctx context.Context, destinationTemperature fl
 		go gui.NotifyTemperature(currentTemperature)
 
 		if math.Abs(currentTemperature-destinationTemperature) < 2 {
-			guiwork.NotifyInfo(log, fmt.Sprintf("термокамера вышла на температуру %v⁰C: %v⁰C", destinationTemperature, currentTemperature))
+			workgui.NotifyInfo(log, fmt.Sprintf("термокамера вышла на температуру %v⁰C: %v⁰C", destinationTemperature, currentTemperature))
 			return nil
 		}
 
-		if err := readProductsParams(ctx, ms, errorsOccurred); err != nil {
-			guiwork.NotifyErr(log, wrapErr(err))
+		if err := readProductsParams(log, ctx, ms, errorsOccurred); err != nil {
+			workgui.NotifyErr(log, wrapErr(err))
 		}
 	}
+}
+
+func getTemperatureComportReader() comm.T {
+	c := config.Get().Temperature
+	return comm.New(
+		comports.GetComport(c.Comport, 9600),
+		comm.Config{
+			TimeoutGetResponse: c.TimeoutGetResponse,
+			TimeoutEndResponse: c.TimeoutEndResponse,
+			MaxAttemptsRead:    c.MaxAttemptsRead,
+			Pause:              0,
+		})
 }

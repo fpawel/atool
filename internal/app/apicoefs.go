@@ -6,6 +6,7 @@ import (
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
+	"github.com/fpawel/atool/internal/workparty"
 	"regexp"
 	"strconv"
 )
@@ -16,11 +17,11 @@ type coefficientsSvc struct {
 var _ api.CoefficientsService = new(coefficientsSvc)
 
 func (*coefficientsSvc) WriteAll(_ context.Context, in []*apitypes.ProductCoefficientValue) error {
-	return runWriteAllCoefficients(in)
+	return workparty.RunWriteAllCoefficients(log, appCtx, in)
 }
 
 func (*coefficientsSvc) ReadAll(context.Context) error {
-	return runReadAllCoefficients()
+	return workparty.RunReadAllCoefficients(log, appCtx)
 }
 
 func (h *coefficientsSvc) ListCoefficients(_ context.Context) (r []*apitypes.Coefficient, err error) {

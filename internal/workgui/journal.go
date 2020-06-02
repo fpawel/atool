@@ -1,4 +1,4 @@
-package guiwork
+package workgui
 
 import (
 	"github.com/ansel1/merry"

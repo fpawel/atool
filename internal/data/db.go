@@ -13,6 +13,8 @@ import (
 
 var DB *sqlx.DB
 
+var errNoInterrogateObjects = merry.New("не установлены объекты опроса")
+
 func Open(filename string) error {
 	var err error
 	DB, err = pkg.OpenSqliteDBx(filename)
@@ -177,6 +179,40 @@ ORDER BY created_at, created_order`
 	return nil
 }
 
+func SaveProductKefValue(productID int64, kef int, value float64) error {
+	return SaveProductValue(productID, KeyCoefficient(kef), value)
+}
+
+func KeyCoefficient(k int) string {
+	return fmt.Sprintf("K%02d", k)
+}
+
+func SaveProductValue(productID int64, key string, value float64) error {
+	const q1 = `
+INSERT INTO product_value
+VALUES (?, ?, ?)
+ON CONFLICT (product_id,key) DO UPDATE
+    SET value = ?`
+	_, err := DB.Exec(q1, productID, key, value, value)
+	return merry.Appendf(err, "%s, %s: %v", q1, key, value)
+}
+
+func GetCurrentPartyValues2() (map[string]float64, error) {
+	var xs []struct {
+		Key   string  `db:"key"`
+		Value float64 `db:"value"`
+	}
+	const q1 = `SELECT key, value FROM party_value WHERE party_id = (SELECT party_id FROM app_config)`
+	if err := DB.Select(&xs, q1); err != nil {
+		return nil, merry.Append(err, q1)
+	}
+	m := map[string]float64{}
+	for _, x := range xs {
+		m[x.Key] = x.Value
+	}
+	return m, nil
+}
+
 func GetCurrentPartyValues(party *PartyValues) error {
 	partyID, err := GetCurrentPartyID()
 	if err != nil {
@@ -273,6 +309,20 @@ func SetNewCurrentParty(productsCount int) error {
 	return setNewCurrentPartyProducts(newPartyID, productsCount, comport)
 }
 
+func GetActiveProducts() ([]Product, error) {
+
+	var products []Product
+	err := DB.Select(&products,
+		`SELECT * FROM product_enumerated WHERE party_id = (SELECT party_id FROM app_config) AND active`)
+	if err != nil {
+		return nil, err
+	}
+	if len(products) == 0 {
+		return nil, errNoInterrogateObjects
+	}
+	return products, nil
+}
+
 func setNewCurrentPartyProducts(newPartyID int64, productsCount int, comport string) error {
 	for i := 0; i < productsCount; i++ {
 		r, err := DB.Exec(
@@ -361,6 +411,12 @@ LIMIT 1`
 		return err
 	}
 	return nil
+}
+
+func DeleteProductKey(productID int64, key string) error {
+	const q1 = `DELETE FROM product_value WHERE product_id = ? AND key = ?`
+	_, err := DB.Exec(q1, productID, key)
+	return merry.Appendf(err, "%s, %s", q1, key)
 }
 
 func setAppConfigPartyID(partyID int64) error {

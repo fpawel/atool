@@ -1,7 +1,7 @@
 -- atool: work: МИЛ-82: перевод климатики
 
 require 'utils/help'
-require 'mil82/def'
+require 'mil82/mil82def'
 
 local Products = go:GetProducts()
 

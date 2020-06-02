@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/devtypes"
+	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
@@ -73,6 +74,10 @@ func Set(c Config) error {
 	return nil
 }
 
+func (c Config) FormatFloat(v float64) string {
+	return pkg.FormatFloat(v, c.FloatPrecision)
+}
+
 func (c Config) Validate() error {
 	if err := c.Hardware.Validate(); err != nil {
 		return err
@@ -121,16 +126,17 @@ func (c *Config) validate() {
 				},
 			}
 		}
-		if c.InactiveCoefficients == nil {
-			c.InactiveCoefficients = make(map[int]struct{})
-		}
-		if dv.ParamsNames == nil {
+		if len(dv.ParamsNames) == 0 {
 			dv.ParamsNames = map[int]string{
 				0: "C",
 				2: "I",
 			}
 		}
 		c.Hardware[d] = dv
+	}
+
+	if c.InactiveCoefficients == nil {
+		c.InactiveCoefficients = make(map[int]struct{})
 	}
 
 	for name, d := range devtypes.DeviceTypes {

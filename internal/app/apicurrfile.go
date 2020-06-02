@@ -7,12 +7,12 @@ import (
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
-	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/pkg/winapi"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
+	"github.com/fpawel/atool/internal/workgui"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os/exec"
@@ -113,7 +113,7 @@ func (h *currentFileSvc) RunEdit(_ context.Context) error {
 	go func() {
 
 		if err := save(); err != nil {
-			guiwork.NotifyErr(log, merry.Append(err, "Ошибка при сохранении данных"))
+			workgui.NotifyErr(log, merry.Append(err, "Ошибка при сохранении данных"))
 			return
 		}
 	}()
@@ -136,7 +136,7 @@ func processCurrentPartyChart() {
 	if err != nil {
 		err = merry.Append(err, "не удалось получить номер текущего файла")
 		log.PrintErr(err)
-		guiwork.NotifyErr(log, err)
+		workgui.NotifyErr(log, err)
 		return
 	}
 
@@ -148,7 +148,7 @@ func processCurrentPartyChart() {
 		party.PartyID, "params", fmt.Sprintf("%d", paramsAddresses))
 
 	printErr := func(err error) {
-		guiwork.NotifyWarnError(log, merry.Appendf(err, "график текущего файла %d: % d, %v",
+		workgui.NotifyWarnError(log, merry.Appendf(err, "график текущего файла %d: % d, %v",
 			party.PartyID, paramsAddresses, time.Since(t)))
 	}
 

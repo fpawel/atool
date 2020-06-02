@@ -3,6 +3,7 @@ package data
 import (
 	"fmt"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/atool/internal/pkg/must"
 	"strings"
 	"time"
 )
@@ -46,6 +47,20 @@ func SaveMeasurements(measurements []Measurement) error {
 		return merry.Append(err, strQueryInsert)
 	}
 	return nil
+}
+
+type MeasurementCache []Measurement
+
+func (xs *MeasurementCache) Add(ProductID int64, ParamAddr int, Value float64) {
+	*xs = append(*xs, NewMeasurement(ProductID, ParamAddr, Value))
+	if len(*xs) >= 1000 {
+		xs.Save()
+	}
+}
+
+func (xs *MeasurementCache) Save() {
+	must.PanicIf(SaveMeasurements(*xs))
+	*xs = nil
 }
 
 func GetPartyChart(partyID int64, paramAddresses []int) ([]Measurement, error) {

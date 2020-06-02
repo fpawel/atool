@@ -6,9 +6,9 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
-	"github.com/fpawel/atool/internal/guiwork"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
+	"github.com/fpawel/atool/internal/workgui"
 	"io/ioutil"
 )
 
@@ -19,7 +19,7 @@ var _ api.FilesService = new(filesSvc)
 func (h *filesSvc) CopyFile(_ context.Context, partyID int64) error {
 	go func() {
 		if err := data.CopyParty(partyID); err != nil {
-			guiwork.NotifyErr(log, merry.Appendf(err, "копирование файла %d", partyID))
+			workgui.NotifyErr(log, merry.Appendf(err, "копирование файла %d", partyID))
 			return
 		}
 		gui.NotifyCurrentPartyChanged()
@@ -35,7 +35,7 @@ func (h *filesSvc) DeleteFile(_ context.Context, partyID int64) error {
 			return
 		}
 		if err := data.DeleteParty(partyID); err != nil {
-			guiwork.NotifyErr(log, merry.Appendf(err, "удаление файла %d", partyID))
+			workgui.NotifyErr(log, merry.Appendf(err, "удаление файла %d", partyID))
 			return
 		}
 		if currentPartyID == partyID {
@@ -70,7 +70,7 @@ func (h *filesSvc) GetCurrentParty(ctx context.Context) (r *apitypes.Party, err 
 }
 
 func (h *filesSvc) SetCurrentParty(ctx context.Context, partyID int64) error {
-	if guiwork.IsConnected() {
+	if workgui.IsConnected() {
 		return merry.New("нельзя сменить активную партию пока выполняется опрос")
 	}
 	_, err := data.DB.ExecContext(ctx, `UPDATE app_config SET party_id=? WHERE id=1`, partyID)
@@ -131,7 +131,7 @@ func (h *filesSvc) GetParty(_ context.Context, partyID int64) (*apitypes.Party, 
 }
 
 func (h *filesSvc) CreateNewParty(_ context.Context, productsCount int8) error {
-	if guiwork.IsConnected() {
+	if workgui.IsConnected() {
 		return merry.New("нельзя создать новую партию пока выполняется опрос")
 	}
 	return data.SetNewCurrentParty(int(productsCount))

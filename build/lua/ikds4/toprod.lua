@@ -1,7 +1,7 @@
--- atool: work: МИЛ-82: выпуск в эксплуатацию
+-- atool: work: ИКД-С4: выпуск в эксплуатацию
 
 require 'utils/help'
-require 'mil82/def'
+require 'ikds4/ikds4def'
 
 local Products = go:GetProducts()
 

@@ -5,10 +5,10 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/devtypes/devdata"
+	"github.com/fpawel/atool/internal/devtypes/mil82"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/must"
 	"math"
-	"strconv"
 )
 
 func calcSections(party data.PartyValues, sections *devdata.CalcSections) error {
@@ -42,14 +42,14 @@ func calcSections(party data.PartyValues, sections *devdata.CalcSections) error 
 				value := V(valueKey)
 
 				info := map[string]interface{}{
-					"исполнение":              party.ProductType + ", " + prodT.gas,
+					"исполнение":              party.ProductType + ", " + prodT.Gas,
 					fmt.Sprintf("ПГС%d", gas): jsonNaN(pgs),
 					"концентрация":            fmt.Sprintf("%s: %v", valueKey, jsonNaN(value)),
 				}
 
 				nominal := pgs
 				absErrLimit20, var2, tNorm := math.NaN(), math.NaN(), math.NaN()
-				if prodT.gas == "CO2" {
+				if prodT.Gas == "CO2" {
 					absErrLimit20 = prodT.limD
 				} else {
 					absErrLimit20 = 2.5 + 0.05*nominal
@@ -73,7 +73,7 @@ func calcSections(party data.PartyValues, sections *devdata.CalcSections) error 
 
 					info["T"] = fmt.Sprintf("%s: %v", var2k, var2)
 
-					if prodT.gas == "CO2" {
+					if prodT.Gas == "CO2" {
 						info["расчёт_предела"] = fmt.Sprintf("CO2: LIMIT20 * 0.5 * 0.1 * |T-Tn| = %v * 0.5 * 0.1 * |%v-%v|",
 							absErrLimit, var2, tNorm)
 						absErrLimit = 0.5 * math.Abs(absErrLimit*(var2-tNorm)) / 10
@@ -107,63 +107,8 @@ func calcSections(party data.PartyValues, sections *devdata.CalcSections) error 
 			}
 		}
 	}
-	addSectionProdOut(party, sections)
+	mil82.AddSectionProdOut(party, sections)
 	return nil
-}
-
-func addSectionProdOut(party data.PartyValues, sections *devdata.CalcSections) {
-	sect := devdata.AddSect(sections, "Выпуск в эксплуатацию")
-	dec2 := func(p data.ProductValues, k int) (int, int, bool) {
-		v, ok := p.Values[fmt.Sprintf("K%d", k)]
-		if !ok {
-			return 0, 0, false
-		}
-		n := int(v)
-		return n / 10000, n % 10000, true
-	}
-	kef := func(p data.ProductValues, k int) string {
-		v, ok := p.Values[fmt.Sprintf("K%d", k)]
-		if ok {
-			return pkg.FormatFloat(v, 6)
-		}
-		return ""
-	}
-
-	prmYear := devdata.AddParam(sect, "Год")
-	prmMonth := devdata.AddParam(sect, "Месяц")
-	prmSerial := devdata.AddParam(sect, "Сер.№")
-	prmKind := devdata.AddParam(sect, "Исполнение")
-
-	prmK20 := devdata.AddParam(sect, "K20")
-	prmK21 := devdata.AddParam(sect, "K21")
-	prmK43 := devdata.AddParam(sect, "K43")
-	prmK44 := devdata.AddParam(sect, "K44")
-
-	for _, p := range party.Products {
-		vYear := devdata.AddValue(prmYear)
-		vMonth := devdata.AddValue(prmMonth)
-		vSerial := devdata.AddValue(prmSerial)
-		vKind := devdata.AddValue(prmKind)
-		if y, s, f := dec2(p, 40); f && y > 0 {
-			vYear.Value = strconv.Itoa(y + 2000)
-			vSerial.Value = strconv.Itoa(s)
-		}
-		if m, i, f := dec2(p, 47); f && m > 0 && i > 0 {
-			vMonth.Value = strconv.Itoa(m)
-			vKind.Value = strconv.Itoa(i)
-			for name, pt := range prodTypes {
-				if pt.index == i {
-					vKind.Value = name
-				}
-			}
-		}
-
-		devdata.AddValue(prmK20).Value = kef(p, 20)
-		devdata.AddValue(prmK21).Value = kef(p, 21)
-		devdata.AddValue(prmK43).Value = kef(p, 43)
-		devdata.AddValue(prmK44).Value = kef(p, 44)
-
-	}
 }
 
 func round3(v float64) float64 {

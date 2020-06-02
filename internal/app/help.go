@@ -6,7 +6,6 @@ import (
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
-	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm/modbus"
 	"github.com/powerman/structlog"
@@ -23,20 +22,6 @@ func getCurrentPartyDeviceConfig() (devicecfg.Device, error) {
 		return devicecfg.Device{}, err
 	}
 	return config.Get().Hardware.GetDevice(party.DeviceType)
-}
-
-func getActiveProducts() ([]data.Product, error) {
-
-	var products []data.Product
-	err := data.DB.Select(&products,
-		`SELECT * FROM product_enumerated WHERE party_id = (SELECT party_id FROM app_config) AND active`)
-	if err != nil {
-		return nil, err
-	}
-	if len(products) == 0 {
-		return nil, errNoInterrogateObjects
-	}
-	return products, nil
 }
 
 func formatBytes(xs []byte) string {
@@ -98,10 +83,6 @@ func parseHexBytes(s string) ([]byte, error) {
 	return xs, nil
 }
 
-func formatFloat(v float64) string {
-	return pkg.FormatFloat(v, config.Get().FloatPrecision)
-}
-
 func timeUnixMillis(t time.Time) apitypes.TimeUnixMillis {
 	return apitypes.TimeUnixMillis(t.UnixNano() / int64(time.Millisecond))
 }
@@ -111,73 +92,4 @@ func unixMillisToTime(m apitypes.TimeUnixMillis) time.Time {
 	sec := t / int64(time.Second)
 	ns := t % int64(time.Second)
 	return time.Unix(sec, ns)
-}
-
-func pause(chDone <-chan struct{}, d time.Duration) {
-	timer := time.NewTimer(d)
-	for {
-		select {
-		case <-timer.C:
-			return
-		case <-chDone:
-			timer.Stop()
-			return
-		}
-	}
-}
-
-func getCurrentPartyValues() (map[string]float64, error) {
-	var xs []struct {
-		Key   string  `db:"key"`
-		Value float64 `db:"value"`
-	}
-	const q1 = `SELECT key, value FROM party_value WHERE party_id = (SELECT party_id FROM app_config)`
-	if err := data.DB.Select(&xs, q1); err != nil {
-		return nil, merry.Append(err, q1)
-	}
-	m := map[string]float64{}
-	for _, x := range xs {
-		m[x.Key] = x.Value
-	}
-	return m, nil
-}
-
-func deleteProductKey(productID int64, key string) error {
-	const q1 = `DELETE FROM product_value WHERE product_id = ? AND key = ?`
-	_, err := data.DB.Exec(q1, productID, key)
-	return merry.Appendf(err, "%s, %s", q1, key)
-}
-
-func saveProductKefValue(productID int64, kef int, value float64) error {
-	return saveProductValue(productID, dbKeyCoefficient(kef), value)
-}
-
-func saveProductValue(productID int64, key string, value float64) error {
-	const q1 = `
-INSERT INTO product_value
-VALUES (?, ?, ?)
-ON CONFLICT (product_id,key) DO UPDATE
-    SET value = ?`
-	_, err := data.DB.Exec(q1, productID, key, value, value)
-	return merry.Appendf(err, "%s, %s: %v", q1, key, value)
-}
-
-func dbKeyCoefficient(k int) string {
-	return fmt.Sprintf("K%02d", k)
-}
-
-func getProductValues(productID int64) (map[string]float64, error) {
-	var xs []struct {
-		Key   string  `db:"key"`
-		Value float64 `db:"value"`
-	}
-	const q1 = `SELECT key, value FROM product_value WHERE product_id = ?`
-	if err := data.DB.Select(&xs, q1, productID); err != nil {
-		return nil, merry.Append(err, q1)
-	}
-	m := map[string]float64{}
-	for _, x := range xs {
-		m[x.Key] = x.Value
-	}
-	return m, nil
 }

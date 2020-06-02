@@ -1,4 +1,4 @@
-package guiwork
+package workgui
 
 import (
 	"context"
