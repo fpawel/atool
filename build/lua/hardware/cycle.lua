@@ -30,8 +30,9 @@ go:Info( { ["параметры"] =  params})
 
 for n = 1,params.cycle_count do
     go:TemperatureSetup(params.temp_low)
-    go:Pause('Термоцикл ' .. tostring(n)..': '..format_temperature(params.temp_low))
+    --tostring(temperature) .. '⁰C'
+    go:Pause( string.format('Термоцикл %d: выдержка на низкой температуре: %g⁰C', n, params.temp_low))
     go:TemperatureSetup(params.temp_high)
-    go:Pause('Термоцикл ' .. tostring(n)..': '..format_temperature(params.temp_high))
+    go:Pause( string.format('Термоцикл %d: выдержка на высокой температуре: %g⁰C', n, params.temp_high))
 end
 go:TemperatureStop()

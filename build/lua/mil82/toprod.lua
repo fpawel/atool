@@ -1,26 +1,26 @@
 -- atool: work: МИЛ-82: выпуск в эксплуатацию
 
 require 'utils/help'
-require 'mil82/mil82def'
+require 'types'
 
-local Products = go:GetProducts()
-
-local function encode2(a,b)
-    return a * 10000 + b
-end
-
-local t = os.date("*t")
-local prod_type_index = prod_types[go:GetConfig().product_type].index
-
-print("year:", t.year, "month:", t.month)
-
-for _, p in pairs(Products) do
-    local coefficients = {
-        [40] = encode2(t.year-2000, p.Serial),
-        [47] = encode2(t.month, prod_type_index)
+local products = {}
+local xs = {}
+go:ForEachProduct(function (p)
+    local i = #products+1
+    products[i]=p
+    xs[i] = {
+        name = string.format('%d. №%d', i, p.Serial),
+        value = false,
+        format = 'bool',
     }
-    set_coefficients_product(coefficients, p)
-    read_coefficients_product('bcd', {20,21,43,44}, p)
+end)
 
+local user_input = go:ParamsDialog(xs)
+
+for i,p in ipairs(products) do
+    local v = user_input[i]
+    if ~v then
+        v = 0 / 0
+    end
+    p:SetValue('production', v)
 end
-

@@ -8,19 +8,19 @@ type prodT struct {
 }
 
 var prodTypes = map[string]prodT{
-	"СО2-2": {
+	"CO2-2": {
 		Gas:   "CO2",
 		Scale: 2,
 		Index: 1,
 		limD:  0.1,
 	},
-	"СО2-4": {
+	"CO2-4": {
 		Gas:   "CO2",
 		Scale: 4,
 		Index: 2,
 		limD:  0.25,
 	},
-	"СО2-10": {
+	"CO2-10": {
 		Gas:   "CO2",
 		Scale: 10,
 		Index: 3,

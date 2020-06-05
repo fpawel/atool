@@ -8,6 +8,8 @@ import (
 	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
+	"github.com/fpawel/atool/internal/hardware"
+	"github.com/fpawel/atool/internal/pkg/intrng"
 	"github.com/fpawel/atool/internal/pkg/numeth"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/atool/internal/workgui"
@@ -60,30 +62,16 @@ func (x *Import) GetConfig() *lua.LTable {
 	return Config
 }
 
-func (x *Import) GetProducts() *lua.LTable {
-	Products := x.l.NewTable()
-
-	party, err := data.GetCurrentParty()
-	x.check(err)
-
-	device, err := config.Get().Hardware.GetDevice(party.DeviceType)
-	x.check(err)
-
-	for _, p := range party.Products {
-		p := p
-		if !p.Active {
-			continue
-		}
-		impP := newLuaProduct(workparty.Product{
-			Product: p,
-			Device:  device,
-			Party:   party,
-		}, x)
-		Products.Append(luar.New(x.l, impP))
+func (x *Import) ForEachSelectedProduct(f func(*luaProduct)) {
+	for _, p := range x.getProducts(true) {
+		f(p)
 	}
-	x.l.SetGlobal("Products", Products)
+}
 
-	return Products
+func (x *Import) ForEachProduct(f func(*luaProduct)) {
+	for _, p := range x.getProducts(false) {
+		f(p)
+	}
 }
 
 func (x *Import) InterpolationCoefficients(a *lua.LTable) lua.LValue {
@@ -122,35 +110,31 @@ func (x *Import) InterpolationCoefficients(a *lua.LTable) lua.LValue {
 }
 
 func (x *Import) Temperature(destinationTemperature float64) {
-	x.withGuiWarn(workparty.SetupTemperature(x.log, x.l.Context(), destinationTemperature))
+	x.NewWork(fmt.Sprintf("перевод термокамеры на %v⁰C", destinationTemperature), func() {
+		x.withGuiWarn(hardware.TemperatureSetup(x.log, x.l.Context(), destinationTemperature))
+	})
 	x.delay(config.Get().Temperature.HoldDuration,
 		fmt.Sprintf("выдержка на температуре %v⁰C", destinationTemperature))
 }
 
 func (x *Import) TemperatureStart() {
-	tempDevice, err := workparty.GetTemperatureDevice()
-	x.check(err)
-	x.withGuiWarn(tempDevice.Start(x.log, x.l.Context()))
+	x.withGuiWarn(hardware.TemperatureStart(x.log, x.l.Context()))
 }
 
 func (x *Import) TemperatureStop() {
-	tempDevice, err := workparty.GetTemperatureDevice()
-	x.check(err)
-	x.withGuiWarn(tempDevice.Stop(x.log, x.l.Context()))
+	x.withGuiWarn(hardware.TemperatureStop(x.log, x.l.Context()))
 }
 
 func (x *Import) TemperatureSetup(temperature float64) {
 	x.newNestedWork1(fmt.Sprintf("перевод термокамеры на %v⁰C", temperature),
 		func() error {
-			tempDevice, err := workparty.GetTemperatureDevice()
-			x.check(err)
-			return tempDevice.Setup(x.log, x.l.Context(), temperature)
+			return hardware.TemperatureSetup(x.log, x.l.Context(), temperature)
 		})
 }
 
 func (x *Import) SwitchGas(gas byte, warn bool) {
 
-	err := workparty.SwitchGas(x.log, x.l.Context(), gas)
+	err := hardware.SwitchGas(x.log, x.l.Context(), gas)
 	if err == nil {
 		return
 	}
@@ -175,15 +159,13 @@ func (x *Import) BlowGas(gas byte) {
 		})
 }
 
-func (x *Import) ReadSave(reg modbus.Var, format modbus.FloatBitsFormat, dbKey string) {
+func (x *Import) ReadAndSaveProductParam(reg modbus.Var, format modbus.FloatBitsFormat, dbKey string) {
 	if err := format.Validate(); err != nil {
 		x.l.ArgError(2, err.Error())
 	}
-	x.newWork(fmt.Sprintf("считать рег.%d, сохранить %s", reg, dbKey),
-		func(s *structlog.Logger, ctx context.Context) error {
-			return workparty.ProcessEachActiveProduct(x.log, nil, func(p workparty.Product) error {
-				return p.ReadAndSaveParamValue(x.log, ctx, reg, format, dbKey)
-			})
+	x.newWork(fmt.Sprintf("📤 считать регистр %d 💾 сохранить %s %v", reg, dbKey, format),
+		func(log *structlog.Logger, ctx context.Context) error {
+			return workparty.ReadAndSaveProductParam(x.log, ctx, reg, format, dbKey)
 		})
 }
 
@@ -191,26 +173,8 @@ func (x *Import) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value
 	if err := format.Validate(); err != nil {
 		x.l.ArgError(2, err.Error())
 	}
-	x.newWork(fmt.Sprintf("команда %d(%v)", cmd, value), func(s *structlog.Logger, ctx context.Context) error {
-		return workparty.ProcessEachActiveProduct(x.log, nil, func(p workparty.Product) error {
-			_ = p.Write32(x.log, ctx, cmd, format, value)
-			return nil
-		})
-	})
-}
-
-func (x *Import) WriteKef(kef int, format modbus.FloatBitsFormat, value float64) {
-	if err := format.Validate(); err != nil {
-		x.l.ArgError(2, err.Error())
-	}
-	x.check(workgui.PerformNewNamedWork(x.log, x.l.Context(),
-		fmt.Sprintf("запись K%d=%v", kef, value),
-		func(log *structlog.Logger, ctx context.Context) error {
-			return workparty.ProcessEachActiveProduct(log, nil, func(p workparty.Product) error {
-				_ = p.WriteKef(log, ctx, kef, format, value)
-				return nil
-			})
-		}))
+	err := workparty.Write32(x.log, x.l.Context(), cmd, format, value)
+	x.check(err)
 }
 
 func (x *Import) Pause(strDuration string, what string) {
@@ -318,11 +282,42 @@ func (x *Import) SelectWorksDialog(arg *lua.LTable) {
 	}
 }
 
+func (x *Import) NewWorkEachProduct(name string, Func func(p *luaProduct)) {
+	x.newWork(name, func(comm.Logger, context.Context) error {
+		x.ForEachProduct(func(product *luaProduct) {
+			product.NewWork(fmt.Sprintf("%s: %s", product.p, name), func() {
+				Func(product)
+			})
+		})
+		return nil
+	})
+}
+
 func (x *Import) NewWork(name string, Func func()) {
 	x.newWork(name, func(comm.Logger, context.Context) error {
 		Func()
 		return nil
 	})
+}
+
+func formatCoefficients(ks map[int]int) string {
+	var coefficients []int
+	for _, k := range ks {
+		coefficients = append(coefficients, k)
+	}
+	return fmt.Sprintf("запись коэффициентов %v", intrng.IntRanges(coefficients))
+}
+
+func (x *Import) WriteCoefficients(ks map[int]int, format modbus.FloatBitsFormat) {
+	x.check(workparty.WriteCoefficients(x.log, x.l.Context(), coefficientsList(ks), format))
+}
+
+func (x *Import) ReadCoefficients(ks map[int]int, format modbus.FloatBitsFormat) {
+	x.check(workparty.ReadCoefficients(x.log, x.l.Context(), coefficientsList(ks), format))
+}
+
+func (x *Import) ReadAndSaveParam(param modbus.Var, format modbus.FloatBitsFormat, dbKey string) {
+	x.check(workparty.ReadAndSaveProductParam(x.log, x.l.Context(), param, format, dbKey))
 }
 
 func (x *Import) newWork(name string, Func workgui.WorkFunc) {
@@ -361,8 +356,30 @@ func (x *Import) withGuiWarn(err error) {
 	<-ctxIgnoreError.Done()
 	x.IgnoreError()
 	if x.l.Context().Err() == nil {
-		workgui.NotifyErr(x.log, merry.Prepend(err, "ошибка проигнорирована: выполнение продолжено"))
+		workgui.NotifyWarn(x.log, "ошибка проигнорирована")
 	}
+}
+
+func (x *Import) getProducts(selectedOnly bool) (Products []*luaProduct) {
+
+	party, err := data.GetCurrentParty()
+	x.check(err)
+
+	device, err := config.Get().Hardware.GetDevice(party.DeviceType)
+	x.check(err)
+
+	for _, p := range party.Products {
+		p := p
+		if selectedOnly && !p.Active {
+			continue
+		}
+		Products = append(Products, newLuaProduct(workparty.Product{
+			Product: p,
+			Device:  device,
+			Party:   party,
+		}, x))
+	}
+	return
 }
 
 func check(l *lua.LState, err error) {
@@ -372,6 +389,13 @@ func check(l *lua.LState, err error) {
 	if err != nil {
 		l.RaiseError("%s", err)
 	}
+}
+
+func coefficientsList(xs map[int]int) (r workparty.CoefficientsList) {
+	for _, k := range xs {
+		r = append(r, modbus.Var(k))
+	}
+	return
 }
 
 var (

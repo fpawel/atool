@@ -26,17 +26,17 @@ func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, n
 	errorsOccurred := make(ErrorsOccurred)
 
 	return workgui.Delay(log, ctx, duration, name, func(_ *structlog.Logger, ctx context.Context) error {
-		return readProductsParams(log, ctx, ms, errorsOccurred)
+		return ReadProductsParams(log, ctx, ms, errorsOccurred)
 	})
 }
 
 func RunInterrogate(log comm.Logger, appCtx context.Context) error {
-	return workgui.RunWork(log, appCtx, "опрос приборов", func(log *structlog.Logger, ctx context.Context) error {
+	return workgui.RunWork(log, appCtx, "📤 опрос приборов", func(log *structlog.Logger, ctx context.Context) error {
 		ms := new(data.MeasurementCache)
 		defer ms.Save()
 		errorsOccurred := make(ErrorsOccurred)
 		for {
-			if err := readProductsParams(log, ctx, ms, errorsOccurred); err != nil {
+			if err := ReadProductsParams(log, ctx, ms, errorsOccurred); err != nil {
 				if merry.Is(err, context.Canceled) {
 					return nil
 				}
@@ -48,7 +48,7 @@ func RunInterrogate(log comm.Logger, appCtx context.Context) error {
 
 func RunReadAllCoefficients(log comm.Logger, appCtx context.Context) error {
 
-	return workgui.RunWork(log, appCtx, "считывание коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
+	return workgui.RunWork(log, appCtx, "📤 считывание коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
 		errs := make(ErrorsOccurred)
 		err := ProcessEachActiveProduct(log, errs, func(p Product) error {
 			return p.readAllCoefficients(log, ctx)
@@ -71,10 +71,19 @@ func RunWriteAllCoefficients(log comm.Logger, appCtx context.Context, in []*apit
 }
 
 func RunRawCommand(log comm.Logger, appCtx context.Context, c modbus.ProtoCmd, b []byte) {
-	workgui.RunTask(log, fmt.Sprintf("отправка команды XX %X % X", c, b), func() error {
+	what := fmt.Sprintf("📥 отправка команды %X(% X)", c, b)
+	workgui.RunTask(log, what, func() error {
 		err := ProcessEachActiveProduct(log, nil, func(p Product) error {
-			_, err := p.GetResponse(log, appCtx, c, b)
-			return err
+			_, err := modbus.Request{
+				Addr:     p.Addr,
+				ProtoCmd: c,
+				Data:     b,
+			}.GetResponse(log, appCtx, p.Comm())
+			if err != nil {
+				return merry.Prepend(err, what)
+			}
+			workgui.NotifyInfo(log, fmt.Sprintf("%s %s - успешно", p, what))
+			return nil
 		})
 		if err != nil {
 			return err
@@ -97,17 +106,22 @@ func RunSetNetAddr(log comm.Logger, appCtx context.Context, productID int64, not
 
 	device, f := config.Get().Hardware[party.DeviceType]
 	if !f {
-		return merry.Errorf("не заданы параметры устройства %s для прибора %+v", party.DeviceType, p)
+		return merry.Errorf("%s: не заданы параметры типа прибора %s", p, party.DeviceType)
 	}
 
-	return workgui.RunWork(log, appCtx, fmt.Sprintf("прибр %d: запись сетевого адреса %d", p.Serial, p.Addr),
-		func(log comm.Logger, ctx context.Context) error {
+	workProduct := Product{
+		Product: p,
+		Device:  device,
+		Party:   party,
+	}
 
+	what := fmt.Sprintf("%s: запись сетевого адреса %d", workProduct, p.Addr)
+	return workgui.RunWork(log, appCtx, what, func(log comm.Logger, ctx context.Context) error {
+		return workgui.WithNotifyResult(log, what, func() error {
 			comPort := comports.GetComport(p.Comport, device.Baud)
 			if err := comPort.Open(); err != nil {
 				return err
 			}
-
 			r := modbus.RequestWrite32{
 				Addr:      0,
 				ProtoCmd:  0x10,
@@ -118,12 +132,10 @@ func RunSetNetAddr(log comm.Logger, appCtx context.Context, productID int64, not
 			if _, err := comPort.Write(r.Request().Bytes()); err != nil {
 				return err
 			}
-
 			notifyComm(comm.Info{
 				Request: r.Request().Bytes(),
 				Port:    p.Comport,
 			})
-
 			pause(ctx.Done(), time.Second)
 			_, err := modbus.RequestRead3{
 				Addr:           p.Addr,
@@ -132,6 +144,7 @@ func RunSetNetAddr(log comm.Logger, appCtx context.Context, productID int64, not
 			}.GetResponse(log, ctx, getCommProduct(p.Comport, device))
 			return err
 		})
+	})
 }
 
 func RunSearchProducts(log comm.Logger, appCtx context.Context, comportName string) error {
@@ -227,28 +240,3 @@ func pause(chDone <-chan struct{}, d time.Duration) {
 		}
 	}
 }
-
-//func createNewChartIfUpdatedTooLong() error {
-//	t, err := data.GetCurrentPartyUpdatedAt(db)
-//	if err == sql.ErrNoRows {
-//		log.Info("last party has no measurements")
-//		return nil
-//	}
-//	if err != nil {
-//		return err
-//	}
-//	//log.Printf("last party updated at: %v, %v", t, time.Since(t))
-//	if time.Since(t) <= time.Hour {
-//		return nil
-//	}
-//
-//	go gui.Popup(true, "Для наглядности графичеких данных текущего опроса создан новый график.")
-//
-//	log.Info("copy current party for new chart")
-//	if err := data.CopyCurrentParty(db); err != nil {
-//		return err
-//	}
-//	gui.NotifyCurrentPartyChanged()
-//
-//	return nil
-//}

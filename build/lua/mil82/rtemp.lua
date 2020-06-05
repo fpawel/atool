@@ -1,14 +1,12 @@
 -- atool: work: МИЛ-82: перевод климатики
 
-require 'utils/help'
-require 'mil82/mil82def'
-
-local Products = go:GetProducts()
+local var16 = 16
+local varTemp = 2
 
 for _,var in pairs({varTemp, var16}) do
     for _,gas in pairs({1, 3, 4}) do
-        local k = ikds4_db_key_gas_var(gas, var)
-        for _, p in pairs(Products) do
+        local k = '_gas'..tostring(gas) .. '_var' .. tostring(var)
+        for _, p in pairs(go:GetProducts()) do
             p:SetValue('t_norm_'..k, p:Value('test2_'..k))
         end
     end

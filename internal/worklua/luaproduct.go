@@ -1,76 +1,54 @@
 package worklua
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/pkg/numeth"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/atool/internal/workparty"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
+	"github.com/powerman/structlog"
 	lua "github.com/yuin/gopher-lua"
 	"math"
+	"sort"
 	"strings"
 )
 
 type luaProduct struct {
-	p      workparty.Product
 	Serial int
 	ID     int64
 	Addr   modbus.Addr
-	l      *lua.LState
-	log    comm.Logger
+	String string
+
+	p   workparty.Product
+	l   *lua.LState
+	log comm.Logger
 }
 
 func newLuaProduct(p workparty.Product, i *Import) *luaProduct {
 	return &luaProduct{
-		p:      p,
 		Serial: p.Serial,
 		ID:     p.ProductID,
 		Addr:   p.Addr,
+		String: p.String(),
+		p:      p,
 		l:      i.l,
 		log:    i.log,
 	}
 }
 
-func (x *luaProduct) WriteKef(k int, format modbus.FloatBitsFormat, LValue lua.LNumber) {
-	if err := format.Validate(); err != nil {
-		x.l.ArgError(2, err.Error())
+func (x *luaProduct) NewWork(name string, Func func()) {
+	work := func(logger *structlog.Logger, ctx context.Context) error {
+		Func()
+		return nil
 	}
-	checkNumberOrNil(x.l, 4)
-	value := float64(LValue)
-	if math.IsNaN(value) {
-		x.Err(fmt.Sprintf("запись К%d: нет значения", k))
-		return
-	}
-	_ = x.p.WriteKef(x.log, x.l.Context(), k, format, value)
-}
-
-func (x *luaProduct) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, LValue lua.LNumber) {
-	if err := format.Validate(); err != nil {
-		x.l.ArgError(2, err.Error())
-	}
-	checkNumberOrNil(x.l, 4)
-	value := float64(LValue)
-	if math.IsNaN(value) {
-		x.Err(fmt.Sprintf("write32: cmd=%d: нет значения", cmd))
-		return
-	}
-	_ = x.p.Write32(x.log, x.l.Context(), cmd, format, value)
-}
-
-func (x *luaProduct) ReadReg(reg modbus.Var, format modbus.FloatBitsFormat) lua.LNumber {
-	if err := format.Validate(); err != nil {
-		x.l.ArgError(2, err.Error())
-	}
-	v, err := x.p.ReadParamValue(x.log, x.l.Context(), reg, format)
-	if err != nil {
-		x.Err(fmt.Sprintf("считывание рег%d: %v", reg, err))
-		return luaNaN
-	}
-	workgui.NotifyInfo(x.log, fmt.Sprintf("считатно рег%d=%v", reg, v))
-	return lua.LNumber(v)
+	name = fmt.Sprintf("%s: %s", x.p, name)
+	err := workgui.PerformNewNamedWork(x.log, x.l.Context(), name, work)
+	x.check(err)
 }
 
 func (x *luaProduct) ReadKef(k modbus.Var, format modbus.FloatBitsFormat) lua.LNumber {
@@ -86,13 +64,14 @@ func (x *luaProduct) ReadKef(k modbus.Var, format modbus.FloatBitsFormat) lua.LN
 	return lua.LNumber(v)
 }
 
-func (x *luaProduct) DeleteKey(key string) {
-	x.info(fmt.Sprintf("удалить ключ %q", key))
-	x.check(data.DeleteProductKey(x.p.ProductID, key))
-}
-
 func (x *luaProduct) SetKef(k int, LValue lua.LNumber) {
 	x.SetValue(data.KeyCoefficient(k), LValue)
+}
+
+func (x *luaProduct) WriteCoefficientValues(ks map[modbus.Var]float64, format modbus.FloatBitsFormat) {
+	for k, value := range ks {
+		_ = x.p.WriteKef(x.log, x.l.Context(), k, format, value)
+	}
 }
 
 func (x *luaProduct) SetValue(key string, LValue lua.LNumber) {
@@ -104,6 +83,7 @@ func (x *luaProduct) SetValue(key string, LValue lua.LNumber) {
 		return
 	}
 	x.setValue(key, value)
+	x.info(fmt.Sprintf("💾 %s = %v", key, value))
 }
 
 func (x *luaProduct) Kef(k int) lua.LNumber {
@@ -137,6 +117,40 @@ func (x *luaProduct) Err(err string) {
 	workgui.NotifyErr(x.log, merry.Errorf("%s: %s", x.p, err))
 }
 
+func (x *luaProduct) Interpolation(name string, xy [][2]float64, k0, kCount int, format modbus.FloatBitsFormat) {
+
+	what := fmt.Sprintf("📈 расчёт %s K%d...K%d 📝 %v", name, k0, k0+kCount, xy)
+
+	var dt []numeth.Coordinate
+	for _, pt := range xy {
+		dt = append(dt, numeth.Coordinate{
+			X: pt[0],
+			Y: pt[1],
+		})
+	}
+	sort.Slice(dt, func(i, j int) bool {
+		return dt[i].X < dt[i].Y
+	})
+
+	r, ok := numeth.InterpolationCoefficients(dt)
+
+	if !ok {
+		r = make([]float64, len(dt))
+		for i := range r {
+			r[i] = math.NaN()
+		}
+		x.Err(fmt.Sprintf("%s - расчёт не выполнен", what))
+		return
+	}
+
+	for len(r) < kCount {
+		r = append(r, 0)
+	}
+	for i, value := range r {
+		_ = x.p.WriteKef(x.log, x.l.Context(), modbus.Var(k0+i), format, value)
+	}
+}
+
 func (x *luaProduct) info(s string) {
 	workgui.NotifyInfo(x.log, fmt.Sprintf("%s: %s", x.p, s))
 }
@@ -154,17 +168,5 @@ func (x *luaProduct) journalResult(s string, err error) {
 }
 
 func (x *luaProduct) setValue(key string, value float64) {
-	x.info(fmt.Sprintf("сохранение %q=%v", key, value))
 	x.check(data.SaveProductValue(x.p.ProductID, key, value))
-}
-
-func checkNumberOrNil(l *lua.LState, n int) {
-	switch l.Get(n).(type) {
-	case *lua.LNilType:
-		return
-	case lua.LNumber:
-		return
-	default:
-		l.TypeError(n, lua.LTNumber)
-	}
 }

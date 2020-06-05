@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/hardware"
 	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/workgui"
@@ -53,7 +54,7 @@ func (h *runWorkSvc) Command(_ context.Context, cmd int16, s string) error {
 
 func (h *runWorkSvc) SwitchGas(_ context.Context, valve int8) error {
 	workgui.RunTask(log, fmt.Sprintf("переключение пневмоблока %d", valve), func() error {
-		err := workparty.SwitchGas(log, context.Background(), byte(valve))
+		err := hardware.SwitchGas(log, context.Background(), byte(valve))
 		comports.CloseComport(config.Get().Gas.Comport)
 		return err
 	})

@@ -133,7 +133,7 @@ local function temp_comp(pt_temp)
     }
     local temperature = temperatures[pt_temp]
     return function()
-        setupTemperature(temperature)
+        go:Temperature(temperature)
         gases_read_save(pt_temp, { 1, 3, 4 })
     end
 end

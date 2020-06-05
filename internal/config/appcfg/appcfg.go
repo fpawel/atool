@@ -58,7 +58,7 @@ func GetParamsValues() ([]*apitypes.ConfigParamValue, error) {
 			Key:        "product_type",
 			Name:       "Приборы: исполнение",
 			Value:      p.ProductType,
-			ValuesList: device.ListProductTypes(),
+			ValuesList: device.ProductTypes,
 		},
 	}
 

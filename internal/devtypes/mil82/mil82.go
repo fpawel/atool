@@ -3,7 +3,6 @@ package mil82
 import (
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/devtypes/devdata"
-	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/comm/modbus"
 	"time"
 )
@@ -12,7 +11,7 @@ var Device = devdata.Device{
 
 	GetCalcSectionsFunc: calcSections,
 
-	ProductTypes: pkg.MustStructToMap(prodTypes),
+	ProductTypes: prodTypeNames,
 
 	DataSections: DataSections(),
 
@@ -49,10 +48,11 @@ var Device = devdata.Device{
 			},
 		},
 		PartyParams: devicecfg.PartyParams{
-			"c1": "ПГС1",
-			"c2": "ПГС2",
-			"c3": "ПГС3",
-			"c4": "ПГС4",
+			"c1":            "ПГС1",
+			"c2":            "ПГС2",
+			"c3":            "ПГС3",
+			"c4":            "ПГС4",
+			"linear_degree": "Степень линеаризации",
 		},
 		Coefficients: []devicecfg.Coefficients{
 			{

@@ -53,7 +53,7 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 		return ctx.Err()
 	}
 
-	NotifyInfo(log, newWorkName+": выполняется")
+	NotifyInfo(log, "🛠 "+newWorkName)
 
 	muNamedWorksStack.Lock()
 	isMainWork := len(namedWorksStack) == 0
@@ -74,16 +74,14 @@ func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName
 	if err != nil {
 		if isMainWork {
 			pkg.LogPrependSuffixKeys(log, "stack", pkg.FormatStacktrace(merry.Stack(err), "\n\t")).PrintErr(err)
-			err = merry.Prepend(err, newWorkName+": завершено с ошибкой")
-		} else {
-			err = merry.Prepend(err, newWorkName)
 		}
+		err = merry.Prepend(err, "🚫 "+newWorkName)
 		NotifyErr(log, err)
 		return err
 	}
 
 	if isMainWork {
-		NotifyInfo(log, newWorkName+": выполнение окончено")
+		NotifyInfo(log, "✅ "+newWorkName)
 	}
 	return nil
 }
@@ -93,7 +91,7 @@ func InterruptDelay(log *structlog.Logger) {
 	interruptDelay()
 	name := delayName
 	muInterruptDelay.Unlock()
-	NotifyInfo(log, name+": задержка прервана")
+	NotifyWarn(log, name+" - задержка прервана")
 }
 
 func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, name string, backgroundWork DelayBackgroundWorkFunc) error {

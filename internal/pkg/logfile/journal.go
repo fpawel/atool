@@ -44,11 +44,11 @@ func (x Journal) Close() error {
 }
 
 func (x Journal) WriteError(err error) {
-	x.WriteErr(err.Error() + "\n\t" + "⤥" + pkg.FormatStacktrace(merry.Stack(err), "\n\t") + "⤣")
+	x.WriteErrorText(err.Error() + " ⚠️\n\t" + "⤥" + pkg.FormatStacktrace(merry.Stack(err), "\n\t") + "⤣")
 }
 
-func (x Journal) WriteErr(text string) {
-	x.Write("ERR " + text)
+func (x Journal) WriteErrorText(text string) {
+	x.Write("⚠️ " + text)
 }
 
 func (x Journal) Write(text string) {
@@ -101,9 +101,9 @@ func parseRecord(s string, daytime time.Time, r *JournalRecord) bool {
 	trimPrefix(words[1])
 
 	r.Ok = true
-	if len(words) > 3 && words[2] == "ERR" {
+	if len(words) > 3 && words[2] == "⚠️" {
 		r.Ok = false
-		trimPrefix(words[2])
+		//trimPrefix(words[2])
 	}
 	r.Text = s
 	return true

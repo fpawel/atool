@@ -23,105 +23,99 @@ type Product struct {
 }
 
 func (x Product) String() string {
-	return fmt.Sprintf("%s №%d.id%d", x.Party.DeviceType, x.Serial, x.ProductID)
+	return fmt.Sprintf("🔌%d🔑%d", x.Serial, x.ProductID)
 }
 
 func (x Product) Write32(log comm.Logger, ctx context.Context, cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) error {
-	err := modbus.RequestWrite32{
-		Addr:      x.Addr,
-		ProtoCmd:  0x10,
-		DeviceCmd: cmd,
-		Format:    format,
-		Value:     value,
-	}.GetResponse(log, ctx, x.Comm())
 
-	what := fmt.Sprintf("%s: команда %d(%v)", x, cmd, value)
+	what := fmt.Sprintf("%s 📥 команда %d(%v)", x, cmd, value)
 
-	if err == nil {
-		workgui.NotifyInfo(log, fmt.Sprintf("%s: успешно", what))
-	} else {
-		workgui.NotifyErr(log, merry.Prepend(err, what))
-	}
-	return err
-}
+	return workgui.WithNotifyResult(log, what, func() error {
 
-func (x Product) WriteKef(log comm.Logger, ctx context.Context, kef int, format modbus.FloatBitsFormat, value float64) error {
-	err := modbus.RequestWrite32{
-		Addr:      x.Addr,
-		ProtoCmd:  0x10,
-		DeviceCmd: (0x80 << 8) + modbus.DevCmd(kef),
-		Format:    format,
-		Value:     value,
-	}.GetResponse(log, ctx, x.Comm())
+		if math.IsNaN(value) {
+			return merry.New("NaN")
+		}
 
-	kv := gui.CoefficientValue{
-		ProductID:   x.ProductID,
-		Read:        false,
-		Coefficient: kef,
-	}
-	what := fmt.Sprintf("%s: запись K%d=%v", x, kef, value)
-	if err == nil {
-		kv.Result = config.Get().FormatFloat(value)
-		kv.Ok = true
-		workgui.NotifyInfo(log, fmt.Sprintf("%s: успешно", what))
-	} else {
-		err = merry.Prepend(err, what)
-		kv.Result = err.Error()
-		workgui.NotifyErr(log, err)
-		kv.Ok = false
-	}
-	go gui.NotifyCoefficient(kv)
-
-	return err
-}
-
-func (x Product) ReadAndSaveParamValue(log comm.Logger, ctx context.Context, param modbus.Var, format modbus.FloatBitsFormat, dbKey string) error {
-	what := fmt.Sprintf("%s: считать рег.%d %s: сохранить %q", x, param, format, dbKey)
-
-	value, err := x.ReadParamValue(log, ctx, param, format)
-	if err != nil {
-		workgui.NotifyErr(log, merry.Prepend(err, what))
+		err := modbus.RequestWrite32{
+			Addr:      x.Addr,
+			ProtoCmd:  0x10,
+			DeviceCmd: cmd,
+			Format:    format,
+			Value:     value,
+		}.GetResponse(log, ctx, x.Comm())
+		if err != nil {
+			return err
+		}
 		return nil
-	}
-	workgui.NotifyInfo(log, fmt.Sprintf("%s: сохранить рег.%d,%s = %v",
-		x, param, dbKey, value))
-	const query = `
-INSERT INTO product_value
-VALUES (?, ?, ?)
-ON CONFLICT (product_id,key) DO UPDATE
-    SET value = ?`
-	_, err = data.DB.Exec(query, x.ProductID, dbKey, value, value)
-	if err != nil {
-		return merry.Prepend(err, what)
-	}
-	return nil
+	})
 }
 
-func (x Product) ReadParamValue(log comm.Logger, ctx context.Context, reg modbus.Var, format modbus.FloatBitsFormat) (float64, error) {
-	v, err := modbus.Read3Value(log, ctx, x.Comm(), x.Addr, reg, format)
-	if err != nil {
-		return 0, merry.Prependf(err, "%s: считывание регистра %d %v", reg, format)
-	}
-	return v, nil
+func (x Product) WriteKef(log comm.Logger, ctx context.Context, kef modbus.Var, format modbus.FloatBitsFormat, value float64) error {
+	what := fmt.Sprintf("%s 📥 запись K%d=%v %s", x, kef, value, format)
+	return workgui.WithNotifyResult(log, what, func() error {
+
+		if math.IsNaN(value) {
+			return merry.New("NaN")
+		}
+
+		err := modbus.RequestWrite32{
+			Addr:      x.Addr,
+			ProtoCmd:  0x10,
+			DeviceCmd: (0x80 << 8) + modbus.DevCmd(kef),
+			Format:    format,
+			Value:     value,
+		}.GetResponse(log, ctx, x.Comm())
+
+		kv := gui.CoefficientValue{
+			ProductID:   x.ProductID,
+			Read:        false,
+			Coefficient: int(kef),
+		}
+		if err == nil {
+			kv.Result = config.Get().FormatFloat(value)
+			kv.Ok = true
+		} else {
+			kv.Result = err.Error()
+			kv.Ok = false
+		}
+		go gui.NotifyCoefficient(kv)
+		return err
+	})
 }
 
 func (x Product) ReadKef(log comm.Logger, ctx context.Context, k modbus.Var, format modbus.FloatBitsFormat) (float64, error) {
-	v, err := modbus.Read3Value(log, ctx, x.Comm(), x.Addr, 224+2*k, format)
-	if err != nil {
-		return 0, merry.Prependf(err, "считывание K%d %v", k, format)
-	}
-	if err := data.SaveProductValue(x.ProductID, data.KeyCoefficient(int(k)), v); err != nil {
-		return v, merry.Prependf(err, "считывание K%d %v", k, format)
-	}
-	return v, nil
+	what := fmt.Sprintf("%s 📥 💾 %s K%d", x, format, k)
+	return workgui.WithNotifyValue(log, what, func() (float64, error) {
+		value, err := modbus.Read3Value(log, ctx, x.Comm(), x.Addr, 224+2*k, format)
+
+		i := gui.CoefficientValue{
+			ProductID:   x.ProductID,
+			Read:        true,
+			Coefficient: int(k),
+		}
+
+		if err != nil {
+			i.Result = err.Error()
+			go gui.NotifyCoefficient(i)
+			return math.NaN(), err
+		}
+
+		i.Ok = true
+		i.Result = config.Get().FormatFloat(value)
+
+		go gui.NotifyCoefficient(i)
+
+		// сохранить значение к-та
+		if err := x.SaveKefValue(int(k), value); err != nil {
+			return math.NaN(), err
+		}
+
+		return value, nil
+	})
 }
 
-func (x Product) GetResponse(log comm.Logger, ctx context.Context, cmd modbus.ProtoCmd, data []byte) ([]byte, error) {
-	return modbus.Request{
-		Addr:     x.Addr,
-		ProtoCmd: cmd,
-		Data:     data,
-	}.GetResponse(log, ctx, x.Comm())
+func (x Product) SaveKefValue(k int, value float64) error {
+	return data.SaveProductKefValue(x.ProductID, k, value)
 }
 
 func (x Product) Comm() comm.T {
@@ -140,17 +134,13 @@ func (x Product) readAllCoefficients(log comm.Logger, ctx context.Context) error
 			if _, f := config.Get().InactiveCoefficients[kef]; f {
 				continue
 			}
-			value, err := modbus.Read3Value(log, ctx, x.Comm(), x.Addr, 224+2*modbus.Var(kef), Kr.Format)
-			notifyReadCoefficient(log, x, kef, value, err)
+
+			_, err := x.ReadKef(log, ctx, modbus.Var(kef), Kr.Format)
 			if err != nil {
 				if merry.Is(err, context.DeadlineExceeded) {
 					return err
 				}
 				continue
-			}
-			// сохранить значение к-та
-			if err := data.SaveProductKefValue(x.ProductID, kef, value); err != nil {
-				return err
 			}
 		}
 	}
@@ -234,24 +224,4 @@ func (r productParamsReader) processParamValueRead(p devicecfg.Params, i int, ms
 		ct.Value = err.Error()
 	}
 	go gui.NotifyNewProductParamValue(ct)
-}
-
-func notifyReadCoefficient(log comm.Logger, p Product, n int, value float64, err error) {
-	x := gui.CoefficientValue{
-		ProductID:   p.ProductID,
-		Read:        true,
-		Coefficient: n,
-	}
-
-	if err == nil {
-		x.Result = config.Get().FormatFloat(value)
-		x.Ok = true
-		workgui.NotifyInfo(log, fmt.Sprintf("%s: считано K%d=%v", p, n, value))
-	} else {
-		err = merry.Prependf(err, "%s, считывание K%d", p, n)
-		x.Result = err.Error()
-		workgui.NotifyErr(log, err)
-		x.Ok = false
-	}
-	go gui.NotifyCoefficient(x)
 }
