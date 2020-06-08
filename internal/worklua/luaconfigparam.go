@@ -49,22 +49,24 @@ func getLuaValueFromConfigParam(a *apitypes.ConfigParamValue) (lua.LValue, error
 	}
 }
 
-func setConfigParamFromLuaValue(kx, vx lua.LValue, a *apitypes.ConfigParamValue) error {
+// create config param from lua value
+func newConfigParamValue(kx, vx lua.LValue) (*apitypes.ConfigParamValue, error) {
 
 	v, ok := vx.(*lua.LTable)
 	if !ok {
-		return merry.New("type error: value must be table")
+		return nil, merry.New("type error: value must be table")
 	}
 	k, ok := kx.(lua.LString)
 	if !ok {
-		return merry.New("type error: key must be string")
+		return nil, merry.New("type error: key must be string")
 	}
 
 	var c luaConfigParam
 	if err := gluamapper.Map(v, &c); err != nil {
-		return err
+		return nil, err
 	}
-	*a = apitypes.ConfigParamValue{
+
+	a := &apitypes.ConfigParamValue{
 		Name:       c.Name,
 		Type:       c.Type,
 		Key:        string(k),
@@ -87,9 +89,9 @@ func setConfigParamFromLuaValue(kx, vx lua.LValue, a *apitypes.ConfigParamValue)
 		a.Type = "string"
 		a.Value = v
 	default:
-		return merry.New("type error: value")
+		return nil, merry.New("type error: value")
 	}
-	return nil
+	return a, nil
 }
 
 func parseFloat(s string) (float64, error) {

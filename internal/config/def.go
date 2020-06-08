@@ -28,7 +28,6 @@ func defaultConfig() Config {
 				Cmd:    5,
 				Format: "bcd",
 			},
-			PartyParams: defaultPartyParams(),
 			Coefficients: []devicecfg.Coefficients{
 				{
 					Range:  [2]int{0, 50},
@@ -65,7 +64,6 @@ func defaultConfig() Config {
 					Cmd:    5,
 					Format: "bcd",
 				},
-				PartyParams: defaultPartyParams(),
 				Coefficients: []devicecfg.Coefficients{
 					{
 						Range:  [2]int{0, 50},
@@ -81,7 +79,14 @@ func defaultConfig() Config {
 			TimeoutGetResponse: time.Second,
 			TimeoutEndResponse: time.Millisecond * 50,
 			MaxAttemptsRead:    0,
-			BlowDuration:       5 * time.Minute,
+			BlowDuration: [6]time.Duration{
+				5 * time.Minute,
+				5 * time.Minute,
+				5 * time.Minute,
+				5 * time.Minute,
+				5 * time.Minute,
+				5 * time.Minute,
+			},
 		},
 		Temperature: Temperature{
 			Type:               T800,
@@ -97,14 +102,5 @@ func defaultConfig() Config {
 		},
 		Ktx500:               ktx500.NewDefaultConfig(),
 		InactiveCoefficients: make(map[int]struct{}),
-	}
-}
-
-func defaultPartyParams() map[string]string {
-	return map[string]string{
-		"c1": "ПГС1",
-		"c2": "ПГС2",
-		"c3": "ПГС3",
-		"c4": "ПГС2",
 	}
 }

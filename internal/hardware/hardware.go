@@ -16,6 +16,7 @@ import (
 	"github.com/fpawel/hardware/temp"
 	"github.com/fpawel/hardware/temp/ktx500"
 	"github.com/fpawel/hardware/temp/tempcomport"
+	"github.com/powerman/structlog"
 	"math"
 )
 
@@ -23,49 +24,56 @@ func TemperatureSetup(log comm.Logger, ctx context.Context, destinationTemperatu
 
 	what := fmt.Sprintf("🌡 перевод термокамеры на %v⁰C", destinationTemperature)
 
-	if statedTemperature != nil {
-		if *statedTemperature == destinationTemperature {
-			workgui.NotifyInfo(log, fmt.Sprintf("%s: темпеатура %v⁰C была установлена ранее", what, destinationTemperature))
-			return nil
-		}
-		what = fmt.Sprintf("🌡 перевод термокамеры %v⁰C -> %v⁰C", *statedTemperature, destinationTemperature)
-	}
+	return workgui.Perform(log, ctx, what, func(log *structlog.Logger, ctx context.Context) error {
+		// отключить газ
+		_ = SwitchGas(log, ctx, 0)
 
-	// отключить газ
-	_ = SwitchGas(log, ctx, 0)
-
-	// запись уставки
-	if err := TemperatureSetDestination(log, ctx, destinationTemperature); err != nil {
-		return err
-	}
-
-	// измерения, полученные в процесе опроса приборов во время данной задержки
-	ms := new(data.MeasurementCache)
-	defer ms.Save()
-	errorsOccurred := workparty.ErrorsOccurred{}
-
-	for {
-		if ctx.Err() != nil {
-			return ctx.Err()
+		if !state.temp {
+			if err := workgui.Perform(log, ctx, "запуск термокамеры", func(log *structlog.Logger, ctx context.Context) error {
+				if err := TemperatureStop(log, ctx); err != nil {
+					return err
+				}
+				if err := TemperatureStart(log, ctx); err != nil {
+					return err
+				}
+				return nil
+			}); err != nil {
+				return err
+			}
 		}
 
-		currentTemperature, err := GetCurrentTemperature(log, ctx)
-		if err != nil {
-			err = merry.Prepend(err, what+", считывание температуры")
-			workgui.NotifyErr(log, err)
+		// запись уставки
+		if err := TemperatureSetDestination(log, ctx, destinationTemperature); err != nil {
 			return err
 		}
-		log.Info(fmt.Sprintf("🌡 температура %v⁰C", currentTemperature))
 
-		if math.Abs(currentTemperature-destinationTemperature) < 2 {
-			workgui.NotifyInfo(log, fmt.Sprintf("🌡 термокамера вышла на температуру %v⁰C: %v⁰C", destinationTemperature, currentTemperature))
-			statedTemperature = &destinationTemperature
-			return nil
+		// измерения, полученные в процесе опроса приборов во время данной задержки
+		ms := new(data.MeasurementCache)
+		defer ms.Save()
+		errorsOccurred := workparty.ErrorsOccurred{}
+
+		for {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+
+			currentTemperature, err := GetCurrentTemperature(log, ctx)
+			if err != nil {
+				err = merry.Prepend(err, what+", считывание температуры")
+				workgui.NotifyErr(log, err)
+				return err
+			}
+			log.Info(fmt.Sprintf("🌡 температура %v⁰C", currentTemperature))
+
+			if math.Abs(currentTemperature-destinationTemperature) < 2 {
+				workgui.NotifyInfo(log, fmt.Sprintf("🌡 термокамера вышла на температуру %v⁰C: %v⁰C", destinationTemperature, currentTemperature))
+				return nil
+			}
+
+			// фоновый опрос приборов
+			_ = workparty.ReadProductsParams(log, ctx, ms, errorsOccurred)
 		}
-
-		// фоновый опрос приборов
-		_ = workparty.ReadProductsParams(log, ctx, ms, errorsOccurred)
-	}
+	})
 }
 
 func TemperatureSetDestination(log comm.Logger, ctx context.Context, destinationTemperature float64) error {
@@ -92,8 +100,7 @@ func TemperatureStart(log comm.Logger, ctx context.Context) error {
 		if err := tempDevice.Start(log, ctx); err != nil {
 			return err
 		}
-		statedTemp = true
-		statedTemperature = nil
+		state.temp = true
 		return nil
 	})
 }
@@ -107,8 +114,7 @@ func TemperatureStop(log comm.Logger, ctx context.Context) error {
 		if err := tempDevice.Stop(log, ctx); err != nil {
 			return err
 		}
-		statedTemp = false
-		statedTemperature = nil
+		state.temp = false
 		return nil
 	})
 }
@@ -127,7 +133,6 @@ func GetCurrentTemperature(log comm.Logger, ctx context.Context) (float64, error
 }
 
 func SwitchGas(log comm.Logger, ctx context.Context, valve byte) error {
-
 	return workgui.WithNotifyResult(log, fmt.Sprintf("⛏ переключение газового блока %d", valve), func() error {
 		c := config.Get().Gas
 		port := comports.GetComport(c.Comport, 9600)
@@ -141,19 +146,19 @@ func SwitchGas(log comm.Logger, ctx context.Context, valve byte) error {
 			return err
 		}
 		go gui.NotifyGas(int(valve))
-		statedGas = valve != 0
+		state.gas = valve != 0
 		return nil
 	})
 }
 
 func CloseHardware(log comm.Logger, ctx context.Context) {
 
-	if statedGas {
+	if state.gas {
 		_ = workgui.WithNotifyResult(log, "⛏ отключить газ по окончании настройки", func() error {
 			return SwitchGas(log, ctx, 0)
 		})
 	}
-	if statedTemp {
+	if state.temp {
 		_ = workgui.WithNotifyResult(log, "⛏ остановить термокамеру по окончании настройки", func() error {
 			return SwitchGas(log, ctx, 0)
 		})
@@ -164,6 +169,9 @@ func CloseHardware(log comm.Logger, ctx context.Context) {
 			workgui.NotifyInfo(log, "термокамера остановлена по окончании настройки")
 		}
 	}
+	state.gas = false
+	state.temp = false
+	state.blowGas = 0
 }
 
 func GetTemperatureDevice() (temp.TemperatureDevice, error) {
@@ -205,7 +213,10 @@ func getTemperatureComportReader() comm.T {
 }
 
 var (
-	statedGas, statedTemp bool
-	statedTemperature     *float64
-	ktx500Client          *fins.Client
+	state struct {
+		gas, temp bool
+		blowGas   byte
+	}
+
+	ktx500Client *fins.Client
 )

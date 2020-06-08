@@ -24,7 +24,7 @@ func (x *scriptSvc) SelectWorks(_ context.Context, works []bool) (err error) {
 }
 
 func (x *scriptSvc) IgnoreError(context.Context) error {
-	x.imp.IgnoreError()
+	workgui.IgnoreError()
 	return nil
 }
 

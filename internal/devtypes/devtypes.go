@@ -16,7 +16,6 @@ var (
 func init() {
 	for name, d := range DeviceTypes {
 		d.Name = name
-		d.ListProductTypes()
 		DeviceTypes[name] = d
 	}
 }

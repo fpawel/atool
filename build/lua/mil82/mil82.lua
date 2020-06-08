@@ -9,10 +9,14 @@ local float_format = 'bcd'
 
 local vars = { var_concentration, var_temp, 4, 8, 10, 12, 14, var16 }
 
+
+
+
+
 local function work_gases_read_save(db_key_section, gases)
-    go:NewWork("снятие " .. db_key_section .. ': газы: ' .. go:Stringify(gases), function()
+    go:Perform("снятие " .. db_key_section .. ': газы: ' .. go:Stringify(gases), function()
         for _, gas in ipairs(gases) do
-            go:NewWork("снятие " .. db_key_section .. ': газ: ' .. tostring(gas), function()
+            go:Perform("снятие " .. db_key_section .. ': газ: ' .. tostring(gas), function()
                 go:BlowGas(gas)
                 for _, var in pairs(vars) do
                     local db_key = db_key_section .. '_gas' .. tostring(gas) .. '_var' .. tostring(var)
@@ -24,14 +28,12 @@ local function work_gases_read_save(db_key_section, gases)
     end)
 end
 
-local params
-
 local function adjust()
-    go:NewWork("калибровка нуля", function()
+    go:Perform("калибровка нуля", function()
         go:BlowGas(1)
         go:Write32(1, float_format, go:GetConfig().c1)
     end)
-    go:NewWork("калибровка чувствительности", function()
+    go:Perform("калибровка чувствительности", function()
         go:BlowGas(4)
         go:Write32(2, float_format, go:GetConfig().c4)
         go:BlowGas(1)
@@ -120,6 +122,7 @@ local function mil82_product(p)
         for k, v in pairs(prod_type.coefficient) do
             coefficients[k] = v
         end
+        p:Info(coefficients)
         p:WriteCoefficientValues(coefficients, float_format)
     end
 
@@ -136,10 +139,10 @@ local function mil82_product(p)
         return values
     end
 
-    function ret.calc_lin()
+    function ret.calc_lin(linear_degree)
         local xy = {}
         local gases = { 1, 2, 3, 4 }
-        if params.linear_degree == 3 then
+        if linear_degree == 3 then
             gases = { 1, 3, 4 }
         end
 
@@ -232,8 +235,12 @@ local function mil82_product(p)
     return ret
 end
 
-local function main_works()
-    local prod_types =  (require('mil82/types'))
+local function main()
+
+    local cfg = go:GetConfig()
+    go:Info("конфигурация", cfg)
+
+    local prod_types = (require('mil82/types'))
     local prod_type = prod_types[go:GetConfig().product_type]
     if prod_type == nil then
         error('МИЛ82: не определено исполнение ' .. product_type_name)
@@ -241,7 +248,7 @@ local function main_works()
 
     go:Info("исполнение", prod_type)
 
-    params = go:ParamsDialog({
+    local params = go:ParamsDialog({
         linear_degree = {
             name = "Степень линеаризации",
             value = 4,
@@ -271,19 +278,6 @@ local function main_works()
     })
     go:Info("параметры", params)
 
-    local function read_lin()
-        go:ReadAndSaveParam(var_concentration, float_format, 'lin1')
-        local gases = { 3, 4 }
-        if params.linear_degree == 4 then
-            gases = { 2, 3, 4 }
-        end
-        for _, gas in pairs(gases) do
-            go:BlowGas(gas)
-            go:ReadAndSaveParam(var_concentration, float_format, 'lin' .. tostring(gas))
-        end
-        go:BlowGas(1)
-    end
-
     local function temp_comp(pt_temp)
         local temperatures = {
             t_norm = params.temp_norm,
@@ -297,99 +291,97 @@ local function main_works()
         end
     end
 
-    return {
-        { "запись коэффициентов", function()
+    local function read_lin()
+        go:ReadAndSaveParam(var_concentration, float_format, 'lin1')
+        local gases = { 3, 4 }
+        if params.linear_degree == 4 then
+            gases = { 2, 3, 4 }
+        end
+        for _, gas in pairs(gases) do
+            go:BlowGas(gas)
+            go:ReadAndSaveParam(var_concentration, float_format, 'lin' .. tostring(gas))
+        end
+        go:BlowGas(1)
+    end
+
+    local works = {
+        go:Work("Запись коэффициентов", function()
             go:ForEachSelectedProduct(function(p)
                 mil82_product(p).init(prod_type)
-            end )
-        end },
+            end)
+        end),
 
-        { "запуск термокамеры", function()
-            go:TemperatureStop()
-            go:TemperatureStart()
-        end },
-
-
-        { "установка НКУ", function()
+        go:Work("Установка НКУ", function()
             go:Temperature(params.temp_norm)
-        end },
+        end),
 
-        { "продувка воздухом перед нормировкой", function()
+        go:Work("Нормировка", function()
             go:BlowGas(1)
-        end },
-
-        { "нормировка", function()
             go:Write32(8, float_format, 1000)
-        end },
+        end),
 
-        { "калибровка", adjust },
+        go:Work("Калибровка", adjust),
 
-        { "снятие линеаризации", read_lin },
+        go:Work("Снятие линеаризации", read_lin),
 
-        { "расчёт линеаризации", function()
+        go:Work("Расчёт и запись линеаризации", function()
             go:ForEachSelectedProduct(function(p)
-                p:NewWork("расчёт линеаризации", function ()
-                    mil82_product(p).calc_lin()
+                p:Perform("расчёт линеаризации", function()
+                    mil82_product(p).calc_lin(params.linear_degree)
                 end)
             end)
-        end },
+        end),
 
-        { "запись линеаризации", function()
-            go:WriteCoefficients({ 16, 17, 18, 19 }, float_format )
-        end },
+        go:Work("запись линеаризации", function()
+            go:WriteCoefficients({ 16, 17, 18, 19 }, float_format)
+        end),
 
-        {  string.format("компенсация Т-: %g⁰C", params.temp_low), temp_comp('t_low') },
+        go:Work(string.format("Снятие термокомпенсации Т-: %g⁰C", params.temp_low), temp_comp('t_low')),
 
-        { string.format("компенсация Т+: %g⁰C", params.temp_high), temp_comp('t_high') },
+        go:Work(string.format("Снятие термокомпенсации Т+: %g⁰C", params.temp_high), temp_comp('t_high')),
 
-        { string.format("компенсация НКУ: %g⁰C", params.temp_norm), temp_comp('t_norm') },
+        go:Work(string.format("Снятие термокомпенсации НКУ: %g⁰C", params.temp_norm), temp_comp('t_norm')),
 
-        { "расчёт и запись термокомпенсации", function()
-            go:ForEachSelectedProduct(function (product)
+        go:Work("Расчёт и запись термокомпенсации", function()
+            go:ForEachSelectedProduct(function(product)
                 local p = mil82_product(product)
-                product:NewWork("T0 начало шкалы", p.calc_T0)
-                product:NewWork("TK конец шкалы", p.calc_TK)
-                product:NewWork("TM середина шкалы", p.calc_TM)
-            end )
-        end },
+                product:Perform("T0 начало шкалы", p.calc_T0)
+                product:Perform("TK конец шкалы", p.calc_TK)
+                product:Perform("TM середина шкалы", p.calc_TM)
+            end)
+        end),
 
-        { "снятие сигналов каналов", function()
+        go:Work("снятие сигналов каналов", function()
             go:ReadCoefficients({ 20, 21, 43, 44 }, float_format)
-        end },
+        end),
 
-        { "НКУ: снятие для проверки погрешности", function()
+        go:Work("НКУ: снятие для проверки погрешности", function()
             go:Temperature(params.temp_norm)
             adjust()
             work_gases_read_save('test_t_norm', { 1, 2, 3, 4 })
-        end },
+        end),
 
-        { string.format("Т-: снятие для проверки погрешности: %g⁰C" , params.temp_low), function()
+        go:Work(string.format("Т-: снятие для проверки погрешности: %g⁰C", params.temp_low), function()
             go:Temperature(params.temp_low)
             work_gases_read_save('test_t_low', { 1, 3, 4 })
-        end },
+        end),
 
-        { string.format("Т+: снятие для проверки погрешности: %g⁰C", params.temp_high), function()
+        go:Work(string.format("Т+: снятие для проверки погрешности: %g⁰C", params.temp_high), function()
             go:Temperature(params.temp_high)
             work_gases_read_save('test_t_high', { 1, 3, 4 })
-        end },
+        end),
 
-        { string.format("90⁰C: снятие для проверки погрешности: %g⁰C", params.temp90), function()
+        go:Work(string.format("90⁰C: снятие для проверки погрешности: %g⁰C", params.temp90), function()
             go:Temperature(params.temp90)
             work_gases_read_save('test_t80', { 1, 3, 4 })
-        end },
+        end),
 
-        { "НКУ: повторное снятие для проверки погрешности", function()
+        go:Work("НКУ: повторное снятие для проверки погрешности", function()
             go:Temperature(params.temp_norm)
             work_gases_read_save('test2', { 1, 3, 4 })
-        end },
+        end),
     }
-end
-
-local function main()
-    local cfg = go:GetConfig()
-    go:Info("конфигурация", cfg)
-
-    go:SelectWorksDialog(main_works())
+    return go:PerformWorks(go:SelectWorksDialog(works))
 end
 
 -- перевод климатики
@@ -406,7 +398,7 @@ end
 
 -- технологический прогон
 local function technological_test()
-    params = go:ParamsDialog({
+    local params = go:ParamsDialog({
         duration_tex = {
             name = "Длительность технологического прогона",
             value = '16h',
@@ -425,9 +417,9 @@ end
 local function to_prod()
     local products = {}
     local xs = {}
-    go:ForEachProduct(function (p)
-        local i = #products+1
-        products[i]=p
+    go:ForEachProduct(function(p)
+        local i = #products + 1
+        products[i] = p
         xs[i] = {
             name = string.format('%d. №%d', i, p.Serial),
             value = false,
@@ -437,7 +429,7 @@ local function to_prod()
 
     local user_input = go:ParamsDialog(xs)
 
-    for i,p in ipairs(products) do
+    for i, p in ipairs(products) do
         local v = user_input[i]
         if not v then
             v = 0 / 0

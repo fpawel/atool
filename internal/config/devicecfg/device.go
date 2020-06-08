@@ -17,7 +17,6 @@ type Device struct {
 	Pause              time.Duration  `yaml:"pause"`                //пауза перед опросом
 	NetAddr            NetAddr        `yaml:"net_addr"`
 	Params             []Params       `yaml:"params"`
-	PartyParams        PartyParams    `yaml:"party_params"`
 	Coefficients       []Coefficients `yaml:"coefficients"`
 	ParamsNames        map[int]string `yaml:"params_names"`
 }
@@ -98,10 +97,6 @@ func (d Device) Validate() error {
 
 	if err := d.NetAddr.Format.Validate(); err != nil {
 		return merry.Append(err, "net_addr.format")
-	}
-
-	if len(d.PartyParams) == 0 {
-		return merry.New("список параметров партии не должен быть пустым")
 	}
 
 	for i, c := range d.Coefficients {

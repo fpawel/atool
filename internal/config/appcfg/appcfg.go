@@ -2,9 +2,9 @@ package appcfg
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
-	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/devtypes"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
@@ -89,24 +89,18 @@ func GetParamsValues() ([]*apitypes.ConfigParamValue, error) {
 		return nil, err
 	}
 
-	partyParamsOfDevice := func() devicecfg.PartyParams {
-		dv, _ := cfg.Hardware[p.DeviceType]
-		for k, v := range dv.PartyParams {
-			dv.PartyParams[k] = "Приборы: " + v
-		}
-		return dv.PartyParams
-	}()
-
-	for key, name := range partyParamsOfDevice {
-		if err := checkKey(key); err != nil {
+	dv, _ := devtypes.DeviceTypes[p.DeviceType]
+	for _, param := range dv.PartyParams {
+		if err := checkKey(param.Key); err != nil {
 			return nil, err
 		}
 		y := &apitypes.ConfigParamValue{
-			Key:  key,
-			Name: name,
-			Type: "float",
+			Key:        param.Key,
+			Name:       "Приборы: " + param.Name,
+			ValuesList: param.ValuesList,
+			Type:       "float",
 		}
-		if v, f := m[key]; f {
+		if v, f := m[param.Key]; f {
 			y.Value = cfg.FormatFloat(v)
 		}
 		xs = append(xs, y)
@@ -144,127 +138,124 @@ func (x Param) List() []string {
 	return x.list()
 }
 
-var Params = map[string]Param{
+var (
+	Params = map[string]Param{
 
-	"temperature_type": {
-		Name: "Термокамера: тип",
-		list: func() []string {
-			return []string{string(config.T800), string(config.T2500), string(config.Ktx500)}
+		"temperature_type": {
+			Name: "Термокамера: тип",
+			list: func() []string {
+				return []string{string(config.T800), string(config.T2500), string(config.Ktx500)}
+			},
+			get: func(c *config.Config) string {
+				return string(c.Temperature.Type)
+			},
+			set: func(c *config.Config, s string) error {
+				c.Temperature.Type = config.TempDevType(s)
+				return nil
+			},
 		},
-		get: func(c *config.Config) string {
-			return string(c.Temperature.Type)
-		},
-		set: func(c *config.Config, s string) error {
-			c.Temperature.Type = config.TempDevType(s)
-			return nil
-		},
-	},
 
-	"temperature_comport": {
-		Name: "Термокамера: СОМ порт",
-		Type: "comport",
-		set: func(c *config.Config, s string) error {
-			c.Temperature.Comport = s
-			return nil
+		"temperature_comport": {
+			Name: "Термокамера: СОМ порт",
+			Type: "comport",
+			set: func(c *config.Config, s string) error {
+				c.Temperature.Comport = s
+				return nil
+			},
+			get: func(c *config.Config) string {
+				return c.Temperature.Comport
+			},
 		},
-		get: func(c *config.Config) string {
-			return c.Temperature.Comport
-		},
-	},
 
-	"temperature_hold_duration": newDurationParam("Термокамера: длительность выдержки",
-		func(c *config.Config) *time.Duration {
-			return &c.Temperature.HoldDuration
-		}),
+		"temperature_hold_duration": newDurationParam("Термокамера: длительность выдержки",
+			func(c *config.Config) *time.Duration {
+				return &c.Temperature.HoldDuration
+			}),
 
-	"gas_blow_duration": newDurationParam("Газовый блок: длительность продувки",
-		func(c *config.Config) *time.Duration {
-			return &c.Gas.BlowDuration
-		}),
+		"gas_address": {
+			Name: "Газовый блок: адрес",
+			Type: "int",
+			set: func(c *config.Config, s string) error {
+				n, err := strconv.ParseInt(s, 10, 8)
+				if err != nil {
+					return err
+				}
+				c.Gas.Addr = modbus.Addr(n)
+				return nil
+			},
+			get: func(c *config.Config) string {
+				return strconv.Itoa(int(c.Gas.Addr))
+			},
+		},
 
-	"gas_address": {
-		Name: "Газовый блок: адрес",
-		Type: "int",
-		set: func(c *config.Config, s string) error {
-			n, err := strconv.ParseInt(s, 10, 8)
-			if err != nil {
-				return err
-			}
-			c.Gas.Addr = modbus.Addr(n)
-			return nil
+		"gas_comport": {
+			Name: "Газовый блок: СОМ порт",
+			Type: "comport",
+			set: func(c *config.Config, s string) error {
+				c.Gas.Comport = s
+				return nil
+			},
+			get: func(c *config.Config) string {
+				return c.Gas.Comport
+			},
 		},
-		get: func(c *config.Config) string {
-			return strconv.Itoa(int(c.Gas.Addr))
-		},
-	},
 
-	"gas_comport": {
-		Name: "Газовый блок: СОМ порт",
-		Type: "comport",
-		set: func(c *config.Config, s string) error {
-			c.Gas.Comport = s
-			return nil
+		"gas_type": {
+			Name: "Газовый блок: тип",
+			list: func() []string {
+				return []string{string(gas.Mil82), string(gas.Lab73CO)}
+			},
+			get: func(c *config.Config) string {
+				return string(c.Gas.Type)
+			},
+			set: func(c *config.Config, s string) error {
+				c.Gas.Type = gas.DevType(s)
+				return nil
+			},
 		},
-		get: func(c *config.Config) string {
-			return c.Gas.Comport
-		},
-	},
 
-	"gas_type": {
-		Name: "Газовый блок: тип",
-		list: func() []string {
-			return []string{string(gas.Mil82), string(gas.Lab73CO)}
+		"warm_sheets_enable": {
+			Name: "Подогрев плат: использовать",
+			Type: "bool",
+			get: func(c *config.Config) string {
+				return strconv.FormatBool(c.WarmSheets.Enable)
+			},
+			set: func(c *config.Config, s string) error {
+				v, err := strconv.ParseBool(s)
+				if err != nil {
+					return err
+				}
+				c.WarmSheets.Enable = v
+				return nil
+			},
 		},
-		get: func(c *config.Config) string {
-			return string(c.Gas.Type)
+		"warm_sheets_address": {
+			Name: "Подогрев плат: адрес устройства",
+			Type: "int",
+			get: func(c *config.Config) string {
+				return strconv.Itoa(int(c.WarmSheets.Addr))
+			},
+			set: func(c *config.Config, s string) error {
+				v, err := strconv.ParseInt(s, 10, 8)
+				if err != nil {
+					return err
+				}
+				c.WarmSheets.Addr = modbus.Addr(v)
+				return nil
+			},
 		},
-		set: func(c *config.Config, s string) error {
-			c.Gas.Type = gas.DevType(s)
-			return nil
-		},
-	},
 
-	"warm_sheets_enable": {
-		Name: "Подогрев плат: использовать",
-		Type: "bool",
-		get: func(c *config.Config) string {
-			return strconv.FormatBool(c.WarmSheets.Enable)
-		},
-		set: func(c *config.Config, s string) error {
-			v, err := strconv.ParseBool(s)
-			if err != nil {
-				return err
-			}
-			c.WarmSheets.Enable = v
-			return nil
-		},
-	},
-	"warm_sheets_address": {
-		Name: "Подогрев плат: адрес устройства",
-		Type: "int",
-		get: func(c *config.Config) string {
-			return strconv.Itoa(int(c.WarmSheets.Addr))
-		},
-		set: func(c *config.Config, s string) error {
-			v, err := strconv.ParseInt(s, 10, 8)
-			if err != nil {
-				return err
-			}
-			c.WarmSheets.Addr = modbus.Addr(v)
-			return nil
-		},
-	},
+		"warm_sheets_temp_on": newFloatParam("Подогрев плат: температура включения",
+			func(c *config.Config) *float64 {
+				return &c.WarmSheets.TempOn
+			}),
 
-	"warm_sheets_temp_on": newFloatParam("Подогрев плат: температура включения",
-		func(c *config.Config) *float64 {
-			return &c.WarmSheets.TempOn
-		}),
-
-	"warm_sheets_temp_off": newFloatParam("Подогрев плат: температура выключения",
-		func(c *config.Config) *float64 {
-			return &c.WarmSheets.TempOff
-		}),
-}
+		"warm_sheets_temp_off": newFloatParam("Подогрев плат: температура выключения",
+			func(c *config.Config) *float64 {
+				return &c.WarmSheets.TempOff
+			}),
+	}
+)
 
 func newFloatParam(name string, f func(c *config.Config) *float64) Param {
 	return Param{
@@ -324,4 +315,14 @@ func getCurrentPartyValues() (map[string]float64, error) {
 		m[x.Key] = x.Value
 	}
 	return m, nil
+}
+
+func init() {
+	for i := 0; i < 6; i++ {
+		i := i
+		Params[fmt.Sprintf("gas%d_duration", i+1)] = newDurationParam(fmt.Sprintf("ПГС%d: длительность продувки", i+1),
+			func(c *config.Config) *time.Duration {
+				return &c.Gas.BlowDuration[i]
+			})
+	}
 }

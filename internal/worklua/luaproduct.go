@@ -41,13 +41,13 @@ func newLuaProduct(p workparty.Product, i *Import) *luaProduct {
 	}
 }
 
-func (x *luaProduct) NewWork(name string, Func func()) {
+func (x *luaProduct) Perform(name string, Func func()) {
 	work := func(logger *structlog.Logger, ctx context.Context) error {
 		Func()
 		return nil
 	}
 	name = fmt.Sprintf("%s: %s", x.p, name)
-	err := workgui.PerformNewNamedWork(x.log, x.l.Context(), name, work)
+	err := workgui.Perform(x.log, x.l.Context(), name, work)
 	x.check(err)
 }
 

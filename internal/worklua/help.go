@@ -41,9 +41,9 @@ func convertLuaValue(value lua.LValue, visited map[*lua.LTable]bool) interface{}
 			}
 		})
 		if isArray {
-			var ret []interface{}
-			converted.ForEach(func(_, value lua.LValue) {
-				ret = append(ret, convertLuaValue(value, visited))
+			ret := map[float64]interface{}{}
+			converted.ForEach(func(i, value lua.LValue) {
+				ret[float64(i.(lua.LNumber))] = convertLuaValue(value, visited)
 			})
 			return ret
 		} else {

@@ -34,7 +34,7 @@ func (h *appConfigSvc) ListProductTypes(_ context.Context) ([]string, error) {
 		return nil, err
 	}
 	device, _ := devtypes.DeviceTypes[party.DeviceType]
-	return device.ListProductTypes(), nil
+	return device.ProductTypes, nil
 }
 
 func (h *appConfigSvc) EditConfig(_ context.Context) error {

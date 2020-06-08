@@ -7,6 +7,7 @@ import (
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/comports"
+	"github.com/fpawel/comm"
 	"github.com/powerman/structlog"
 	"sync"
 	"sync/atomic"
@@ -42,13 +43,13 @@ func RunWork(log *structlog.Logger, ctx context.Context, workName string, work W
 
 func RunTask(log *structlog.Logger, what string, task func() error) {
 	go func() {
-		_ = PerformNewNamedWork(log, context.Background(), what, func(*structlog.Logger, context.Context) error {
+		_ = Perform(log, context.Background(), what, func(*structlog.Logger, context.Context) error {
 			return task()
 		})
 	}()
 }
 
-func PerformNewNamedWork(log *structlog.Logger, ctx context.Context, newWorkName string, work WorkFunc) error {
+func Perform(log *structlog.Logger, ctx context.Context, newWorkName string, work WorkFunc) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
@@ -114,7 +115,7 @@ func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, n
 
 	s1 := fmt.Sprintf("задержка: %s %s", name, duration)
 
-	err := PerformNewNamedWork(log, ctx, s1, func(log *structlog.Logger, ctx context.Context) error {
+	err := Perform(log, ctx, s1, func(log *structlog.Logger, ctx context.Context) error {
 		log.Info("delay: begin")
 		go gui.NotifyBeginDelay(duration, s1)
 		defer func() {
@@ -148,6 +149,26 @@ func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, n
 	return err
 }
 
+func IgnoreError() {
+	ignoreError()
+}
+
+func WithWarn(log comm.Logger, ctx context.Context, err error) error {
+	if err == nil || merry.Is(err, context.Canceled) {
+		return err
+	}
+	var ctxIgnoreError context.Context
+	ctxIgnoreError, ignoreError = context.WithCancel(ctx)
+	NotifyWorkSuspended(err)
+	<-ctxIgnoreError.Done()
+	ignoreError()
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	NotifyWarn(log, "ошибка проигнорирована")
+	return nil
+}
+
 func performWork(log *structlog.Logger, ctx context.Context, workName string, work WorkFunc) {
 	go gui.NotifyStartWork()
 
@@ -155,7 +176,7 @@ func performWork(log *structlog.Logger, ctx context.Context, workName string, wo
 	namedWorksStack = nil
 	muNamedWorksStack.Unlock()
 
-	_ = PerformNewNamedWork(log, ctx, workName, work)
+	_ = Perform(log, ctx, workName, work)
 
 	interrupt()
 	atomic.StoreInt32(&atomicConnected, 0)
@@ -171,6 +192,8 @@ func currentWorkLevel() int {
 }
 
 var (
+	ignoreError = func() {}
+
 	atomicConnected   int32
 	interrupt         = func() {}
 	wg                sync.WaitGroup

@@ -9,7 +9,6 @@ import (
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/hardware"
-	"github.com/fpawel/atool/internal/pkg/intrng"
 	"github.com/fpawel/atool/internal/pkg/numeth"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/atool/internal/workgui"
@@ -29,7 +28,6 @@ import (
 type Import struct {
 	ParamValues       []*apitypes.ConfigParamValue
 	SelectedWorksChan chan []bool
-	IgnoreError       func()
 	l                 *lua.LState
 	log               comm.Logger
 }
@@ -37,7 +35,6 @@ type Import struct {
 func NewImport(log comm.Logger, luaState *lua.LState) *Import {
 	return &Import{
 		SelectedWorksChan: make(chan []bool),
-		IgnoreError:       func() {},
 		l:                 luaState,
 		log:               log,
 	}
@@ -110,60 +107,37 @@ func (x *Import) InterpolationCoefficients(a *lua.LTable) lua.LValue {
 }
 
 func (x *Import) Temperature(destinationTemperature float64) {
-	x.NewWork(fmt.Sprintf("перевод термокамеры на %v⁰C", destinationTemperature), func() {
-		x.withGuiWarn(hardware.TemperatureSetup(x.log, x.l.Context(), destinationTemperature))
-	})
-	x.delay(config.Get().Temperature.HoldDuration,
-		fmt.Sprintf("выдержка на температуре %v⁰C", destinationTemperature))
+	x.check(hardware.GuiWarn{}.HoldTemperature(x.log, x.l.Context(), destinationTemperature))
 }
 
 func (x *Import) TemperatureStart() {
-	x.withGuiWarn(hardware.TemperatureStart(x.log, x.l.Context()))
+	x.check(hardware.TemperatureStart(x.log, x.l.Context()))
 }
 
 func (x *Import) TemperatureStop() {
-	x.withGuiWarn(hardware.TemperatureStop(x.log, x.l.Context()))
+	x.check(hardware.TemperatureStop(x.log, x.l.Context()))
 }
 
 func (x *Import) TemperatureSetup(temperature float64) {
-	x.newNestedWork1(fmt.Sprintf("перевод термокамеры на %v⁰C", temperature),
+	x.perform1(fmt.Sprintf("перевод термокамеры на %v⁰C", temperature),
 		func() error {
 			return hardware.TemperatureSetup(x.log, x.l.Context(), temperature)
 		})
 }
 
-func (x *Import) SwitchGas(gas byte, warn bool) {
-
-	err := hardware.SwitchGas(x.log, x.l.Context(), gas)
-	if err == nil {
-		return
-	}
-	what := fmt.Sprintf("подать газ %d", gas)
-	if gas == 0 {
-		what = "отключить газ"
-	}
-	err = merry.New(what).WithCause(err)
-	if warn {
-		x.withGuiWarn(err)
-		return
-	}
-	x.check(err)
+func (x *Import) SwitchGas(gas byte) {
+	x.check(hardware.SwitchGas(x.log, x.l.Context(), gas))
 }
 
 func (x *Import) BlowGas(gas byte) {
-	x.newNestedWork1(fmt.Sprintf("продуть газ %d", gas),
-		func() error {
-			x.SwitchGas(gas, true)
-			x.delay(config.Get().Gas.BlowDuration, fmt.Sprintf("продуть газ %d", gas))
-			return nil
-		})
+	x.check(hardware.GuiWarn{}.BlowGas(x.log, x.l.Context(), gas))
 }
 
 func (x *Import) ReadAndSaveProductParam(reg modbus.Var, format modbus.FloatBitsFormat, dbKey string) {
 	if err := format.Validate(); err != nil {
 		x.l.ArgError(2, err.Error())
 	}
-	x.newWork(fmt.Sprintf("📤 считать регистр %d 💾 сохранить %s %v", reg, dbKey, format),
+	x.perform(fmt.Sprintf("📤 считать регистр %d 💾 сохранить %s %v", reg, dbKey, format),
 		func(log *structlog.Logger, ctx context.Context) error {
 			return workparty.ReadAndSaveProductParam(x.log, ctx, reg, format, dbKey)
 		})
@@ -194,11 +168,11 @@ func (x *Import) ParamsDialog(arg *lua.LTable) *lua.LTable {
 	x.ParamValues = nil
 
 	arg.ForEach(func(kx lua.LValue, vx lua.LValue) {
-		var c apitypes.ConfigParamValue
-		if err := setConfigParamFromLuaValue(kx, vx, &c); err != nil {
+		c, err := newConfigParamValue(kx, vx)
+		if err != nil {
 			x.l.RaiseError("%v:%v: %s", kx, vx, err)
 		}
-		x.ParamValues = append(x.ParamValues, &c)
+		x.ParamValues = append(x.ParamValues, c)
 	})
 	sort.Slice(x.ParamValues, func(i, j int) bool {
 		return x.ParamValues[i].Name < x.ParamValues[j].Name
@@ -233,40 +207,34 @@ func (x *Import) Err(s lua.LValue) {
 	workgui.NotifyErr(x.log, merry.New(stringify(s)))
 }
 
-func (x *Import) SelectWorksDialog(arg *lua.LTable) {
+type NamedWork struct {
+	Name string
+	Func *lua.LFunction
+}
 
-	var (
-		functions []func() error
-		names     []string
-	)
-	arg.ForEach(func(n lua.LValue, arg lua.LValue) {
-		if _, ok := n.(lua.LNumber); !ok {
-			x.l.RaiseError("type error: %v: %v: key must be an integer index", n, arg)
-		}
-		w, ok := arg.(*lua.LTable)
-		if !ok {
-			x.l.RaiseError("type error: %v: %v: value must be a tuple of string and function", n, arg)
-		}
-		if w.Len() != 2 {
-			x.l.RaiseError("type error: %v: %v: w.Len() != 2", n, arg)
-		}
-		what, ok := w.RawGetInt(1).(lua.LString)
-		if !ok {
-			x.l.RaiseError("type error: %v: %v: w.RawGetInt(1).(lua.LString)", n, arg)
-		}
-		Func, ok := w.RawGetInt(2).(*lua.LFunction)
-		if !ok {
-			x.l.RaiseError("type error: %v: %v: w.RawGetInt(2).(lua.LFunction)", n, arg)
-		}
-		names = append(names, string(what))
-		functions = append(functions, func() error {
+func (x *Import) Work(name string, Func *lua.LFunction) NamedWork {
+	return NamedWork{
+		Name: name,
+		Func: Func,
+	}
+}
+
+func (x *Import) PerformWorks(works []NamedWork) {
+	for _, work := range works {
+		x.perform1(work.Name, func() error {
 			return x.l.CallByParam(lua.P{
-				Fn:      Func,
+				Fn:      work.Func,
 				Protect: true,
 			})
 		})
-	})
+	}
+}
 
+func (x *Import) SelectWorksDialog(args []NamedWork) (selectedWorks []NamedWork) {
+	var names = make([]string, len(args))
+	for i := range args {
+		names[i] = args[i].Name
+	}
 	go gui.NotifyLuaSelectWorks(names)
 
 	select {
@@ -274,18 +242,18 @@ func (x *Import) SelectWorksDialog(arg *lua.LTable) {
 		return
 	case luaSelectedWorks := <-x.SelectedWorksChan:
 		for i, f := range luaSelectedWorks {
-			if !f {
-				continue
+			if f {
+				selectedWorks = append(selectedWorks, args[i])
 			}
-			x.newNestedWork1(names[i], functions[i])
 		}
 	}
+	return
 }
 
-func (x *Import) NewWorkEachProduct(name string, Func func(p *luaProduct)) {
-	x.newWork(name, func(comm.Logger, context.Context) error {
-		x.ForEachProduct(func(product *luaProduct) {
-			product.NewWork(fmt.Sprintf("%s: %s", product.p, name), func() {
+func (x *Import) PerformEachSelectedProduct(name string, Func func(p *luaProduct)) {
+	x.perform(name, func(comm.Logger, context.Context) error {
+		x.ForEachSelectedProduct(func(product *luaProduct) {
+			product.Perform(fmt.Sprintf("%s: %s", product.p, name), func() {
 				Func(product)
 			})
 		})
@@ -293,19 +261,11 @@ func (x *Import) NewWorkEachProduct(name string, Func func(p *luaProduct)) {
 	})
 }
 
-func (x *Import) NewWork(name string, Func func()) {
-	x.newWork(name, func(comm.Logger, context.Context) error {
+func (x *Import) Perform(name string, Func func()) {
+	x.perform(name, func(comm.Logger, context.Context) error {
 		Func()
 		return nil
 	})
-}
-
-func formatCoefficients(ks map[int]int) string {
-	var coefficients []int
-	for _, k := range ks {
-		coefficients = append(coefficients, k)
-	}
-	return fmt.Sprintf("запись коэффициентов %v", intrng.IntRanges(coefficients))
 }
 
 func (x *Import) WriteCoefficients(ks map[int]int, format modbus.FloatBitsFormat) {
@@ -320,12 +280,12 @@ func (x *Import) ReadAndSaveParam(param modbus.Var, format modbus.FloatBitsForma
 	x.check(workparty.ReadAndSaveProductParam(x.log, x.l.Context(), param, format, dbKey))
 }
 
-func (x *Import) newWork(name string, Func workgui.WorkFunc) {
-	x.check(workgui.PerformNewNamedWork(x.log, x.l.Context(), name, Func))
+func (x *Import) perform(name string, Func workgui.WorkFunc) {
+	x.check(workgui.Perform(x.log, x.l.Context(), name, Func))
 }
 
-func (x *Import) newNestedWork1(name string, Func func() error) {
-	x.newWork(name, func(comm.Logger, context.Context) error {
+func (x *Import) perform1(name string, Func func() error) {
+	x.perform(name, func(comm.Logger, context.Context) error {
 		return Func()
 	})
 }
@@ -346,19 +306,9 @@ func (x *Import) check(err error) {
 	check(x.l, err)
 }
 
-func (x *Import) withGuiWarn(err error) {
-	if err == nil {
-		return
-	}
-	var ctxIgnoreError context.Context
-	ctxIgnoreError, x.IgnoreError = context.WithCancel(x.l.Context())
-	workgui.NotifyWorkSuspended(err)
-	<-ctxIgnoreError.Done()
-	x.IgnoreError()
-	if x.l.Context().Err() == nil {
-		workgui.NotifyWarn(x.log, "ошибка проигнорирована")
-	}
-}
+//func (x *Import) withGuiWarn(err error) {
+//	x.check( workgui.WithWarn(x.log, x.l.Context(), err) )
+//}
 
 func (x *Import) getProducts(selectedOnly bool) (Products []*luaProduct) {
 

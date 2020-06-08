@@ -66,6 +66,7 @@ func ReadJournal() (result []JournalRecord) {
 		must.PanicIf(err)
 		result = append(xs, result...)
 		if len(result) > 1000 {
+			result = result[:1000]
 			break
 		}
 	}
@@ -165,6 +166,5 @@ func listDays() []time.Time {
 }
 
 const (
-	layoutTime = "15:04:05"
 	layoutDate = "2006-01-02"
 )

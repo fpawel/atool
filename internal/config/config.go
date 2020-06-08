@@ -114,9 +114,6 @@ func (c *Config) validate() {
 
 	for d := range c.Hardware {
 		dv := c.Hardware[d]
-		if len(dv.PartyParams) == 0 {
-			dv.PartyParams = defaultPartyParams()
-		}
 
 		if len(dv.Coefficients) == 0 {
 			dv.Coefficients = []devicecfg.Coefficients{

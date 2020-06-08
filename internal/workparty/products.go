@@ -87,7 +87,7 @@ func ProcessEachActiveProduct(log comm.Logger, errs ErrorsOccurred, work func(Pr
 }
 
 func PerformWorkActiveEachProduct(log *structlog.Logger, ctx context.Context, name string, work func(Product) error) error {
-	return workgui.PerformNewNamedWork(log, ctx, name, func(log *structlog.Logger, ctx context.Context) error {
+	return workgui.Perform(log, ctx, name, func(log *structlog.Logger, ctx context.Context) error {
 		return ProcessEachActiveProduct(log, nil, work)
 	})
 }

@@ -47,13 +47,6 @@ var Device = devdata.Device{
 				Count:     1,
 			},
 		},
-		PartyParams: devicecfg.PartyParams{
-			"c1":            "ПГС1",
-			"c2":            "ПГС2",
-			"c3":            "ПГС3",
-			"c4":            "ПГС4",
-			"linear_degree": "Степень линеаризации",
-		},
 		Coefficients: []devicecfg.Coefficients{
 			{
 				Range:  [2]int{0, 50},
@@ -67,6 +60,25 @@ var Device = devdata.Device{
 			12: "Work",
 			14: "Ref",
 			16: "Var16",
+		},
+	},
+
+	PartyParams: []devdata.PartyParam{
+		{
+			Key:  "c1",
+			Name: "ПГС1",
+		},
+		{
+			Key:  "c2",
+			Name: "ПГС2",
+		},
+		{
+			Key:  "c3",
+			Name: "ПГС3",
+		},
+		{
+			Key:  "c4",
+			Name: "ПГС5",
 		},
 	},
 }

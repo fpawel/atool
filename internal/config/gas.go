@@ -8,13 +8,13 @@ import (
 )
 
 type Gas struct {
-	Type               gas.DevType   `yaml:"type"`
-	Addr               modbus.Addr   `yaml:"addr"`
-	Comport            string        `yaml:"comport"`
-	TimeoutGetResponse time.Duration `yaml:"timeout_get_response"` // таймаут получения ответа
-	TimeoutEndResponse time.Duration `yaml:"timeout_end_response"` // таймаут окончания ответа
-	MaxAttemptsRead    int           `yaml:"max_attempts_read"`    //число попыток получения ответа
-	BlowDuration       time.Duration `yaml:"blow_duration"`
+	Type               gas.DevType      `yaml:"type"`
+	Addr               modbus.Addr      `yaml:"addr"`
+	Comport            string           `yaml:"comport"`
+	TimeoutGetResponse time.Duration    `yaml:"timeout_get_response"` // таймаут получения ответа
+	TimeoutEndResponse time.Duration    `yaml:"timeout_end_response"` // таймаут окончания ответа
+	MaxAttemptsRead    int              `yaml:"max_attempts_read"`    //число попыток получения ответа
+	BlowDuration       [6]time.Duration `yaml:"blow_duration"`
 }
 
 func (c Gas) Validate() error {

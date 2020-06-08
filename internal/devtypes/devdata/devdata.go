@@ -16,9 +16,8 @@ type Device struct {
 }
 
 type PartyParam struct {
-	Key, Name, Type string
-
-	List []string
+	Key, Name  string
+	ValuesList []string
 }
 
 type DataSections []DataSection

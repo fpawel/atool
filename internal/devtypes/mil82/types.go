@@ -1,6 +1,6 @@
 package mil82
 
-type ProductType struct {
+type productType struct {
 	Name  string
 	Gas   string
 	Scale float64
@@ -8,7 +8,7 @@ type ProductType struct {
 }
 
 var (
-	prodTypesList = []ProductType{
+	prodTypesList = []productType{
 		{
 			Name:  "00.00",
 			Gas:   "CO2",
@@ -126,11 +126,11 @@ var (
 		},
 	}
 
-	prodTypes, prodTypeNames = InitProductTypes(prodTypesList)
+	prodTypes, prodTypeNames = initProductTypes(prodTypesList)
 )
 
-func InitProductTypes(prodTypesList []ProductType) (m map[string]ProductType, xs []string) {
-	m = map[string]ProductType{}
+func initProductTypes(prodTypesList []productType) (m map[string]productType, xs []string) {
+	m = map[string]productType{}
 	for i := range prodTypesList {
 		t := &prodTypesList[i]
 		t.Index = i + 1
