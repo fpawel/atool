@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/hardware"
 	"github.com/fpawel/atool/internal/pkg/numeth"
-	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/atool/internal/workparty"
 	"github.com/fpawel/comm"
@@ -26,17 +24,30 @@ import (
 )
 
 type Import struct {
-	ParamValues       []*apitypes.ConfigParamValue
-	SelectedWorksChan chan []bool
-	l                 *lua.LState
-	log               comm.Logger
+	l   *lua.LState
+	log comm.Logger
 }
 
 func NewImport(log comm.Logger, luaState *lua.LState) *Import {
 	return &Import{
-		SelectedWorksChan: make(chan []bool),
-		l:                 luaState,
-		log:               log,
+		l:   luaState,
+		log: log,
+	}
+}
+
+func (x *Import) Work(name string, Func func()) NamedWork {
+	return NamedWork{
+		Name: name,
+		Func: Func,
+	}
+}
+
+func (x *Import) WorkEachSelectedProduct(name string, Func func(*luaProduct)) NamedWork {
+	return NamedWork{
+		Name: name,
+		Func: func() {
+			x.ForEachSelectedProduct(Func)
+		},
 	}
 }
 
@@ -119,7 +130,7 @@ func (x *Import) TemperatureStop() {
 }
 
 func (x *Import) TemperatureSetup(temperature float64) {
-	x.perform1(fmt.Sprintf("перевод термокамеры на %v⁰C", temperature),
+	x.performContext(fmt.Sprintf("перевод термокамеры на %v⁰C", temperature),
 		func() error {
 			return hardware.TemperatureSetup(x.log, x.l.Context(), temperature)
 		})
@@ -163,25 +174,49 @@ func (x *Import) Delay(strDuration string, what string) {
 	x.delay(duration, what)
 }
 
+func (x *Import) SelectWorksDialog(args []NamedWork) (selectedWorks []NamedWork) {
+	var names = make([]string, len(args))
+	for i := range args {
+		names[i] = args[i].Name
+	}
+
+	go gui.NotifyLuaSelectWorks(names)
+
+	select {
+	case <-x.l.Context().Done():
+		return
+	case xs := <-workgui.ChanSelectedWorks:
+		for i, f := range xs {
+			if f {
+				selectedWorks = append(selectedWorks, NamedWork{
+					Name: args[i].Name,
+					Func: args[i].Func,
+				})
+			}
+		}
+	}
+	return
+}
+
 func (x *Import) ParamsDialog(arg *lua.LTable) *lua.LTable {
 
-	x.ParamValues = nil
+	workgui.ConfigParamValues = nil
 
 	arg.ForEach(func(kx lua.LValue, vx lua.LValue) {
 		c, err := newConfigParamValue(kx, vx)
 		if err != nil {
 			x.l.RaiseError("%v:%v: %s", kx, vx, err)
 		}
-		x.ParamValues = append(x.ParamValues, c)
+		workgui.ConfigParamValues = append(workgui.ConfigParamValues, c)
 	})
-	sort.Slice(x.ParamValues, func(i, j int) bool {
-		return x.ParamValues[i].Name < x.ParamValues[j].Name
+	sort.Slice(workgui.ConfigParamValues, func(i, j int) bool {
+		return workgui.ConfigParamValues[i].Name < workgui.ConfigParamValues[j].Name
 	})
 
-	gui.RequestLuaParams()
+	gui.RequestConfigParamValues()
 
-	for _, a := range x.ParamValues {
-		value, err := getLuaValueFromConfigParam(a)
+	for _, a := range workgui.ConfigParamValues {
+		value, err := configParamValue{a}.getLuaValue()
 		if err != nil {
 			x.l.RaiseError("%+v: %s", a, err)
 		}
@@ -209,45 +244,16 @@ func (x *Import) Err(s lua.LValue) {
 
 type NamedWork struct {
 	Name string
-	Func *lua.LFunction
-}
-
-func (x *Import) Work(name string, Func *lua.LFunction) NamedWork {
-	return NamedWork{
-		Name: name,
-		Func: Func,
-	}
+	Func func()
 }
 
 func (x *Import) PerformWorks(works []NamedWork) {
 	for _, work := range works {
-		x.perform1(work.Name, func() error {
-			return x.l.CallByParam(lua.P{
-				Fn:      work.Func,
-				Protect: true,
-			})
+		x.performContext(work.Name, func() error {
+			work.Func()
+			return nil
 		})
 	}
-}
-
-func (x *Import) SelectWorksDialog(args []NamedWork) (selectedWorks []NamedWork) {
-	var names = make([]string, len(args))
-	for i := range args {
-		names[i] = args[i].Name
-	}
-	go gui.NotifyLuaSelectWorks(names)
-
-	select {
-	case <-x.l.Context().Done():
-		return
-	case luaSelectedWorks := <-x.SelectedWorksChan:
-		for i, f := range luaSelectedWorks {
-			if f {
-				selectedWorks = append(selectedWorks, args[i])
-			}
-		}
-	}
-	return
 }
 
 func (x *Import) PerformEachSelectedProduct(name string, Func func(p *luaProduct)) {
@@ -284,7 +290,7 @@ func (x *Import) perform(name string, Func workgui.WorkFunc) {
 	x.check(workgui.Perform(x.log, x.l.Context(), name, Func))
 }
 
-func (x *Import) perform1(name string, Func func() error) {
+func (x *Import) performContext(name string, Func func() error) {
 	x.perform(name, func(comm.Logger, context.Context) error {
 		return Func()
 	})
@@ -315,7 +321,7 @@ func (x *Import) getProducts(selectedOnly bool) (Products []*luaProduct) {
 	party, err := data.GetCurrentParty()
 	x.check(err)
 
-	device, err := config.Get().Hardware.GetDevice(party.DeviceType)
+	device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
 	x.check(err)
 
 	for _, p := range party.Products {

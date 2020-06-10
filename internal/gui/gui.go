@@ -37,7 +37,7 @@ const (
 	wmuCurrentPartyChanged = win.WM_USER + 1 + iota
 	wmuStartWork
 	wmuStopWork
-	wmuRequestConfigParams
+	wmuRequestConfigParamValues
 )
 
 func NotifyProgressShow(max int, what string) bool {
@@ -52,8 +52,8 @@ func NotifyProgress(value int, what string) bool {
 	return copyData().SendJson(MsgProgress, ProgressInfo{Cmd: ProgressProgress, Progress: value, What: what})
 }
 
-func RequestLuaParams() {
-	sendMessage(wmuRequestConfigParams, 0, 0)
+func RequestConfigParamValues() {
+	sendMessage(wmuRequestConfigParamValues, 0, 0)
 }
 
 func NotifyLuaSelectWorks(works []string) bool {

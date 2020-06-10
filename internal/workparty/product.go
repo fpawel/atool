@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
@@ -72,7 +72,7 @@ func (x Product) WriteKef(log comm.Logger, ctx context.Context, kef modbus.Var, 
 			Coefficient: int(kef),
 		}
 		if err == nil {
-			kv.Result = config.Get().FormatFloat(value)
+			kv.Result = appcfg.Cfg.FormatFloat(value)
 			kv.Ok = true
 		} else {
 			kv.Result = err.Error()
@@ -101,7 +101,7 @@ func (x Product) ReadKef(log comm.Logger, ctx context.Context, k modbus.Var, for
 		}
 
 		i.Ok = true
-		i.Result = config.Get().FormatFloat(value)
+		i.Result = appcfg.Cfg.FormatFloat(value)
 
 		go gui.NotifyCoefficient(i)
 
@@ -131,7 +131,7 @@ func (x Product) readAllCoefficients(log comm.Logger, ctx context.Context) error
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			if _, f := config.Get().InactiveCoefficients[kef]; f {
+			if _, f := appcfg.Cfg.InactiveCoefficients[kef]; f {
 				continue
 			}
 
@@ -216,7 +216,7 @@ func (r productParamsReader) processParamValueRead(p devicecfg.Params, i int, ms
 		ParamAddr: p.ParamAddr + 2*i,
 	}
 	if v, err := p.Format.ParseFloat(d); err == nil {
-		ct.Value = config.Get().FormatFloat(v)
+		ct.Value = appcfg.Cfg.FormatFloat(v)
 		if !math.IsNaN(v) {
 			ms.Add(r.ProductID, p.ParamAddr+2*i, v)
 		}

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg"
@@ -64,7 +64,7 @@ func (h *currentFileSvc) ListDeviceParams(_ context.Context) ([]*apitypes.Device
 		return nil, err
 	}
 
-	device, _ := config.Get().Hardware.GetDevice(party.DeviceType)
+	device, _ := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
 
 	r := make([]*apitypes.DeviceParam, 0)
 	for _, x := range device.ParamAddresses() {
@@ -144,7 +144,7 @@ func processCurrentPartyChart() {
 		return
 	}
 
-	cfg := config.Get().Hardware
+	cfg := appcfg.Cfg.Hardware
 
 	paramsAddresses := cfg.GetDeviceParamAddresses(party.DeviceType)
 

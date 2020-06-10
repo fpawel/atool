@@ -63,8 +63,8 @@ func (h *fileSvc) GetProductsValues(_ context.Context, partyID int64, filterSeri
 	}
 
 	var concentrationErrorSections devdata.CalcSections
-	if device.GetCalcSectionsFunc != nil {
-		if err := device.GetCalcSectionsFunc(party, &concentrationErrorSections); err != nil {
+	if device.Calc != nil {
+		if err := device.Calc(party, &concentrationErrorSections); err != nil {
 			result.CalcError = err.Error()
 		} else {
 			result.Calc = concentrationErrorSections

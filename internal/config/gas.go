@@ -22,7 +22,7 @@ func (c Gas) Validate() error {
 		gas.Mil82:   {},
 		gas.Lab73CO: {},
 	}[c.Type]; !f {
-		return merry.Errorf("не правильный тип газового блока: %d", c.Type)
+		return merry.Errorf("не правильный тип газового блока: %q", c.Type)
 	}
 	return nil
 }

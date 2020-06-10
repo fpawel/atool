@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/hardware"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/workgui"
@@ -44,7 +44,7 @@ func (tempDeviceSvc) CoolingOn(context.Context) error {
 		d, f := dd.(ktx500.Client)
 		if !f {
 			return merry.Errorf("заданный тип термокамеры %q не поддерживает управление охлаждением",
-				config.Get().Temperature.Type)
+				appcfg.Cfg.Temperature.Type)
 		}
 		return d.CoolingOn(log, context.Background())
 	})
@@ -59,7 +59,7 @@ func (tempDeviceSvc) CoolingOff(context.Context) error {
 		c, f := d.(ktx500.Client)
 		if !f {
 			return merry.Errorf("заданный тип термокамеры %q не поддерживает управление охлаждением",
-				config.Get().Temperature.Type)
+				appcfg.Cfg.Temperature.Type)
 		}
 		return c.CoolingOff(log, context.Background())
 	})

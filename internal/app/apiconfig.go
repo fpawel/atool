@@ -2,20 +2,18 @@ package app
 
 import (
 	"context"
+	"errors"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/devtypes"
 	"github.com/fpawel/atool/internal/gui"
-	"github.com/fpawel/atool/internal/pkg/must"
 	"github.com/fpawel/atool/internal/pkg/winapi"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/atool/internal/workgui"
-	"io/ioutil"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -25,7 +23,7 @@ type appConfigSvc struct{}
 var _ api.AppConfigService = new(appConfigSvc)
 
 func (h *appConfigSvc) ListDevices(_ context.Context) ([]string, error) {
-	return config.Get().Hardware.ListDevices(), nil
+	return appcfg.Cfg.Hardware.DeviceNames(), nil
 }
 
 func (h *appConfigSvc) ListProductTypes(_ context.Context) ([]string, error) {
@@ -38,12 +36,11 @@ func (h *appConfigSvc) ListProductTypes(_ context.Context) ([]string, error) {
 }
 
 func (h *appConfigSvc) EditConfig(_ context.Context) error {
-
-	filename := filepath.Join(tmpDir, "config.yaml")
-
-	if err := ioutil.WriteFile(filename, must.MarshalYaml(config.Get()), 0644); err != nil {
+	if err := appcfg.Cfg.Save(); err != nil {
 		return err
 	}
+
+	filename := config.Filename()
 	cmd := exec.Command("./npp/notepad++.exe", filename)
 	if err := cmd.Start(); err != nil {
 		return err
@@ -54,17 +51,15 @@ func (h *appConfigSvc) EditConfig(_ context.Context) error {
 		if err := cmd.Wait(); err != nil {
 			return err
 		}
-		b, err := ioutil.ReadFile(filename)
-		if err != nil {
-			return err
+		if workgui.IsConnected() {
+			return errors.New("нельзя менять конфигурации при выполнении настройки")
 		}
-		return config.SetYaml(b)
+		return appcfg.Cfg.Load()
 	}
 
 	go func() {
 		if err := applyConfig(); err != nil {
-			log.PrintErr(err)
-			workgui.NotifyErr(log, merry.Append(err, "Ошибка при сохранении конфигурации"))
+			workgui.NotifyErr(log, merry.Prepend(err, "не удалось сохранить конфигурацию"))
 			return
 		}
 		gui.NotifyCurrentPartyChanged()
@@ -85,12 +80,15 @@ func (h *appConfigSvc) SetParamValue(_ context.Context, key string, value string
 		return merry.Appendf(err, "%q = %q", key, value)
 	}
 
+	if workgui.IsConnected() {
+		return wrapErr(merry.New("нельзя менять конфигурации при выполнении настройки"))
+	}
+
 	if v, f := appcfg.Params[key]; f {
-		c := config.Get()
-		if err := v.Set(&c, value); err != nil {
+		if err := v.Set(value); err != nil {
 			return wrapErr(err)
 		}
-		return wrapErr(config.Set(c))
+		return nil
 	}
 
 	switch key {

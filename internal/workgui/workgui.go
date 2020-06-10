@@ -14,8 +14,6 @@ import (
 	"time"
 )
 
-type WorkFunc = func(*structlog.Logger, context.Context) error
-
 type DelayBackgroundWorkFunc func(*structlog.Logger, context.Context) error
 
 func IsConnected() bool {
@@ -37,7 +35,7 @@ func RunWork(log *structlog.Logger, ctx context.Context, workName string, work W
 	wg.Add(1)
 	atomic.StoreInt32(&atomicConnected, 1)
 	ctx, interrupt = context.WithCancel(ctx)
-	go performWork(log, ctx, workName, work)
+	go runWork(log, ctx, workName, work)
 	return nil
 }
 
@@ -169,7 +167,7 @@ func WithWarn(log comm.Logger, ctx context.Context, err error) error {
 	return nil
 }
 
-func performWork(log *structlog.Logger, ctx context.Context, workName string, work WorkFunc) {
+func runWork(log *structlog.Logger, ctx context.Context, workName string, work WorkFunc) {
 	go gui.NotifyStartWork()
 
 	muNamedWorksStack.Lock()

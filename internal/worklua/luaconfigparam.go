@@ -2,7 +2,7 @@ package worklua
 
 import (
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/yuin/gluamapper"
 	lua "github.com/yuin/gopher-lua"
@@ -18,7 +18,11 @@ type luaConfigParam struct {
 	Value interface{}
 }
 
-func getLuaValueFromConfigParam(a *apitypes.ConfigParamValue) (lua.LValue, error) {
+type configParamValue struct {
+	*apitypes.ConfigParamValue
+}
+
+func (a configParamValue) getLuaValue() (lua.LValue, error) {
 	switch a.Type {
 	case "float":
 		v, err := parseFloat(a.Value)
@@ -78,7 +82,7 @@ func newConfigParamValue(kx, vx lua.LValue) (*apitypes.ConfigParamValue, error) 
 
 	switch v := c.Value.(type) {
 	case float64:
-		a.Value = config.Get().FormatFloat(v)
+		a.Value = appcfg.Cfg.FormatFloat(v)
 		if len(a.Type) == 0 {
 			a.Type = "float"
 		}

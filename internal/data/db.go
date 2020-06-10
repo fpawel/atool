@@ -91,6 +91,22 @@ func SetCurrentPartyValues(p PartyValues) error {
 	return nil
 }
 
+func GetPartyValues1(partyID int64) (map[string]float64, error) {
+	xs := make(map[string]float64)
+	var values []struct {
+		Key   string  `db:"key"`
+		Value float64 `db:"value"`
+	}
+	if err := DB.Select(&values, `SELECT key, value FROM party_value WHERE party_id=?`, partyID); err != nil {
+		return nil, err
+	}
+
+	for _, x := range values {
+		xs[x.Key] = x.Value
+	}
+	return xs, nil
+}
+
 func GetPartyValues(partyID int64, party *PartyValues, filterSerial int64) error {
 
 	err := DB.Get(party, `SELECT * FROM party WHERE party_id=?`, partyID)
@@ -98,18 +114,9 @@ func GetPartyValues(partyID int64, party *PartyValues, filterSerial int64) error
 		return err
 	}
 
-	party.Values = make(map[string]float64)
-	var values []struct {
-		Key   string  `db:"key"`
-		Value float64 `db:"value"`
-	}
-
-	if err := DB.Select(&values, `SELECT key, value FROM party_value WHERE party_id=?`, partyID); err != nil {
+	party.Values, err = GetPartyValues1(partyID)
+	if err != nil {
 		return err
-	}
-
-	for _, x := range values {
-		party.Values[x.Key] = x.Value
 	}
 
 	const (

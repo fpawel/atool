@@ -3,7 +3,7 @@ package app
 import (
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
@@ -21,7 +21,7 @@ func getCurrentPartyDeviceConfig() (devicecfg.Device, error) {
 	if err != nil {
 		return devicecfg.Device{}, err
 	}
-	return config.Get().Hardware.GetDevice(party.DeviceType)
+	return appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
 }
 
 func formatBytes(xs []byte) string {

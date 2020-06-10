@@ -2,7 +2,7 @@ package app
 
 import (
 	"context"
-	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
@@ -27,9 +27,8 @@ func (*coefficientsSvc) ReadAll(context.Context) error {
 func (h *coefficientsSvc) ListCoefficients(_ context.Context) (r []*apitypes.Coefficient, err error) {
 	r = []*apitypes.Coefficient{}
 	d, _ := getCurrentPartyDeviceConfig()
-	cfg := config.Get()
 	for _, i := range d.ListCoefficients() {
-		_, inactive := cfg.InactiveCoefficients[i]
+		_, inactive := appcfg.Cfg.InactiveCoefficients[i]
 		r = append(r, &apitypes.Coefficient{
 			N:      int32(i),
 			Active: !inactive,
@@ -39,13 +38,12 @@ func (h *coefficientsSvc) ListCoefficients(_ context.Context) (r []*apitypes.Coe
 }
 
 func (h *coefficientsSvc) SetActive(_ context.Context, n int32, active bool) (err error) {
-	c := config.Get()
 	if active {
-		delete(c.InactiveCoefficients, int(n))
+		delete(appcfg.Cfg.InactiveCoefficients, int(n))
 	} else {
-		c.InactiveCoefficients[int(n)] = struct{}{}
+		appcfg.Cfg.InactiveCoefficients[int(n)] = struct{}{}
 	}
-	return config.Set(c)
+	return nil
 }
 
 func (h *coefficientsSvc) GetCurrentPartyCoefficients(_ context.Context) ([]*apitypes.ProductCoefficientValue, error) {

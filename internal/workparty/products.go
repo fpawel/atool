@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
@@ -26,7 +26,7 @@ func ProcessEachActiveProduct(log comm.Logger, errs ErrorsOccurred, work func(Pr
 	if err != nil {
 		return err
 	}
-	device, err := config.Get().Hardware.GetDevice(party.DeviceType)
+	device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
 	if err != nil {
 		return err
 	}
@@ -180,11 +180,9 @@ func writeAllCoefficients(log *structlog.Logger, ctx context.Context, in []*apit
 		return err
 	}
 
-	cfg := config.Get()
-
-	device, f := cfg.Hardware[party.DeviceType]
-	if !f {
-		return merry.Errorf("не заданы параметры устройства %s", party.DeviceType)
+	device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
+	if err != nil {
+		return err
 	}
 
 	noAnswer := map[int64]struct{}{}

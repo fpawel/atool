@@ -68,7 +68,7 @@ func (x *luaProduct) SetKef(k int, LValue lua.LNumber) {
 	x.SetValue(data.KeyCoefficient(k), LValue)
 }
 
-func (x *luaProduct) WriteCoefficientValues(ks map[modbus.Var]float64, format modbus.FloatBitsFormat) {
+func (x *luaProduct) WriteCoefficients(ks map[modbus.Var]float64, format modbus.FloatBitsFormat) {
 	for k, value := range ks {
 		_ = x.p.WriteKef(x.log, x.l.Context(), k, format, value)
 	}

@@ -7,12 +7,13 @@ import (
 )
 
 type Device struct {
-	Name                string
-	DataSections        DataSections
-	GetCalcSectionsFunc func(data.PartyValues, *CalcSections) error
-	ProductTypes        []string
-	Config              devicecfg.Device
-	PartyParams         []PartyParam
+	Name         string
+	DataSections DataSections
+	ProductTypes []string
+	Config       devicecfg.Device
+	PartyParams  []PartyParam
+	Calc         func(data.PartyValues, *CalcSections) error
+	Work         func() error
 }
 
 type PartyParam struct {

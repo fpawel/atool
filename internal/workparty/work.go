@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg/comports"
@@ -104,9 +104,9 @@ func RunSetNetAddr(log comm.Logger, appCtx context.Context, productID int64, not
 		return err
 	}
 
-	device, f := config.Get().Hardware[party.DeviceType]
-	if !f {
-		return merry.Errorf("%s: не заданы параметры типа прибора %s", p, party.DeviceType)
+	device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
+	if err != nil {
+		return err
 	}
 
 	workProduct := Product{
@@ -154,7 +154,7 @@ func RunSearchProducts(log comm.Logger, appCtx context.Context, comportName stri
 		if err != nil {
 			return err
 		}
-		device, err := config.Get().Hardware.GetDevice(party.DeviceType)
+		device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
 		if err != nil {
 			return err
 		}

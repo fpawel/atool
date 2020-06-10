@@ -6,6 +6,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/apache/thrift/lib/go/thrift"
 	"github.com/fpawel/atool/internal"
+	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg/logfile"
@@ -82,6 +83,9 @@ func Main() {
 	log.Debug("закрыть журнал")
 	log.ErrIfFail(workgui.File.Close)
 
+	log.Debug("сохранить конфигурацию")
+	log.ErrIfFail(appcfg.Cfg.Save)
+
 	// записать в лог что всё хорошо
 	log.Debug("all canceled and closed")
 }
@@ -145,6 +149,10 @@ func newApiProcessor() thrift.TProcessor {
 		api.NewScriptServiceProcessor(new(scriptSvc)))
 	p.RegisterProcessor("ProductParamService",
 		api.NewProductParamServiceProcessor(new(prodPrmSvc)))
+
+	p.RegisterProcessor("WorkDialogService",
+		api.NewWorkDialogServiceProcessor(new(workDialogSvc)))
+
 	return p
 }
 

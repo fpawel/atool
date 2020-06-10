@@ -13,6 +13,9 @@ service RunWorkService {
 
 service ScriptService {
     void runFile(1:string filename)
+}
+
+service WorkDialogService {
     void setConfigParamValues (1:list<apitypes.ConfigParamValue> configParamValues)
     list<apitypes.ConfigParamValue> getConfigParamValues ()
     void IgnoreError()

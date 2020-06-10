@@ -66,7 +66,7 @@ func ReadJournal() (result []JournalRecord) {
 		must.PanicIf(err)
 		result = append(xs, result...)
 		if len(result) > 1000 {
-			result = result[:1000]
+			result = result[len(result)-1000:]
 			break
 		}
 	}

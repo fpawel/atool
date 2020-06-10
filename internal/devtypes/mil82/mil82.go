@@ -9,7 +9,7 @@ import (
 
 var Device = devdata.Device{
 
-	GetCalcSectionsFunc: calcSections,
+	Calc: calcSections,
 
 	ProductTypes: prodTypeNames,
 
@@ -81,4 +81,6 @@ var Device = devdata.Device{
 			Name: "ПГС5",
 		},
 	},
+
+	Work: mainWork,
 }

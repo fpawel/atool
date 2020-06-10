@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg/comports"
@@ -134,7 +135,7 @@ func GetCurrentTemperature(log comm.Logger, ctx context.Context) (float64, error
 
 func SwitchGas(log comm.Logger, ctx context.Context, valve byte) error {
 	return workgui.WithNotifyResult(log, fmt.Sprintf("⛏ переключение газового блока %d", valve), func() error {
-		c := config.Get().Gas
+		c := appcfg.Cfg.Gas
 		port := comports.GetComport(c.Comport, 9600)
 		commCfg := comm.Config{
 			TimeoutGetResponse: c.TimeoutGetResponse,
@@ -175,9 +176,9 @@ func CloseHardware(log comm.Logger, ctx context.Context) {
 }
 
 func GetTemperatureDevice() (temp.TemperatureDevice, error) {
-	comports.CloseComport(config.Get().Temperature.Comport)
-	conf := config.Get()
-	confTemp := conf.Temperature
+	comports.CloseComport(appcfg.Cfg.Temperature.Comport)
+
+	confTemp := appcfg.Cfg.Temperature
 	if err := confTemp.Validate(); err != nil {
 		return nil, err
 	}
@@ -192,7 +193,7 @@ func GetTemperatureDevice() (temp.TemperatureDevice, error) {
 			ktx500Client.Close()
 		}
 		var err error
-		ktx500Client, err = conf.Ktx500.NewFinsClient()
+		ktx500Client, err = appcfg.Cfg.Ktx500.NewFinsClient()
 		if err != nil {
 			return nil, err
 		}
@@ -201,7 +202,7 @@ func GetTemperatureDevice() (temp.TemperatureDevice, error) {
 }
 
 func getTemperatureComportReader() comm.T {
-	c := config.Get().Temperature
+	c := appcfg.Cfg.Temperature
 	return comm.New(
 		comports.GetComport(c.Comport, 9600),
 		comm.Config{

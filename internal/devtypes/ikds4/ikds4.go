@@ -10,7 +10,7 @@ import (
 
 var Device = devdata.Device{
 
-	GetCalcSectionsFunc: calcSections,
+	Calc: calcSections,
 
 	ProductTypes: prodTypeNames,
 

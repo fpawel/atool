@@ -1,17 +1,16 @@
-package config
+package devicecfg
 
 import (
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/internal/config/devicecfg"
 	"sort"
 )
 
-type Hardware map[string]devicecfg.Device
+type Hardware map[string]Device
 
-func (xs Hardware) GetDevice(deviceType string) (devicecfg.Device, error) {
+func (xs Hardware) GetDevice(deviceType string) (Device, error) {
 	device, f := xs[deviceType]
 	if !f {
-		return devicecfg.Device{}, merry.Errorf("не заданы параметры устройства %s", deviceType)
+		return Device{}, merry.Errorf("не заданы параметры устройства %s", deviceType)
 	}
 	return device, nil
 }
@@ -29,9 +28,6 @@ func (xs Hardware) GetDeviceParamAddresses(deviceType string) (ps []int) {
 }
 
 func (xs Hardware) Validate() error {
-	if len(xs) == 0 {
-		return merry.New("список устройств не должен быть пустым")
-	}
 	for name, d := range xs {
 		if err := d.Validate(); err != nil {
 			return merry.Prepend(err, name)
@@ -40,9 +36,10 @@ func (xs Hardware) Validate() error {
 	return nil
 }
 
-func (xs Hardware) ListDevices() (r []string) {
+func (xs Hardware) DeviceNames() (r []string) {
 	for name := range xs {
 		r = append(r, name)
 	}
+	sort.Strings(r)
 	return
 }

@@ -3,7 +3,7 @@ package hardware
 import (
 	"context"
 	"fmt"
-	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/atool/internal/workparty"
 	"github.com/fpawel/comm"
@@ -16,7 +16,7 @@ func (_ GuiWarn) HoldTemperature(log comm.Logger, ctx context.Context, destinati
 	if err = workgui.WithWarn(log, ctx, err); err != nil {
 		return err
 	}
-	return workparty.Delay(log, ctx, config.Get().Temperature.HoldDuration,
+	return workparty.Delay(log, ctx, appcfg.Cfg.Temperature.HoldDuration,
 		fmt.Sprintf("выдержка на температуре %v⁰C", destinationTemperature))
 }
 
@@ -29,7 +29,7 @@ func (_ GuiWarn) BlowGas(log comm.Logger, ctx context.Context, gas byte) error {
 		if err := workgui.WithWarn(log, ctx, SwitchGas(log, ctx, gas)); err != nil {
 			return err
 		}
-		c := config.Get().Gas
+		c := appcfg.Cfg.Gas
 		blowDuration := c.BlowDuration[0]
 		if gas-1 < 6 {
 			blowDuration = c.BlowDuration[gas-1]
