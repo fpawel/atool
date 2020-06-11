@@ -8,6 +8,8 @@ import (
 	"github.com/fpawel/atool/internal"
 	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/devtypes/ikds4"
+	"github.com/fpawel/atool/internal/devtypes/mil82"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg/logfile"
 	"github.com/fpawel/atool/internal/pkg/must"
@@ -33,6 +35,9 @@ func Main() {
 		log.PrintErr(merry.Append(err, "os.RemoveAll(tmpDir)"))
 	}
 	defer cleanTmpDir()
+
+	// инициализация конфигурации
+	appcfg.Init(mil82.Device, ikds4.Device)
 
 	// общий контекст приложения с прерыванием
 	var interrupt context.CancelFunc
@@ -184,13 +189,6 @@ func runApiServer() context.CancelFunc {
 	}
 }
 
-var (
-	log            = structlog.New()
-	tmpDir         = filepath.Join(filepath.Dir(os.Args[0]), "tmp")
-	appCtx         context.Context
-	comportLogfile *os.File
-)
-
 func envVarDevModeSet() bool {
 	return os.Getenv(internal.EnvVarDevMode) == "true"
 }
@@ -215,3 +213,10 @@ func cleanTmpDir() {
 		log.PrintErr(merry.Append(err, "os.RemoveAll(tmpDir)"))
 	}
 }
+
+var (
+	log            = structlog.New()
+	tmpDir         = filepath.Join(filepath.Dir(os.Args[0]), "tmp")
+	appCtx         context.Context
+	comportLogfile *os.File
+)

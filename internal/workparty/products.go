@@ -12,7 +12,6 @@ import (
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/pkg/intrng"
-	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
@@ -173,7 +172,15 @@ func getCommProduct(comportName string, device devicecfg.Device) comm.T {
 	return comm.New(comports.GetComport(comportName, device.Baud), device.CommConfig())
 }
 
-func writeAllCoefficients(log *structlog.Logger, ctx context.Context, in []*apitypes.ProductCoefficientValue) error {
+type ProductCoefficientValue struct {
+	ProductID   int64
+	Coefficient modbus.Var
+	Value       float64
+}
+
+func WriteProductsCoefficients(log *structlog.Logger, ctx context.Context,
+	productCoefficientValues []ProductCoefficientValue,
+	handleError func(ProductCoefficientValue, error) error) error {
 
 	party, err := data.GetCurrentParty()
 	if err != nil {
@@ -186,8 +193,7 @@ func writeAllCoefficients(log *structlog.Logger, ctx context.Context, in []*apit
 	}
 
 	noAnswer := map[int64]struct{}{}
-	var errorsOccurred bool
-	for _, x := range in {
+	for _, x := range productCoefficientValues {
 
 		if _, f := noAnswer[x.ProductID]; f {
 			continue
@@ -213,11 +219,15 @@ func writeAllCoefficients(log *structlog.Logger, ctx context.Context, in []*apit
 			Product: product,
 			Device:  device,
 		}
-		if err := p.WriteKef(log, ctx, modbus.Var(x.Coefficient), valFmt, x.Value); err != nil {
+		if err := p.WriteKef(log, ctx, x.Coefficient, valFmt, x.Value); err != nil {
 			if merry.Is(err, context.DeadlineExceeded) {
 				noAnswer[x.ProductID] = struct{}{}
 			}
-			errorsOccurred = true
+			if handleError != nil {
+				if err := handleError(x, err); err != nil {
+					return err
+				}
+			}
 			continue
 		}
 
@@ -225,9 +235,6 @@ func writeAllCoefficients(log *structlog.Logger, ctx context.Context, in []*apit
 		if err := data.SaveProductKefValue(x.ProductID, int(x.Coefficient), x.Value); err != nil {
 			return err
 		}
-	}
-	if errorsOccurred {
-		return merry.New("не все коэффициенты записаны")
 	}
 	return nil
 }

@@ -2,12 +2,12 @@ package config
 
 import (
 	"github.com/fpawel/atool/internal/config/devicecfg"
-	"github.com/fpawel/atool/internal/devtypes"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/cfgfile"
 	"github.com/fpawel/comm/modbus"
 	"github.com/fpawel/hardware/temp/ktx500"
 	"gopkg.in/yaml.v3"
+	"os"
 )
 
 type Config struct {
@@ -50,26 +50,36 @@ func (c *Config) Save() error {
 	return file.Set(c)
 }
 
-func (c *Config) Load() error {
-	if err := file.Get(c); err != nil {
-		return err
-	}
-	if err := c.Validate(); err != nil {
-		return err
-	}
-	c.addDefinedDevices()
-	return nil
-}
-
-func (c *Config) addDefinedDevices() {
-	if len(c.Hardware) == 0 {
-		c.Hardware = devicecfg.Hardware{}
-	}
-	for name, d := range devtypes.DeviceTypes {
+func (c Config) addHardware(hardware devicecfg.Hardware) {
+	for name, d := range hardware {
 		if _, f := c.Hardware[name]; !f {
-			c.Hardware[name] = d.Config
+			c.Hardware[name] = d
 		}
 	}
+}
+
+func LoadOrDefault(hardware devicecfg.Hardware) (Config, error) {
+	if _, err := os.Stat(Filename()); os.IsNotExist(err) {
+		c := defaultConfig()
+		c.addHardware(hardware)
+		return c, nil
+	}
+	return Load(hardware)
+}
+
+func Load(hardware devicecfg.Hardware) (Config, error) {
+	var x Config
+	if err := file.Get(&x); err != nil {
+		return x, err
+	}
+	if err := x.Validate(); err != nil {
+		return x, err
+	}
+	if len(x.Hardware) == 0 {
+		x.Hardware = devicecfg.Hardware{}
+	}
+	x.addHardware(hardware)
+	return x, nil
 }
 
 func Filename() string {

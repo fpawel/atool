@@ -7,7 +7,6 @@ import (
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/data"
-	"github.com/fpawel/atool/internal/devtypes"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg/winapi"
 	"github.com/fpawel/atool/internal/thriftgen/api"
@@ -31,7 +30,7 @@ func (h *appConfigSvc) ListProductTypes(_ context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	device, _ := devtypes.DeviceTypes[party.DeviceType]
+	device, _ := appcfg.DeviceTypes[party.DeviceType]
 	return device.ProductTypes, nil
 }
 
@@ -54,7 +53,7 @@ func (h *appConfigSvc) EditConfig(_ context.Context) error {
 		if workgui.IsConnected() {
 			return errors.New("нельзя менять конфигурации при выполнении настройки")
 		}
-		return appcfg.Cfg.Load()
+		return appcfg.Reload()
 	}
 
 	go func() {
@@ -94,12 +93,27 @@ func (h *appConfigSvc) SetParamValue(_ context.Context, key string, value string
 	switch key {
 
 	case "device_type":
-		_, err := data.DB.Exec(`UPDATE party SET device_type = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)
-		return wrapErr(err)
+
+		var productType string
+		d, _ := appcfg.DeviceTypes[value]
+		if len(d.ProductTypes) > 0 {
+			productType = d.ProductTypes[0]
+		}
+
+		_, err := data.DB.Exec(`UPDATE party SET device_type = ?, product_type = ? WHERE party_id = (SELECT party_id FROM app_config)`, value, productType)
+		if err != nil {
+			return wrapErr(err)
+		}
+		go gui.NotifyCurrentPartyChanged()
+		return nil
 
 	case "product_type":
 		_, err := data.DB.Exec(`UPDATE party SET product_type = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)
-		return wrapErr(err)
+		if err != nil {
+			return wrapErr(err)
+		}
+		go gui.NotifyCurrentPartyChanged()
+		return nil
 
 	case "name":
 		_, err := data.DB.Exec(`UPDATE party SET name = ? WHERE party_id = (SELECT party_id FROM app_config)`, value)

@@ -1,12 +1,13 @@
 package config
 
 import (
+	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/hardware/gas"
 	"github.com/fpawel/hardware/temp/ktx500"
 	"time"
 )
 
-func DefaultConfig() Config {
+func defaultConfig() Config {
 	c := Config{
 		LogComm:        false,
 		FloatPrecision: 6,
@@ -40,7 +41,7 @@ func DefaultConfig() Config {
 		},
 		Ktx500:               ktx500.NewDefaultConfig(),
 		InactiveCoefficients: make(map[int]struct{}),
+		Hardware:             devicecfg.Hardware{},
 	}
-	c.addDefinedDevices()
 	return c
 }

@@ -9,6 +9,7 @@ require (
 	github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8
 	github.com/fpawel/hardware v0.0.0-20200527132915-6358dec4a8fe
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
+	github.com/hashicorp/go-multierror v1.1.0
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/lib/pq v1.3.0 // indirect
 	github.com/lxn/win v0.0.0-20191128105842-2da648fda5b4

@@ -9,6 +9,8 @@ import (
 
 var Device = devdata.Device{
 
+	Name: "МИЛ-82",
+
 	Calc: calcSections,
 
 	ProductTypes: prodTypeNames,

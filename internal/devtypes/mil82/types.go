@@ -1,10 +1,13 @@
 package mil82
 
-import "github.com/fpawel/comm/modbus"
+import (
+	"github.com/fpawel/comm/modbus"
+)
 
 type productType struct {
 	Name    string
 	Gas     string
+	Scale0  float64
 	Scale   float64
 	Kef     map[modbus.Var]float64
 	TempMin float64
@@ -169,6 +172,7 @@ var (
 		{
 			Name:    "05.00",
 			Gas:     "C6H14",
+			Scale0:  5,
 			Scale:   50,
 			TempMin: 15,
 			TempMax: 80,

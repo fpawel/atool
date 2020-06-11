@@ -14,6 +14,7 @@ import (
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
+	"github.com/hashicorp/go-multierror"
 	"github.com/powerman/structlog"
 	"time"
 )
@@ -66,7 +67,25 @@ func RunReadAllCoefficients(log comm.Logger, appCtx context.Context) error {
 func RunWriteAllCoefficients(log comm.Logger, appCtx context.Context, in []*apitypes.ProductCoefficientValue) error {
 
 	return workgui.RunWork(log, appCtx, "запись коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
-		return writeAllCoefficients(log, ctx, in)
+		var (
+			mulErr *multierror.Error
+			xs     []ProductCoefficientValue
+		)
+		for _, p := range in {
+			xs = append(xs, ProductCoefficientValue{
+				ProductID:   p.ProductID,
+				Coefficient: modbus.Var(p.Coefficient),
+				Value:       p.Value,
+			})
+		}
+		//return merry.New("не все коэффициенты записаны")
+		if err := WriteProductsCoefficients(log, ctx, xs, func(v ProductCoefficientValue, err error) error {
+			mulErr = multierror.Append(mulErr, err)
+			return nil
+		}); err != nil {
+			return err
+		}
+		return mulErr
 	})
 }
 

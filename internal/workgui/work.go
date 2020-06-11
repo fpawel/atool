@@ -14,22 +14,20 @@ type Work struct {
 
 type Works []Work
 
-func (x Work) Run(log *structlog.Logger, ctx context.Context) error {
-	return RunWork(log, ctx, x.Name, x.Func)
-}
-
 func (x Work) Perform(log *structlog.Logger, ctx context.Context) error {
 	return Perform(log, ctx, x.Name, x.Func)
 }
 
-func (x Works) Do(log *structlog.Logger, ctx context.Context) error {
-	for _, w := range x {
-		if ctx.Err() != nil {
-			return ctx.Err()
+func (x Works) Run(log *structlog.Logger, ctx context.Context, name string) error {
+	return RunWork(log, ctx, name, func(logger *structlog.Logger, ctx context.Context) error {
+		for _, w := range x {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if err := w.Perform(log, ctx); err != nil {
+				return err
+			}
 		}
-		if err := w.Func(log, ctx); err != nil {
-			return err
-		}
-	}
-	return nil
+		return nil
+	})
 }

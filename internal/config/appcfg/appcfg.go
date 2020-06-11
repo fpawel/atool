@@ -2,19 +2,40 @@ package appcfg
 
 import (
 	"github.com/fpawel/atool/internal/config"
-	"os"
+	"github.com/fpawel/atool/internal/config/devicecfg"
+	"github.com/fpawel/atool/internal/devtypes/devdata"
 )
 
 var (
-	Cfg config.Config
+	DeviceTypes map[string]devdata.Device
+	Cfg         config.Config
 )
 
-func init() {
-	if _, err := os.Stat(config.Filename()); os.IsNotExist(err) {
-		Cfg = config.DefaultConfig()
-		return
+func Init(devices ...devdata.Device) {
+	DeviceTypes = make(map[string]devdata.Device)
+	for _, d := range devices {
+		DeviceTypes[d.Name] = d
 	}
-	if err := Cfg.Load(); err != nil {
+	var err error
+	Cfg, err = config.LoadOrDefault(hardware())
+	if err != nil {
 		panic(err)
 	}
+}
+
+func Reload() error {
+	c, err := config.LoadOrDefault(hardware())
+	if err != nil {
+		return err
+	}
+	Cfg = c
+	return nil
+}
+
+func hardware() devicecfg.Hardware {
+	hardware := devicecfg.Hardware{}
+	for name, d := range DeviceTypes {
+		hardware[name] = d.Config
+	}
+	return hardware
 }

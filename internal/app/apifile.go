@@ -3,8 +3,8 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/data"
-	"github.com/fpawel/atool/internal/devtypes"
 	"github.com/fpawel/atool/internal/devtypes/devdata"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
@@ -32,7 +32,7 @@ func (h *fileSvc) GetProductsValues(_ context.Context, partyID int64, filterSeri
 		result.Products = append(result.Products, convertDataProductValuesToApiProduct(party, p))
 	}
 
-	device, _ := devtypes.DeviceTypes[party.DeviceType]
+	device, _ := appcfg.DeviceTypes[party.DeviceType]
 
 	//sort.Slice(device.DataSections, func(i, j int) bool {
 	//	return device.DataSections[i].Name < device.DataSections[j].Name

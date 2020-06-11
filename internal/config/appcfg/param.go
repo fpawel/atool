@@ -6,7 +6,6 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/data"
-	"github.com/fpawel/atool/internal/devtypes"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm/comport"
 	"github.com/fpawel/comm/modbus"
@@ -37,7 +36,7 @@ func GetParamsValues() ([]*apitypes.ConfigParamValue, error) {
 		return nil, err
 	}
 
-	device, _ := devtypes.DeviceTypes[p.DeviceType]
+	device, _ := DeviceTypes[p.DeviceType]
 
 	xs := []*apitypes.ConfigParamValue{
 		{
@@ -59,38 +58,13 @@ func GetParamsValues() ([]*apitypes.ConfigParamValue, error) {
 		},
 	}
 
-	checkKey := func(k string) error {
-		for _, x := range xs {
-			if x.Key == k {
-				return merry.Errorf("дублирование значений ключа %q", k)
-			}
-		}
-		return nil
-	}
-
-	for k, x := range Params {
-		if err := checkKey(k); err != nil {
-			return nil, err
-		}
-		xs = append(xs, &apitypes.ConfigParamValue{
-			Key:        k,
-			Name:       x.Name,
-			Type:       x.Type,
-			Value:      x.Get(),
-			ValuesList: x.GetList(),
-		})
-	}
-
 	m, err := getCurrentPartyValues()
 	if err != nil {
 		return nil, err
 	}
 
-	dv, _ := devtypes.DeviceTypes[p.DeviceType]
+	dv, _ := DeviceTypes[p.DeviceType]
 	for _, param := range dv.PartyParams {
-		if err := checkKey(param.Key); err != nil {
-			return nil, err
-		}
 		y := &apitypes.ConfigParamValue{
 			Key:        param.Key,
 			Name:       p.DeviceType + ": " + param.Name,
@@ -102,9 +76,31 @@ func GetParamsValues() ([]*apitypes.ConfigParamValue, error) {
 		}
 		xs = append(xs, y)
 	}
-	sort.Slice(xs, func(i, j int) bool {
-		return xs[i].Name < xs[j].Name
+
+	var params []*apitypes.ConfigParamValue
+
+	for k, x := range Params {
+		params = append(params, &apitypes.ConfigParamValue{
+			Key:        k,
+			Name:       x.Name,
+			Type:       x.Type,
+			Value:      x.Get(),
+			ValuesList: x.GetList(),
+		})
+	}
+
+	sort.Slice(params, func(i, j int) bool {
+		return params[i].Name < params[j].Name
 	})
+	xs = append(xs, params...)
+
+	for i, x := range xs {
+		for j, y := range xs {
+			if i != j && x.Key == y.Key {
+				return nil, merry.Errorf("дублирование значений ключа %s %d:%s %d:%s", x.Key, i, x.Name, j, y.Name)
+			}
+		}
+	}
 	return xs, nil
 }
 
