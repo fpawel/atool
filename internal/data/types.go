@@ -51,7 +51,7 @@ type ProductParam struct {
 	SeriesActive bool       `db:"series_active"`
 }
 
-type Values map[string]float64
+type Values = map[string]float64
 
 type PartyValues struct {
 	PartyID     int64           `db:"party_id"`

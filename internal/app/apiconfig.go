@@ -104,6 +104,14 @@ func (h *appConfigSvc) SetParamValue(_ context.Context, key string, value string
 		if err != nil {
 			return wrapErr(err)
 		}
+
+		d, f := appcfg.DeviceTypes[value]
+		if f && d.InitParty != nil {
+			if err := d.InitParty(); err != nil {
+				return wrapErr(err)
+			}
+		}
+
 		go gui.NotifyCurrentPartyChanged()
 		return nil
 
@@ -112,6 +120,19 @@ func (h *appConfigSvc) SetParamValue(_ context.Context, key string, value string
 		if err != nil {
 			return wrapErr(err)
 		}
+
+		party, err := data.GetCurrentPartyInfo()
+		if err != nil {
+			return wrapErr(err)
+		}
+
+		d, f := appcfg.DeviceTypes[party.DeviceType]
+		if f && d.InitParty != nil {
+			if err := d.InitParty(); err != nil {
+				return wrapErr(err)
+			}
+		}
+
 		go gui.NotifyCurrentPartyChanged()
 		return nil
 
@@ -124,10 +145,6 @@ func (h *appConfigSvc) SetParamValue(_ context.Context, key string, value string
 		if err != nil {
 			return wrapErr(err)
 		}
-		_, err = data.DB.Exec(`
-INSERT INTO party_value (party_id, key, value)
-  VALUES ((SELECT party_id FROM app_config), ?, ?)
-  ON CONFLICT (party_id,key) DO UPDATE SET value = ?`, key, value, value)
-		return wrapErr(err)
+		return wrapErr(data.SetCurrentPartyValue(key, value))
 	}
 }

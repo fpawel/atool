@@ -25,7 +25,7 @@ const (
 	MsgProductConnection
 	MsgDelay
 	MsgWorkSuspended
-	MsgLuaSelectWorks
+	MsgExecuteSelectWorksDialog
 	MsgGas
 	MsgTemperature
 	MsgTemperatureSetPoint
@@ -56,8 +56,8 @@ func RequestConfigParamValues() {
 	sendMessage(wmuRequestConfigParamValues, 0, 0)
 }
 
-func NotifyLuaSelectWorks(works []string) bool {
-	return copyData().SendJson(MsgLuaSelectWorks, works)
+func ExecuteSelectWorksDialog(works []string) bool {
+	return copyData().SendJson(MsgExecuteSelectWorksDialog, works)
 }
 
 func NotifyWorkSuspended(Text string) bool {

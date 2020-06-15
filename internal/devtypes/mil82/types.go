@@ -367,16 +367,14 @@ var (
 		},
 	}
 
-	prodTypes, prodTypeNames = initProductTypes(prodTypesList)
+	prodTypes, prodTypeNames = func() (m map[string]productType, xs []string) {
+		m = map[string]productType{}
+		for i := range prodTypesList {
+			t := &prodTypesList[i]
+			t.Index = i + 1
+			m[t.Name] = *t
+			xs = append(xs, t.Name)
+		}
+		return
+	}()
 )
-
-func initProductTypes(prodTypesList []productType) (m map[string]productType, xs []string) {
-	m = map[string]productType{}
-	for i := range prodTypesList {
-		t := &prodTypesList[i]
-		t.Index = i + 1
-		m[t.Name] = *t
-		xs = append(xs, t.Name)
-	}
-	return
-}

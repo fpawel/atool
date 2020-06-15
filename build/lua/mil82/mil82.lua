@@ -233,7 +233,7 @@ local function main()
     go:Info("конфигурация", cfg)
 
     local prod_types = (require('mil82/types'))
-    local product_type_name = o:GetConfig().product_type
+    local product_type_name = go:GetConfig().product_type
     local prod_type = prod_types[product_type_name]
     if prod_type == nil then
         error('МИЛ82: не определено исполнение ' .. product_type_name)

@@ -35,18 +35,22 @@ func NewImport(log comm.Logger, luaState *lua.LState) *Import {
 	}
 }
 
-func (x *Import) Work(name string, Func func()) NamedWork {
-	return NamedWork{
+func (x *Import) Work(name string, Func func()) workgui.Work {
+	return workgui.Work{
 		Name: name,
-		Func: Func,
+		Func: func(*structlog.Logger, context.Context) error {
+			Func()
+			return nil
+		},
 	}
 }
 
-func (x *Import) WorkEachSelectedProduct(name string, Func func(*luaProduct)) NamedWork {
-	return NamedWork{
+func (x *Import) WorkEachSelectedProduct(name string, Func func(*luaProduct)) workgui.Work {
+	return workgui.Work{
 		Name: name,
-		Func: func() {
+		Func: func(*structlog.Logger, context.Context) error {
 			x.ForEachSelectedProduct(Func)
+			return nil
 		},
 	}
 }
@@ -118,7 +122,7 @@ func (x *Import) InterpolationCoefficients(a *lua.LTable) lua.LValue {
 }
 
 func (x *Import) Temperature(destinationTemperature float64) {
-	x.check(hardware.GuiWarn{}.HoldTemperature(x.log, x.l.Context(), destinationTemperature))
+	x.check(hardware.GuiWarn{}.HoldTemperature(destinationTemperature)(x.log, x.l.Context()))
 }
 
 func (x *Import) TemperatureStart() {
@@ -141,7 +145,7 @@ func (x *Import) SwitchGas(gas byte) {
 }
 
 func (x *Import) BlowGas(gas byte) {
-	x.check(hardware.GuiWarn{}.BlowGas(x.log, x.l.Context(), gas))
+	x.check(hardware.GuiWarn{}.BlowGas(gas)(x.log, x.l.Context()))
 }
 
 func (x *Import) ReadAndSaveProductParam(reg modbus.Var, format modbus.FloatBitsFormat, dbKey string) {
@@ -158,8 +162,7 @@ func (x *Import) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value
 	if err := format.Validate(); err != nil {
 		x.l.ArgError(2, err.Error())
 	}
-	err := workparty.Write32(x.log, x.l.Context(), cmd, format, value)
-	x.check(err)
+	x.check(workparty.Write32(cmd, format, value)(x.log, x.l.Context()))
 }
 
 func (x *Import) Pause(strDuration string, what string) {
@@ -174,28 +177,8 @@ func (x *Import) Delay(strDuration string, what string) {
 	x.delay(duration, what)
 }
 
-func (x *Import) SelectWorksDialog(args []NamedWork) (selectedWorks []NamedWork) {
-	var names = make([]string, len(args))
-	for i := range args {
-		names[i] = args[i].Name
-	}
-
-	go gui.NotifyLuaSelectWorks(names)
-
-	select {
-	case <-x.l.Context().Done():
-		return
-	case xs := <-workgui.ChanSelectedWorks:
-		for i, f := range xs {
-			if f {
-				selectedWorks = append(selectedWorks, NamedWork{
-					Name: args[i].Name,
-					Func: args[i].Func,
-				})
-			}
-		}
-	}
-	return
+func (x *Import) SelectWorksDialog(args workgui.Works) (selectedWorks workgui.Works) {
+	return args.ExecuteSelectWorksDialog(x.l.Context().Done())
 }
 
 func (x *Import) ParamsDialog(arg *lua.LTable) *lua.LTable {
@@ -242,16 +225,10 @@ func (x *Import) Err(s lua.LValue) {
 	workgui.NotifyErr(x.log, merry.New(stringify(s)))
 }
 
-type NamedWork struct {
-	Name string
-	Func func()
-}
-
-func (x *Import) PerformWorks(works []NamedWork) {
+func (x *Import) PerformWorks(works []workgui.Work) {
 	for _, work := range works {
 		x.performContext(work.Name, func() error {
-			work.Func()
-			return nil
+			return work.Func(x.log, x.l.Context())
 		})
 	}
 }

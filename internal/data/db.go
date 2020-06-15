@@ -64,6 +64,14 @@ func GetCurrentParty() (Party, error) {
 	return GetParty(partyID)
 }
 
+func GetCurrentPartyInfo() (Party, error) {
+	partyID, err := GetCurrentPartyID()
+	if err != nil {
+		return Party{}, err
+	}
+	return GetPartyInfo(partyID)
+}
+
 func GetParty(partyID int64) (Party, error) {
 	var party Party
 	err := DB.Get(&party, `SELECT * FROM party WHERE party_id=?`, partyID)
@@ -74,6 +82,15 @@ func GetParty(partyID int64) (Party, error) {
 	if err := DB.Select(&party.Products,
 		`SELECT * FROM product_enumerated WHERE party_id=? ORDER BY place`,
 		partyID); err != nil {
+		return Party{}, err
+	}
+	return party, nil
+}
+
+func GetPartyInfo(partyID int64) (Party, error) {
+	var party Party
+	err := DB.Get(&party, `SELECT * FROM party WHERE party_id=?`, partyID)
+	if err != nil {
 		return Party{}, err
 	}
 	return party, nil
@@ -91,7 +108,15 @@ func SetCurrentPartyValues(p PartyValues) error {
 	return nil
 }
 
-func GetPartyValues1(partyID int64) (map[string]float64, error) {
+func SetCurrentPartyValue(key string, value float64) error {
+	_, err := DB.Exec(`
+INSERT INTO party_value (party_id, key, value)
+  VALUES ((SELECT party_id FROM app_config), ?, ?)
+  ON CONFLICT (party_id,key) DO UPDATE SET value = ?`, key, value, value)
+	return err
+}
+
+func GetPartyValues1(partyID int64) (Values, error) {
 	xs := make(map[string]float64)
 	var values []struct {
 		Key   string  `db:"key"`

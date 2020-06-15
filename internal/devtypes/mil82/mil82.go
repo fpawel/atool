@@ -1,7 +1,9 @@
 package mil82
 
 import (
+	"fmt"
 	"github.com/fpawel/atool/internal/config/devicecfg"
+	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/devtypes/devdata"
 	"github.com/fpawel/comm/modbus"
 	"time"
@@ -11,11 +13,15 @@ var Device = devdata.Device{
 
 	Name: "МИЛ-82",
 
+	Work: work,
+
 	Calc: calcSections,
 
 	ProductTypes: prodTypeNames,
 
 	DataSections: DataSections(),
+
+	InitParty: initParty,
 
 	Config: devicecfg.Device{
 		Baud:               9600,
@@ -82,7 +88,73 @@ var Device = devdata.Device{
 			Key:  "c4",
 			Name: "ПГС5",
 		},
+		{
+			Key:        keyLinearDegree,
+			Name:       "степень линеаризации",
+			ValuesList: []string{"3", "4"},
+		},
+		{
+			Key:  keyTempNorm,
+			Name: "уставка температуры НКУ,⁰C",
+		},
+		{
+			Key:  keyTempLow,
+			Name: "уставка низкой температуры,⁰C",
+		},
+		{
+			Key:  keyTempHigh,
+			Name: "уставка высокой температуры,⁰C",
+		},
 	},
-
-	Work: mainWork,
 }
+
+func initParty() error {
+	party, err := data.GetCurrentParty()
+	if err != nil {
+		return err
+	}
+	pv, err := data.GetPartyValues1(party.PartyID)
+	if err != nil {
+		return err
+	}
+
+	if _, f := pv[keyLinearDegree]; !f {
+		if err := data.SetCurrentPartyValue(keyLinearDegree, 4); err != nil {
+			return err
+		}
+	}
+
+	for i, v := range []float64{0, 25, 50, 100} {
+		key := fmt.Sprintf("c%d", i+1)
+		if _, f := pv[key]; !f {
+			if err := data.SetCurrentPartyValue(key, v); err != nil {
+				return err
+			}
+		}
+	}
+	Type, ok := prodTypes[party.ProductType]
+	if !ok {
+		Type = prodTypesList[0]
+		if _, err := data.DB.Exec(`UPDATE party SET product_type = ? WHERE party_id = (SELECT party_id FROM app_config)`, Type.Name); err != nil {
+			return err
+		}
+	}
+
+	if err := data.SetCurrentPartyValue(keyTempNorm, 20); err != nil {
+		return err
+	}
+	if err := data.SetCurrentPartyValue(keyTempLow, Type.TempMin); err != nil {
+		return err
+	}
+	if err := data.SetCurrentPartyValue(keyTempHigh, Type.TempMax); err != nil {
+		return err
+	}
+	return nil
+}
+
+const (
+	keyLinearDegree = "linear_degree"
+	keyTempNorm     = "temp_norm"
+	keyTempLow      = "temp_low"
+	keyTempHigh     = "temp_high"
+)

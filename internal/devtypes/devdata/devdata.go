@@ -1,9 +1,11 @@
 package devdata
 
 import (
+	"context"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
+	"github.com/fpawel/comm"
 )
 
 type Device struct {
@@ -12,8 +14,9 @@ type Device struct {
 	ProductTypes []string
 	Config       devicecfg.Device
 	PartyParams  []PartyParam
+	InitParty    func() error
 	Calc         func(data.PartyValues, *CalcSections) error
-	Work         func() error
+	Work         func(comm.Logger, context.Context) error
 }
 
 type PartyParam struct {

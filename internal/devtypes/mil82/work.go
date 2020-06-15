@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/hardware"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/atool/internal/workparty"
 	"github.com/fpawel/comm"
@@ -13,32 +14,36 @@ import (
 	"time"
 )
 
-func MainWork(log comm.Logger, ctx context.Context) error {
+func work(log comm.Logger, ctx context.Context) error {
 	w, err := newWrk()
 	if err != nil {
 		return err
 	}
-	return workgui.RunWork(log, ctx, "Настройка МИЛ-82", func(log *structlog.Logger, ctx context.Context) error {
-		for _, w := range w.works() {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			if err := workgui.Perform(log, ctx, w.name, w.f); err != nil {
-				return err
-			}
-		}
-	})
+	return w.runMainWork(log, ctx)
 }
 
 type wrk struct {
-	C    [4]float64
-	Type productType
-	ks   intFloatMap
+	C     [4]float64
+	Type  productType
+	ks    KefValueMap
+	temps map[ptTemp]float64
+	warn  hardware.GuiWarn
 }
+
+type ptTemp string
+
+const (
+	tLow  = "t_low"
+	tHigh = "t_high"
+	tNorm = "t_norm"
+
+	floatBitsFormat = modbus.BCD
+)
 
 func newWrk() (wrk, error) {
 	w := wrk{
-		ks: make(intFloatMap),
+		ks:    make(KefValueMap),
+		temps: make(map[ptTemp]float64),
 	}
 	party, err := data.GetCurrentParty()
 	if err != nil {
@@ -59,6 +64,22 @@ func newWrk() (wrk, error) {
 		return wrk{}, merry.Errorf("%s не правильное исполнение %s", party.DeviceType, party.ProductType)
 	}
 
+	Tnorm, ok := pv[keyTempNorm]
+	if !ok {
+		return wrk{}, merry.Errorf("нет значения %q", keyTempNorm)
+	}
+	Tlow, ok := pv[keyTempLow]
+	if !ok {
+		return wrk{}, merry.Errorf("нет значения %q", keyTempLow)
+	}
+	Thigh, ok := pv[keyTempHigh]
+	if !ok {
+		return wrk{}, merry.Errorf("нет значения %q", keyTempHigh)
+	}
+	w.temps[tNorm] = Tnorm
+	w.temps[tLow] = Tlow
+	w.temps[tHigh] = Thigh
+
 	for i := 1; i < 5; i++ {
 		k := fmt.Sprintf("c%d", i)
 		c, ok := pv[k]
@@ -68,7 +89,7 @@ func newWrk() (wrk, error) {
 		w.C[i] = c
 	}
 
-	w.ks = intFloatMap{
+	w.ks = KefValueMap{
 		2:  float64(time.Now().Year()),
 		8:  w.Type.Scale0,
 		9:  w.Type.Scale,
@@ -128,12 +149,55 @@ func newWrk() (wrk, error) {
 	return w, nil
 }
 
+func (x wrk) holdTemperature(pt ptTemp) workgui.WorkFunc {
+	t, ok := x.temps[pt]
+	if !ok {
+		panic(fmt.Errorf("не правильная точка температуры %q", pt))
+	}
+	return x.warn.HoldTemperature(t)
+}
+
 func (x wrk) runMainWork(log *structlog.Logger, ctx context.Context) error {
 	works := workgui.Works{
 		{
 			"запись коэффициентов",
 			x.writeProductsCoefficients,
 		},
+		{
+			"установка НКУ",
+			x.holdTemperature(tNorm),
+		},
+		{
+			"нормировка",
+			workgui.WorkFuncList{
+				x.warn.BlowGas(1),
+				x.write32(8, 10000),
+			}.Do,
+		},
+		{
+			"калибровка нуля",
+			workgui.WorkFuncList{
+				x.warn.BlowGas(1),
+				x.write32(1, x.C[1]),
+			}.Do,
+		},
+		{
+			"калибровка чувствительности",
+			workgui.WorkFuncList{
+				x.warn.BlowGas(4),
+				x.write32(2, x.C[3]),
+				x.warn.BlowGas(1),
+			}.Do,
+		},
+		{
+			"Снятие линеаризации",
+			func(log *structlog.Logger, ctx context.Context) error {
+				return nil
+			},
+		},
+	}.ExecuteSelectWorksDialog(ctx.Done())
+	if ctx.Err() != nil {
+		return ctx.Err()
 	}
 	return works.Run(log, ctx, "Настройка МИЛ-82")
 }
@@ -153,7 +217,7 @@ func (x wrk) getProductsCoefficients() ([]workparty.ProductCoefficientValue, err
 		return nil, err
 	}
 	for _, p := range products {
-		ks := copyIntFloatMap(x.ks)
+		ks := copyKefValueMap(x.ks)
 		ks[40] = encode2(float64(time.Now().Year()-2000), float64(p.Serial))
 		for k, v := range ks {
 			xs = append(xs, workparty.ProductCoefficientValue{
@@ -166,10 +230,12 @@ func (x wrk) getProductsCoefficients() ([]workparty.ProductCoefficientValue, err
 	return xs, nil
 }
 
-type intFloatMap = map[modbus.Var]float64
+func (x wrk) write32(cmd modbus.DevCmd, value float64) workgui.WorkFunc {
+	return workparty.Write32(cmd, floatBitsFormat, value)
+}
 
-func copyIntFloatMap(x intFloatMap) intFloatMap {
-	y := make(intFloatMap)
+func copyKefValueMap(x KefValueMap) KefValueMap {
+	y := make(KefValueMap)
 	for k, v := range x {
 		y[k] = v
 	}

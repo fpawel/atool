@@ -31,3 +31,14 @@ func (x Works) Run(log *structlog.Logger, ctx context.Context, name string) erro
 		return nil
 	})
 }
+
+type WorkFuncList []WorkFunc
+
+func (xs WorkFuncList) Do(log *structlog.Logger, ctx context.Context) error {
+	for _, w := range xs {
+		if err := w(log, ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}

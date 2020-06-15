@@ -112,22 +112,24 @@ ON CONFLICT (product_id,key) DO UPDATE
 	})
 }
 
-func Write32(log comm.Logger, ctx context.Context, cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) error {
-	what := fmt.Sprintf("📥 команда %d(%v)", cmd, value)
-	return PerformWorkActiveEachProduct(log, ctx, what, func(product Product) error {
-		err := modbus.RequestWrite32{
-			Addr:      product.Addr,
-			ProtoCmd:  0x10,
-			DeviceCmd: cmd,
-			Format:    format,
-			Value:     value,
-		}.GetResponse(log, ctx, product.Comm())
-		if err != nil {
-			return err
-		}
-		workgui.NotifyInfo(log, fmt.Sprintf("%s %s - успешно", product, what))
-		return nil
-	})
+func Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) workgui.WorkFunc {
+	return func(log *structlog.Logger, ctx context.Context) error {
+		return ProcessEachActiveProduct(log, nil, func(product Product) error {
+			name := fmt.Sprintf("📥 команда %d(%v)", cmd, value)
+			err := modbus.RequestWrite32{
+				Addr:      product.Addr,
+				ProtoCmd:  0x10,
+				DeviceCmd: cmd,
+				Format:    format,
+				Value:     value,
+			}.GetResponse(log, ctx, product.Comm())
+			if err != nil {
+				return err
+			}
+			workgui.NotifyInfo(log, fmt.Sprintf("%s %s - успешно", product, name))
+			return nil
+		})
+	}
 }
 
 func ReadProductsParams(log *structlog.Logger, ctx context.Context, ms *data.MeasurementCache, errorsOccurred ErrorsOccurred) error {

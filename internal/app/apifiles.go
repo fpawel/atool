@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/thriftgen/api"
@@ -134,7 +135,22 @@ func (h *filesSvc) CreateNewParty(_ context.Context, productsCount int8) error {
 	if workgui.IsConnected() {
 		return merry.New("нельзя создать новую партию пока выполняется опрос")
 	}
-	return data.SetNewCurrentParty(int(productsCount))
+	if err := data.SetNewCurrentParty(int(productsCount)); err != nil {
+		return err
+	}
+	party, err := data.GetCurrentPartyInfo()
+	if err != nil {
+		return err
+	}
+
+	d, f := appcfg.DeviceTypes[party.DeviceType]
+	if f && d.InitParty != nil {
+		if err := d.InitParty(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func convertDataProductToApiProduct(p data.Product) *apitypes.Product {

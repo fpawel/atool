@@ -49,6 +49,7 @@ func calcSections(party data.PartyValues, sections *devdata.CalcSections) error 
 
 				nominal := pgs
 				absErrLimit20, var2, tNorm := math.NaN(), math.NaN(), math.NaN()
+
 				if prodT.Gas == "CO2" {
 					absErrLimit20 = prodT.limD
 				} else {
