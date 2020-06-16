@@ -26,16 +26,12 @@ func (x Product) String() string {
 	return fmt.Sprintf("🔌%d🔑%d", x.Serial, x.ProductID)
 }
 
-func (x Product) Write32(log comm.Logger, ctx context.Context, cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) error {
-
-	what := fmt.Sprintf("%s 📥 команда %d(%v)", x, cmd, value)
-
-	return workgui.WithNotifyResult(log, what, func() error {
-
+func (x Product) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) workgui.WorkFunc {
+	return func(log comm.Logger, ctx context.Context) error {
+		what := fmt.Sprintf("%s 📥 команда %d(%v)", x, cmd, value)
 		if math.IsNaN(value) {
-			return merry.New("NaN")
+			return merry.Errorf("%s: NaN", what)
 		}
-
 		err := modbus.RequestWrite32{
 			Addr:      x.Addr,
 			ProtoCmd:  0x10,
@@ -44,43 +40,49 @@ func (x Product) Write32(log comm.Logger, ctx context.Context, cmd modbus.DevCmd
 			Value:     value,
 		}.GetResponse(log, ctx, x.Comm())
 		if err != nil {
-			return err
+			return merry.Prepend(err, what)
 		}
 		return nil
-	})
+	}
 }
 
-func (x Product) WriteKef(log comm.Logger, ctx context.Context, kef modbus.Var, format modbus.FloatBitsFormat, value float64) error {
-	what := fmt.Sprintf("%s 📥 запись K%d=%v %s", x, kef, value, format)
-	return workgui.WithNotifyResult(log, what, func() error {
+func (x Product) WriteKef(kef modbus.Var, format modbus.FloatBitsFormat, value float64) workgui.WorkFunc {
+	return func(log comm.Logger, ctx context.Context) error {
+		what := fmt.Sprintf("%s 📥 запись K%d=%v %s", x, kef, value, format)
+		err := func() error {
+			if math.IsNaN(value) {
+				return merry.Errorf("%s: NaN", what)
+			}
 
-		if math.IsNaN(value) {
-			return merry.New("NaN")
-		}
+			err := modbus.RequestWrite32{
+				Addr:      x.Addr,
+				ProtoCmd:  0x10,
+				DeviceCmd: (0x80 << 8) + modbus.DevCmd(kef),
+				Format:    format,
+				Value:     value,
+			}.GetResponse(log, ctx, x.Comm())
 
-		err := modbus.RequestWrite32{
-			Addr:      x.Addr,
-			ProtoCmd:  0x10,
-			DeviceCmd: (0x80 << 8) + modbus.DevCmd(kef),
-			Format:    format,
-			Value:     value,
-		}.GetResponse(log, ctx, x.Comm())
-
-		kv := gui.CoefficientValue{
-			ProductID:   x.ProductID,
-			Read:        false,
-			Coefficient: int(kef),
+			kv := gui.CoefficientValue{
+				ProductID:   x.ProductID,
+				Read:        false,
+				Coefficient: int(kef),
+			}
+			if err == nil {
+				kv.Result = appcfg.Cfg.FormatFloat(value)
+				kv.Ok = true
+			} else {
+				kv.Result = err.Error()
+				kv.Ok = false
+			}
+			go gui.NotifyCoefficient(kv)
+			return err
+		}()
+		if err != nil {
+			return merry.Append(err, what)
 		}
-		if err == nil {
-			kv.Result = appcfg.Cfg.FormatFloat(value)
-			kv.Ok = true
-		} else {
-			kv.Result = err.Error()
-			kv.Ok = false
-		}
-		go gui.NotifyCoefficient(kv)
-		return err
-	})
+		workgui.NotifyInfo(log, what+": успешно")
+		return nil
+	}
 }
 
 func (x Product) ReadKef(log comm.Logger, ctx context.Context, k modbus.Var, format modbus.FloatBitsFormat) (float64, error) {

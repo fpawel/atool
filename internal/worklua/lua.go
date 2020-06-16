@@ -122,30 +122,27 @@ func (x *Import) InterpolationCoefficients(a *lua.LTable) lua.LValue {
 }
 
 func (x *Import) Temperature(destinationTemperature float64) {
-	x.check(hardware.GuiWarn{}.HoldTemperature(destinationTemperature)(x.log, x.l.Context()))
+	x.check(hardware.WithWarn{}.HoldTemperature(destinationTemperature)(x.log, x.l.Context()))
 }
 
 func (x *Import) TemperatureStart() {
-	x.check(hardware.TemperatureStart(x.log, x.l.Context()))
+	x.do(hardware.TemperatureStart)
 }
 
 func (x *Import) TemperatureStop() {
-	x.check(hardware.TemperatureStop(x.log, x.l.Context()))
+	x.do(hardware.TemperatureStop)
 }
 
 func (x *Import) TemperatureSetup(temperature float64) {
-	x.performContext(fmt.Sprintf("перевод термокамеры на %v⁰C", temperature),
-		func() error {
-			return hardware.TemperatureSetup(x.log, x.l.Context(), temperature)
-		})
+	x.do(hardware.TemperatureSetup(temperature))
 }
 
 func (x *Import) SwitchGas(gas byte) {
-	x.check(hardware.SwitchGas(x.log, x.l.Context(), gas))
+	x.check(hardware.SwitchGas(gas).DoWarn(x.log, x.l.Context()))
 }
 
 func (x *Import) BlowGas(gas byte) {
-	x.check(hardware.GuiWarn{}.BlowGas(gas)(x.log, x.l.Context()))
+	x.check(hardware.WithWarn{}.BlowGas(gas)(x.log, x.l.Context()))
 }
 
 func (x *Import) ReadAndSaveProductParam(reg modbus.Var, format modbus.FloatBitsFormat, dbKey string) {
@@ -153,9 +150,7 @@ func (x *Import) ReadAndSaveProductParam(reg modbus.Var, format modbus.FloatBits
 		x.l.ArgError(2, err.Error())
 	}
 	x.perform(fmt.Sprintf("📤 считать регистр %d 💾 сохранить %s %v", reg, dbKey, format),
-		func(log *structlog.Logger, ctx context.Context) error {
-			return workparty.ReadAndSaveProductParam(x.log, ctx, reg, format, dbKey)
-		})
+		workparty.ReadAndSaveProductParam(reg, format, dbKey))
 }
 
 func (x *Import) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) {
@@ -168,7 +163,7 @@ func (x *Import) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value
 func (x *Import) Pause(strDuration string, what string) {
 	duration, err := time.ParseDuration(strDuration)
 	x.check(err)
-	x.check(workgui.Delay(x.log, x.l.Context(), duration, what, nil))
+	x.check(workgui.Delay(duration, what, nil)(x.log, x.l.Context()))
 }
 
 func (x *Import) Delay(strDuration string, what string) {
@@ -252,11 +247,11 @@ func (x *Import) Perform(name string, Func func()) {
 }
 
 func (x *Import) WriteCoefficients(ks map[int]int, format modbus.FloatBitsFormat) {
-	x.check(workparty.WriteCoefficients(x.log, x.l.Context(), coefficientsList(ks), format))
+	x.check(workparty.NewWorkWriteCfs(x.log, x.l.Context(), coefficientsList(ks), format))
 }
 
 func (x *Import) ReadCoefficients(ks map[int]int, format modbus.FloatBitsFormat) {
-	x.check(workparty.ReadCoefficients(x.log, x.l.Context(), coefficientsList(ks), format))
+	x.check(workparty.ReadCfs(x.log, x.l.Context(), coefficientsList(ks), format))
 }
 
 func (x *Import) ReadAndSaveParam(param modbus.Var, format modbus.FloatBitsFormat, dbKey string) {
@@ -265,6 +260,10 @@ func (x *Import) ReadAndSaveParam(param modbus.Var, format modbus.FloatBitsForma
 
 func (x *Import) perform(name string, Func workgui.WorkFunc) {
 	x.check(workgui.Perform(x.log, x.l.Context(), name, Func))
+}
+
+func (x *Import) do(Func workgui.WorkFunc) {
+	x.check(Func(x.log, x.l.Context()))
 }
 
 func (x *Import) performContext(name string, Func func() error) {
@@ -324,7 +323,7 @@ func check(l *lua.LState, err error) {
 	}
 }
 
-func coefficientsList(xs map[int]int) (r workparty.CoefficientsList) {
+func coefficientsList(xs map[int]int) (r workparty.CfsList) {
 	for _, k := range xs {
 		r = append(r, modbus.Var(k))
 	}

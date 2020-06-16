@@ -17,15 +17,6 @@ func NotifyWorkSuspended(err error) {
 	go gui.NotifyWorkSuspended(indentStr() + err.Error())
 }
 
-func WithNotifyResult(log *structlog.Logger, what string, work func() error) error {
-	if err := work(); err != nil {
-		NotifyErr(log, merry.Prepend(err, what))
-		return err
-	}
-	NotifyInfo(log, what+" - успешно")
-	return nil
-}
-
 func WithNotifyValue(log *structlog.Logger, what string, work func() (float64, error)) (float64, error) {
 	value, err := work()
 	if err != nil {

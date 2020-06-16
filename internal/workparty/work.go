@@ -15,29 +15,25 @@ import (
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
 	"github.com/hashicorp/go-multierror"
-	"github.com/powerman/structlog"
 	"time"
 )
 
-func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, name string) error {
+type Work = workgui.Work
+
+func Delay(duration time.Duration, name string) workgui.WorkFunc {
 	// измерения, полученные в процесе опроса приборов во время данной задержки
 	ms := new(data.MeasurementCache)
 	defer ms.Save()
-
-	errorsOccurred := make(ErrorsOccurred)
-
-	return workgui.Delay(log, ctx, duration, name, func(_ *structlog.Logger, ctx context.Context) error {
-		return ReadProductsParams(log, ctx, ms, errorsOccurred)
-	})
+	return workgui.Delay(duration, name, ReadProductsParams(ms, nil))
 }
 
-func RunInterrogate(log comm.Logger, appCtx context.Context) error {
-	return workgui.RunWork(log, appCtx, "📤 опрос приборов", func(log *structlog.Logger, ctx context.Context) error {
+func NewWorkInterrogate() Work {
+	return workgui.New("📤 опрос приборов", func(log comm.Logger, ctx context.Context) error {
 		ms := new(data.MeasurementCache)
 		defer ms.Save()
 		errorsOccurred := make(ErrorsOccurred)
 		for {
-			if err := ReadProductsParams(log, ctx, ms, errorsOccurred); err != nil {
+			if err := ReadProductsParams(ms, errorsOccurred)(log, ctx); err != nil {
 				if merry.Is(err, context.Canceled) {
 					return nil
 				}
@@ -47,13 +43,12 @@ func RunInterrogate(log comm.Logger, appCtx context.Context) error {
 	})
 }
 
-func RunReadAllCoefficients(log comm.Logger, appCtx context.Context) error {
-
-	return workgui.RunWork(log, appCtx, "📤 считывание коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
+func NewWorkReadCfs() Work {
+	return workgui.New("📤 считывание коэффициентов", func(log comm.Logger, ctx context.Context) error {
 		errs := make(ErrorsOccurred)
-		err := ProcessEachActiveProduct(log, errs, func(p Product) error {
+		err := ProcessEachActiveProduct(errs, func(log comm.Logger, ctx context.Context, p Product) error {
 			return p.readAllCoefficients(log, ctx)
-		})
+		})(log, ctx)
 		if err != nil {
 			return err
 		}
@@ -64,9 +59,8 @@ func RunReadAllCoefficients(log comm.Logger, appCtx context.Context) error {
 	})
 }
 
-func RunWriteAllCoefficients(log comm.Logger, appCtx context.Context, in []*apitypes.ProductCoefficientValue) error {
-
-	return workgui.RunWork(log, appCtx, "запись коэффициентов", func(log *structlog.Logger, ctx context.Context) error {
+func NewWorkWriteAllCfs(in []*apitypes.ProductCoefficientValue) Work {
+	return workgui.New("запись коэффициентов", func(log comm.Logger, ctx context.Context) error {
 		var (
 			mulErr *multierror.Error
 			xs     []ProductCoefficientValue
@@ -79,172 +73,173 @@ func RunWriteAllCoefficients(log comm.Logger, appCtx context.Context, in []*apit
 			})
 		}
 		//return merry.New("не все коэффициенты записаны")
-		if err := WriteProductsCoefficients(log, ctx, xs, func(v ProductCoefficientValue, err error) error {
+		if err := WriteProdsCfs(xs, func(v ProductCoefficientValue, err error) error {
 			mulErr = multierror.Append(mulErr, err)
 			return nil
-		}); err != nil {
+		})(log, ctx); err != nil {
 			return err
 		}
 		return mulErr
 	})
 }
 
-func RunRawCommand(log comm.Logger, appCtx context.Context, c modbus.ProtoCmd, b []byte) {
+func NewWorkRawCmd(c modbus.ProtoCmd, b []byte) Work {
 	what := fmt.Sprintf("📥 отправка команды %X(% X)", c, b)
-	workgui.RunTask(log, what, func() error {
-		err := ProcessEachActiveProduct(log, nil, func(p Product) error {
+	return Work{
+		Name: what,
+		Func: ProcessEachActiveProduct(nil, func(log comm.Logger, ctx context.Context, p Product) error {
 			_, err := modbus.Request{
 				Addr:     p.Addr,
 				ProtoCmd: c,
 				Data:     b,
-			}.GetResponse(log, appCtx, p.Comm())
+			}.GetResponse(log, ctx, p.Comm())
 			if err != nil {
 				return merry.Prepend(err, what)
 			}
 			workgui.NotifyInfo(log, fmt.Sprintf("%s %s - успешно", p, what))
 			return nil
-		})
+		}),
+	}
+}
+
+func RunSetNetAddr(productID int64, notifyComm func(comm.Info)) workgui.WorkFunc {
+	return func(log comm.Logger, ctx context.Context) error {
+		var p data.Product
+		err := data.DB.Get(&p, `SELECT * FROM product WHERE product_id=?`, productID)
 		if err != nil {
 			return err
 		}
-		return nil
-	})
-}
 
-func RunSetNetAddr(log comm.Logger, appCtx context.Context, productID int64, notifyComm func(comm.Info)) error {
-	var p data.Product
-	err := data.DB.Get(&p, `SELECT * FROM product WHERE product_id=?`, productID)
-	if err != nil {
-		return err
-	}
-
-	party, err := data.GetCurrentParty()
-	if err != nil {
-		return err
-	}
-
-	device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
-	if err != nil {
-		return err
-	}
-
-	workProduct := Product{
-		Product: p,
-		Device:  device,
-		Party:   party,
-	}
-
-	what := fmt.Sprintf("%s: запись сетевого адреса %d", workProduct, p.Addr)
-	return workgui.RunWork(log, appCtx, what, func(log comm.Logger, ctx context.Context) error {
-		return workgui.WithNotifyResult(log, what, func() error {
-			comPort := comports.GetComport(p.Comport, device.Baud)
-			if err := comPort.Open(); err != nil {
-				return err
-			}
-			r := modbus.RequestWrite32{
-				Addr:      0,
-				ProtoCmd:  0x10,
-				DeviceCmd: device.NetAddr.Cmd,
-				Format:    device.NetAddr.Format,
-				Value:     float64(p.Addr),
-			}
-			if _, err := comPort.Write(r.Request().Bytes()); err != nil {
-				return err
-			}
-			notifyComm(comm.Info{
-				Request: r.Request().Bytes(),
-				Port:    p.Comport,
-			})
-			pause(ctx.Done(), time.Second)
-			_, err := modbus.RequestRead3{
-				Addr:           p.Addr,
-				FirstRegister:  0,
-				RegistersCount: 2,
-			}.GetResponse(log, ctx, getCommProduct(p.Comport, device))
-			return err
-		})
-	})
-}
-
-func RunSearchProducts(log comm.Logger, appCtx context.Context, comportName string) error {
-
-	return workgui.RunWork(log, appCtx, "поиск приборов сети", func(log *structlog.Logger, ctx context.Context) error {
 		party, err := data.GetCurrentParty()
 		if err != nil {
 			return err
 		}
+
 		device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
 		if err != nil {
 			return err
 		}
 
-		if len(device.Params) == 0 {
-			return merry.Errorf("нет параметров устройства %q", party.DeviceType)
+		workProduct := Product{
+			Product: p,
+			Device:  device,
+			Party:   party,
 		}
 
-		cm := comm.New(comports.GetComport(comportName, device.Baud), comm.Config{
-			TimeoutGetResponse: 500 * time.Millisecond,
-			TimeoutEndResponse: 50 * time.Millisecond,
-		})
+		return Work{
+			Name: fmt.Sprintf("%s: запись сетевого адреса %d", workProduct, p.Addr),
+			Func: func(log comm.Logger, ctx context.Context) error {
+				comPort := comports.GetComport(p.Comport, device.Baud)
+				if err := comPort.Open(); err != nil {
+					return err
+				}
+				r := modbus.RequestWrite32{
+					Addr:      0,
+					ProtoCmd:  0x10,
+					DeviceCmd: device.NetAddr.Cmd,
+					Format:    device.NetAddr.Format,
+					Value:     float64(p.Addr),
+				}
+				if _, err := comPort.Write(r.Request().Bytes()); err != nil {
+					return err
+				}
+				notifyComm(comm.Info{
+					Request: r.Request().Bytes(),
+					Port:    p.Comport,
+				})
+				pause(ctx.Done(), time.Second)
+				_, err := modbus.RequestRead3{
+					Addr:           p.Addr,
+					FirstRegister:  0,
+					RegistersCount: 2,
+				}.GetResponse(log, ctx, getCommProduct(p.Comport, device))
+				return err
+			},
+		}.Run(log, ctx)
+	}
+}
 
-		ans, notAns := make(intrng.Bytes), make(intrng.Bytes)
-		param := device.Params[0]
-
-		go gui.NotifyProgressShow(127, "модбас: сканирование сети")
-		defer func() {
-			go gui.NotifyProgressHide()
-		}()
-
-		for addr := modbus.Addr(1); addr <= 127; addr++ {
-			go gui.NotifyProgress(int(addr), fmt.Sprintf("MODBUS: сканирование сети: %d, ответили [%s], не ответили [%s]",
-				addr, ans.Format(), notAns.Format()))
-			_, err := modbus.Read3Value(log, ctx, cm, addr, modbus.Var(param.ParamAddr), param.Format)
-			if merry.Is(err, context.DeadlineExceeded) || merry.Is(err, modbus.Err) {
-				notAns.Push(byte(addr))
-				continue
-			}
+func NewWorkScanModbus(comportName string) Work {
+	return Work{
+		Name: "сканирование сети модбас",
+		Func: func(log comm.Logger, ctx context.Context) error {
+			party, err := data.GetCurrentParty()
 			if err != nil {
 				return err
 			}
-			ans.Push(byte(addr))
-		}
-
-		if len(ans) == 0 {
-			go gui.NotifyStatus(gui.Status{
-				Text:       "сканирование сети: приборы не найдены",
-				Ok:         true,
-				PopupLevel: gui.LWarn,
-			})
-			return nil
-		}
-
-		if err := data.SetNewCurrentParty(len(ans)); err != nil {
-			return err
-		}
-		party, err = data.GetCurrentParty()
-		if err != nil {
-			return err
-		}
-
-		for i, addr := range ans.Slice() {
-			p := party.Products[i]
-			p.Addr = modbus.Addr(addr)
-			if err := data.UpdateProduct(p); err != nil {
+			device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
+			if err != nil {
 				return err
 			}
-		}
-		go func() {
-			gui.NotifyCurrentPartyChanged()
-			gui.NotifyStatus(gui.Status{
-				Text: fmt.Sprintf("сканирование сети: создана новая партия %d. Ответили [%s], не ответили [%s]",
-					party.PartyID, ans.Format(), notAns.Format()),
-				Ok:         true,
-				PopupLevel: gui.LWarn,
-			})
-		}()
 
-		return nil
-	})
+			if len(device.Params) == 0 {
+				return merry.Errorf("нет параметров устройства %q", party.DeviceType)
+			}
+
+			cm := comm.New(comports.GetComport(comportName, device.Baud), comm.Config{
+				TimeoutGetResponse: 500 * time.Millisecond,
+				TimeoutEndResponse: 50 * time.Millisecond,
+			})
+
+			ans, notAns := make(intrng.Bytes), make(intrng.Bytes)
+			param := device.Params[0]
+
+			go gui.NotifyProgressShow(127, "модбас: сканирование сети")
+			defer func() {
+				go gui.NotifyProgressHide()
+			}()
+
+			for addr := modbus.Addr(1); addr <= 127; addr++ {
+				go gui.NotifyProgress(int(addr), fmt.Sprintf("MODBUS: сканирование сети: %d, ответили [%s], не ответили [%s]",
+					addr, ans.Format(), notAns.Format()))
+				_, err := modbus.Read3Value(log, ctx, cm, addr, modbus.Var(param.ParamAddr), param.Format)
+				if merry.Is(err, context.DeadlineExceeded) || merry.Is(err, modbus.Err) {
+					notAns.Push(byte(addr))
+					continue
+				}
+				if err != nil {
+					return err
+				}
+				ans.Push(byte(addr))
+			}
+
+			if len(ans) == 0 {
+				go gui.NotifyStatus(gui.Status{
+					Text:       "сканирование сети: приборы не найдены",
+					Ok:         true,
+					PopupLevel: gui.LWarn,
+				})
+				return nil
+			}
+
+			if err := data.SetNewCurrentParty(len(ans)); err != nil {
+				return err
+			}
+			party, err = data.GetCurrentParty()
+			if err != nil {
+				return err
+			}
+
+			for i, addr := range ans.Slice() {
+				p := party.Products[i]
+				p.Addr = modbus.Addr(addr)
+				if err := data.UpdateProduct(p); err != nil {
+					return err
+				}
+			}
+			go func() {
+				gui.NotifyCurrentPartyChanged()
+				gui.NotifyStatus(gui.Status{
+					Text: fmt.Sprintf("сканирование сети: создана новая партия %d. Ответили [%s], не ответили [%s]",
+						party.PartyID, ans.Format(), notAns.Format()),
+					Ok:         true,
+					PopupLevel: gui.LWarn,
+				})
+			}()
+
+			return nil
+		},
+	}
 }
 
 func pause(chDone <-chan struct{}, d time.Duration) {

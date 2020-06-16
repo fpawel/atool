@@ -18,11 +18,11 @@ type runWorkSvc struct{}
 var _ api.RunWorkService = new(runWorkSvc)
 
 func (h *runWorkSvc) SearchProducts(ctx context.Context, comportName string) error {
-	return workparty.RunSearchProducts(log, ctx, comportName)
+	return workparty.NewWorkScanModbus(log, ctx, comportName)
 }
 
 func (h *runWorkSvc) Connect(_ context.Context) error {
-	return workparty.RunInterrogate(log, appCtx)
+	return workparty.NewWorkInterrogate(log, appCtx)
 }
 
 func (h *runWorkSvc) Interrupt(_ context.Context) error {
@@ -48,7 +48,7 @@ func (h *runWorkSvc) Command(_ context.Context, cmd int16, s string) error {
 	if err != nil {
 		return merry.New("ожидалась последовательность байтов HEX")
 	}
-	workparty.RunRawCommand(log, appCtx, modbus.ProtoCmd(cmd), b)
+	workparty.NewWorkRawCmd(log, appCtx, modbus.ProtoCmd(cmd), b)
 	return nil
 }
 

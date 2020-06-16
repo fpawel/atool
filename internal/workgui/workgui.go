@@ -3,18 +3,14 @@ package workgui
 import (
 	"context"
 	"fmt"
-	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg"
-	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/comm"
 	"github.com/powerman/structlog"
 	"sync"
 	"sync/atomic"
 	"time"
 )
-
-type DelayBackgroundWorkFunc func(*structlog.Logger, context.Context) error
 
 func IsConnected() bool {
 	return atomic.LoadInt32(&atomicConnected) != 0
@@ -28,63 +24,6 @@ func Wait() {
 	wg.Wait()
 }
 
-func RunWork(log *structlog.Logger, ctx context.Context, workName string, work WorkFunc) error {
-	if IsConnected() {
-		return merry.New("already connected")
-	}
-	wg.Add(1)
-	atomic.StoreInt32(&atomicConnected, 1)
-	ctx, interrupt = context.WithCancel(ctx)
-	go runWork(log, ctx, workName, work)
-	return nil
-}
-
-func RunTask(log *structlog.Logger, what string, task func() error) {
-	go func() {
-		_ = Perform(log, context.Background(), what, func(*structlog.Logger, context.Context) error {
-			return task()
-		})
-	}()
-}
-
-func Perform(log *structlog.Logger, ctx context.Context, newWorkName string, work WorkFunc) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
-
-	NotifyInfo(log, "🛠 "+newWorkName)
-
-	muNamedWorksStack.Lock()
-	isMainWork := len(namedWorksStack) == 0
-	namedWorksStack = append(namedWorksStack, newWorkName)
-	level := len(namedWorksStack)
-	muNamedWorksStack.Unlock()
-
-	log = pkg.LogPrependSuffixKeys(log, fmt.Sprintf("work%d", level), newWorkName)
-
-	err := work(log, ctx)
-
-	muNamedWorksStack.Lock()
-	if len(namedWorksStack) > 0 {
-		namedWorksStack = namedWorksStack[:len(namedWorksStack)-1]
-	}
-	muNamedWorksStack.Unlock()
-
-	if err != nil {
-		if isMainWork {
-			pkg.LogPrependSuffixKeys(log, "stack", pkg.FormatStacktrace(merry.Stack(err), "\n\t")).PrintErr(err)
-		}
-		err = merry.Prepend(err, "🚫 "+newWorkName)
-		NotifyErr(log, err)
-		return err
-	}
-
-	if isMainWork {
-		NotifyInfo(log, "✅ "+newWorkName)
-	}
-	return nil
-}
-
 func InterruptDelay(log *structlog.Logger) {
 	muInterruptDelay.Lock()
 	interruptDelay()
@@ -93,29 +32,26 @@ func InterruptDelay(log *structlog.Logger) {
 	NotifyWarn(log, name+" - задержка прервана")
 }
 
-func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, name string, backgroundWork DelayBackgroundWorkFunc) error {
+func Delay(duration time.Duration, name string, backgroundWork WorkFunc) WorkFunc {
+	return func(log comm.Logger, ctx context.Context) error {
+		what := fmt.Sprintf("задержка: %s %s", name, duration)
+		if duration == 0 {
+			return nil
+		}
+		startTime := time.Now()
+		log = pkg.LogPrependSuffixKeys(log, "delay_start", startTime.Format("15:04:05"))
 
-	if duration == 0 {
-		return nil
-	}
+		// сохранить ссылку на изначальный контекст
+		ctxParent := ctx
 
-	startTime := time.Now()
-	log = pkg.LogPrependSuffixKeys(log, "delay_start", startTime.Format("15:04:05"))
+		// установить коллбэк прерывания задержки
+		muInterruptDelay.Lock()
+		ctx, interruptDelay = context.WithTimeout(ctx, duration)
+		delayName = name
+		muInterruptDelay.Unlock()
 
-	// сохранить ссылку на изначальный контекст
-	ctxParent := ctx
-
-	// установить коллбэк прерывания задержки
-	muInterruptDelay.Lock()
-	ctx, interruptDelay = context.WithTimeout(ctx, duration)
-	delayName = name
-	muInterruptDelay.Unlock()
-
-	s1 := fmt.Sprintf("задержка: %s %s", name, duration)
-
-	err := Perform(log, ctx, s1, func(log *structlog.Logger, ctx context.Context) error {
 		log.Info("delay: begin")
-		go gui.NotifyBeginDelay(duration, s1)
+		go gui.NotifyBeginDelay(duration, what)
 		defer func() {
 			muInterruptDelay.Lock()
 			interruptDelay()
@@ -143,44 +79,11 @@ func Delay(log *structlog.Logger, ctx context.Context, duration time.Duration, n
 				return nil
 			}
 		}
-	})
-	return err
+	}
 }
 
 func IgnoreError() {
 	ignoreError()
-}
-
-func WithWarn(log comm.Logger, ctx context.Context, err error) error {
-	if err == nil || merry.Is(err, context.Canceled) {
-		return err
-	}
-	var ctxIgnoreError context.Context
-	ctxIgnoreError, ignoreError = context.WithCancel(ctx)
-	NotifyWorkSuspended(err)
-	<-ctxIgnoreError.Done()
-	ignoreError()
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
-	NotifyWarn(log, "ошибка проигнорирована")
-	return nil
-}
-
-func runWork(log *structlog.Logger, ctx context.Context, workName string, work WorkFunc) {
-	go gui.NotifyStartWork()
-
-	muNamedWorksStack.Lock()
-	namedWorksStack = nil
-	muNamedWorksStack.Unlock()
-
-	_ = Perform(log, ctx, workName, work)
-
-	interrupt()
-	atomic.StoreInt32(&atomicConnected, 0)
-	comports.CloseAllComports()
-	wg.Done()
-	go gui.NotifyStopWork()
 }
 
 func currentWorkLevel() int {

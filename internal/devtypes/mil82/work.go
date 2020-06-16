@@ -27,7 +27,7 @@ type wrk struct {
 	Type  productType
 	ks    KefValueMap
 	temps map[ptTemp]float64
-	warn  hardware.GuiWarn
+	warn  hardware.WithWarn
 }
 
 type ptTemp string
@@ -157,7 +157,8 @@ func (x wrk) holdTemperature(pt ptTemp) workgui.WorkFunc {
 	return x.warn.HoldTemperature(t)
 }
 
-func (x wrk) runMainWork(log *structlog.Logger, ctx context.Context) error {
+func (x wrk) mainWork(log *structlog.Logger, ctx context.Context) error {
+	type lst = workgui.WorkFuncList
 	works := workgui.Works{
 		{
 			"запись коэффициентов",
@@ -169,21 +170,21 @@ func (x wrk) runMainWork(log *structlog.Logger, ctx context.Context) error {
 		},
 		{
 			"нормировка",
-			workgui.WorkFuncList{
+			lst{
 				x.warn.BlowGas(1),
 				x.write32(8, 10000),
 			}.Do,
 		},
 		{
 			"калибровка нуля",
-			workgui.WorkFuncList{
+			lst{
 				x.warn.BlowGas(1),
 				x.write32(1, x.C[1]),
 			}.Do,
 		},
 		{
 			"калибровка чувствительности",
-			workgui.WorkFuncList{
+			lst{
 				x.warn.BlowGas(4),
 				x.write32(2, x.C[3]),
 				x.warn.BlowGas(1),
@@ -199,7 +200,7 @@ func (x wrk) runMainWork(log *structlog.Logger, ctx context.Context) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
-	return works.Run(log, ctx, "Настройка МИЛ-82")
+	return works.Work("Настройка МИЛ-82").Run(log, ctx)
 }
 
 func (x wrk) writeProductsCoefficients(log *structlog.Logger, ctx context.Context) error {
@@ -207,7 +208,7 @@ func (x wrk) writeProductsCoefficients(log *structlog.Logger, ctx context.Contex
 	if err != nil {
 		return err
 	}
-	return workparty.WriteProductsCoefficients(log, ctx, xs, nil)
+	return workparty.WriteProdsCfs(xs, nil)(log, ctx)
 }
 
 func (x wrk) getProductsCoefficients() ([]workparty.ProductCoefficientValue, error) {
