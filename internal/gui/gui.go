@@ -31,6 +31,7 @@ const (
 	MsgTemperatureSetPoint
 	MsgProgress
 	MsgJournal
+	MsgModalMessage
 )
 
 const (
@@ -38,7 +39,12 @@ const (
 	wmuStartWork
 	wmuStopWork
 	wmuRequestConfigParamValues
+	wmuPartiesArchiveChanged
 )
+
+func ShowModalMessage(text string) bool {
+	return copyData().SendString(MsgModalMessage, text)
+}
 
 func NotifyProgressShow(max int, what string) bool {
 	return copyData().SendJson(MsgProgress, ProgressInfo{Cmd: ProgressShow, Max: max, What: what})
@@ -185,24 +191,30 @@ func NotifyJournal(xs []logfile.JournalRecord) bool {
 	return true
 }
 
-//func MsgBox(title, message string, style int) int {
-//	hWnd := hWndTargetSendMessage()
-//	if hWnd == win.HWND_TOP {
-//		return 0
-//	}
-//	return int(win.MessageBox(
-//		hWnd,
-//		winapi.MustUTF16PtrFromString(strings.ReplaceAll(message, "\x00", "␀")),
-//		winapi.MustUTF16PtrFromString(strings.ReplaceAll(title, "\x00", "␀")),
-//		uint32(style)))
-//}
+func MsgBox(title, message string, style int) int {
+	hWnd := hWndTargetSendMessage()
+	if hWnd == win.HWND_TOP {
+		return 0
+	}
+	return int(win.MessageBox(
+		hWnd,
+		winapi.MustUTF16PtrFromString(message),
+		winapi.MustUTF16PtrFromString(title),
+		uint32(style)))
+}
 
 func SetHWndTargetSendMessage(hWnd win.HWND) {
 	setHWndTargetSendMessage(hWnd)
 }
 
 func NotifyCurrentPartyChanged() {
-	sendMessage(wmuCurrentPartyChanged, 0, 0)
+	r := sendMessage(wmuCurrentPartyChanged, 0, 0)
+	fmt.Println(wmuCurrentPartyChanged, ":", r)
+}
+
+func NotifyPartiesArchiveChanged() {
+	r := sendMessage(wmuPartiesArchiveChanged, 0, 0)
+	fmt.Println(wmuPartiesArchiveChanged, ":", r)
 }
 
 func NotifyStartWork() {

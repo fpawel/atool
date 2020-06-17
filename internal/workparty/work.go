@@ -43,7 +43,7 @@ func NewWorkInterrogate() Work {
 	})
 }
 
-func NewWorkReadCfs() Work {
+func NewWorkReadAllCfs() Work {
 	return workgui.New("📤 считывание коэффициентов", func(log comm.Logger, ctx context.Context) error {
 		errs := make(ErrorsOccurred)
 		err := ProcessEachActiveProduct(errs, func(log comm.Logger, ctx context.Context, p Product) error {
@@ -102,7 +102,7 @@ func NewWorkRawCmd(c modbus.ProtoCmd, b []byte) Work {
 	}
 }
 
-func RunSetNetAddr(productID int64, notifyComm func(comm.Info)) workgui.WorkFunc {
+func SetNetAddr(productID int64, notifyComm func(comm.Info)) workgui.WorkFunc {
 	return func(log comm.Logger, ctx context.Context) error {
 		var p data.Product
 		err := data.DB.Get(&p, `SELECT * FROM product WHERE product_id=?`, productID)
@@ -159,87 +159,84 @@ func RunSetNetAddr(productID int64, notifyComm func(comm.Info)) workgui.WorkFunc
 	}
 }
 
-func NewWorkScanModbus(comportName string) Work {
-	return Work{
-		Name: "сканирование сети модбас",
-		Func: func(log comm.Logger, ctx context.Context) error {
-			party, err := data.GetCurrentParty()
+func NewWorkScanModbus(comportName string) workgui.Work {
+	return workgui.New("сканирование сети модбас", func(log comm.Logger, ctx context.Context) error {
+		party, err := data.GetCurrentParty()
+		if err != nil {
+			return err
+		}
+		device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
+		if err != nil {
+			return err
+		}
+
+		if len(device.Params) == 0 {
+			return merry.Errorf("нет параметров устройства %q", party.DeviceType)
+		}
+
+		cm := comm.New(comports.GetComport(comportName, device.Baud), comm.Config{
+			TimeoutGetResponse: 500 * time.Millisecond,
+			TimeoutEndResponse: 50 * time.Millisecond,
+		})
+
+		ans, notAns := make(intrng.Bytes), make(intrng.Bytes)
+		param := device.Params[0]
+
+		go gui.NotifyProgressShow(127, "модбас: сканирование сети")
+		defer func() {
+			go gui.NotifyProgressHide()
+		}()
+
+		for addr := modbus.Addr(1); addr <= 127; addr++ {
+			go gui.NotifyProgress(int(addr), fmt.Sprintf("MODBUS: сканирование сети: %d, ответили [%s], не ответили [%s]",
+				addr, ans.Format(), notAns.Format()))
+			_, err := modbus.Read3Value(log, ctx, cm, addr, modbus.Var(param.ParamAddr), param.Format)
+			if merry.Is(err, context.DeadlineExceeded) || merry.Is(err, modbus.Err) {
+				notAns.Push(byte(addr))
+				continue
+			}
 			if err != nil {
 				return err
 			}
-			device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
-			if err != nil {
-				return err
-			}
+			ans.Push(byte(addr))
+		}
 
-			if len(device.Params) == 0 {
-				return merry.Errorf("нет параметров устройства %q", party.DeviceType)
-			}
-
-			cm := comm.New(comports.GetComport(comportName, device.Baud), comm.Config{
-				TimeoutGetResponse: 500 * time.Millisecond,
-				TimeoutEndResponse: 50 * time.Millisecond,
+		if len(ans) == 0 {
+			go gui.NotifyStatus(gui.Status{
+				Text:       "сканирование сети: приборы не найдены",
+				Ok:         true,
+				PopupLevel: gui.LWarn,
 			})
-
-			ans, notAns := make(intrng.Bytes), make(intrng.Bytes)
-			param := device.Params[0]
-
-			go gui.NotifyProgressShow(127, "модбас: сканирование сети")
-			defer func() {
-				go gui.NotifyProgressHide()
-			}()
-
-			for addr := modbus.Addr(1); addr <= 127; addr++ {
-				go gui.NotifyProgress(int(addr), fmt.Sprintf("MODBUS: сканирование сети: %d, ответили [%s], не ответили [%s]",
-					addr, ans.Format(), notAns.Format()))
-				_, err := modbus.Read3Value(log, ctx, cm, addr, modbus.Var(param.ParamAddr), param.Format)
-				if merry.Is(err, context.DeadlineExceeded) || merry.Is(err, modbus.Err) {
-					notAns.Push(byte(addr))
-					continue
-				}
-				if err != nil {
-					return err
-				}
-				ans.Push(byte(addr))
-			}
-
-			if len(ans) == 0 {
-				go gui.NotifyStatus(gui.Status{
-					Text:       "сканирование сети: приборы не найдены",
-					Ok:         true,
-					PopupLevel: gui.LWarn,
-				})
-				return nil
-			}
-
-			if err := data.SetNewCurrentParty(len(ans)); err != nil {
-				return err
-			}
-			party, err = data.GetCurrentParty()
-			if err != nil {
-				return err
-			}
-
-			for i, addr := range ans.Slice() {
-				p := party.Products[i]
-				p.Addr = modbus.Addr(addr)
-				if err := data.UpdateProduct(p); err != nil {
-					return err
-				}
-			}
-			go func() {
-				gui.NotifyCurrentPartyChanged()
-				gui.NotifyStatus(gui.Status{
-					Text: fmt.Sprintf("сканирование сети: создана новая партия %d. Ответили [%s], не ответили [%s]",
-						party.PartyID, ans.Format(), notAns.Format()),
-					Ok:         true,
-					PopupLevel: gui.LWarn,
-				})
-			}()
-
 			return nil
-		},
-	}
+		}
+
+		if err := data.SetNewCurrentParty(len(ans)); err != nil {
+			return err
+		}
+		party, err = data.GetCurrentParty()
+		if err != nil {
+			return err
+		}
+
+		for i, addr := range ans.Slice() {
+			p := party.Products[i]
+			p.Addr = modbus.Addr(addr)
+			if err := data.UpdateProduct(p); err != nil {
+				return err
+			}
+		}
+		go func() {
+			gui.NotifyCurrentPartyChanged()
+			gui.NotifyStatus(gui.Status{
+				Text: fmt.Sprintf("сканирование сети: создана новая партия %d. Ответили [%s], не ответили [%s]",
+					party.PartyID, ans.Format(), notAns.Format()),
+				Ok:         true,
+				PopupLevel: gui.LWarn,
+			})
+		}()
+
+		return nil
+	})
 }
 
 func pause(chDone <-chan struct{}, d time.Duration) {

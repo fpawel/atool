@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/hardware"
-	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/atool/internal/workparty"
@@ -18,11 +16,11 @@ type runWorkSvc struct{}
 var _ api.RunWorkService = new(runWorkSvc)
 
 func (h *runWorkSvc) SearchProducts(ctx context.Context, comportName string) error {
-	return workparty.NewWorkScanModbus(log, ctx, comportName)
+	return workparty.NewWorkScanModbus(comportName).Run(log, ctx)
 }
 
 func (h *runWorkSvc) Connect(_ context.Context) error {
-	return workparty.NewWorkInterrogate(log, appCtx)
+	return runWork(workparty.NewWorkInterrogate())
 }
 
 func (h *runWorkSvc) Interrupt(_ context.Context) error {
@@ -48,15 +46,11 @@ func (h *runWorkSvc) Command(_ context.Context, cmd int16, s string) error {
 	if err != nil {
 		return merry.New("ожидалась последовательность байтов HEX")
 	}
-	workparty.NewWorkRawCmd(log, appCtx, modbus.ProtoCmd(cmd), b)
-	return nil
+	return runWork(workparty.NewWorkRawCmd(modbus.ProtoCmd(cmd), b))
 }
 
 func (h *runWorkSvc) SwitchGas(_ context.Context, valve int8) error {
-	workgui.RunTask(log, fmt.Sprintf("переключение пневмоблока %d", valve), func() error {
-		err := hardware.SwitchGas(log, context.Background(), byte(valve))
-		comports.CloseComport(appcfg.Cfg.Gas.Comport)
-		return err
-	})
-	return nil
+	return runWorkFunc(
+		fmt.Sprintf("переключение пневмоблока %d", valve),
+		hardware.SwitchGas(byte(valve)))
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/atool/internal/workgui"
+	"github.com/fpawel/comm"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os/exec"
@@ -44,17 +45,25 @@ WHERE chart = ?
 }
 
 func (h *currentFileSvc) AddNewProducts(_ context.Context, productsCount int8) error {
-	for i := 0; i < int(productsCount); i++ {
-		if _, err := data.AddNewProduct(i); err != nil {
-			return err
+	return runWithNotifyPartyChanged(fmt.Sprintf("добавление приборов в партию: %d", productsCount), func(log comm.Logger, ctx context.Context) error {
+		for i := 0; i < int(productsCount); i++ {
+			if _, err := data.AddNewProduct(i); err != nil {
+				return err
+			}
 		}
-	}
-	return nil
+		return nil
+	})
 }
 
 func (h *currentFileSvc) DeleteProducts(_ context.Context, productIDs []int64) error {
-	_, err := data.DB.Exec(`DELETE FROM product WHERE product_id IN (` + formatIDs(productIDs) + ")")
-	return err
+	return runWithNotifyPartyChanged("удаление приборов "+formatIDs(productIDs), func(log comm.Logger, ctx context.Context) error {
+		sql := `DELETE FROM product WHERE product_id IN (` + formatIDs(productIDs) + ")"
+		_, err := data.DB.Exec(sql)
+		if err != nil {
+			return merry.Appendf(err, sql)
+		}
+		return nil
+	})
 }
 
 func (h *currentFileSvc) ListDeviceParams(_ context.Context) ([]*apitypes.DeviceParam, error) {

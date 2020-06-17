@@ -25,8 +25,16 @@ func New(name string, work WorkFunc) Work {
 	return Work{name, work}
 }
 
+func NewFunc(name string, work WorkFunc) WorkFunc {
+	return Work{name, work}.Perform
+}
+
 func NewWorks(name string, works ...Work) Work {
 	return Works(works).Work(name)
+}
+
+func (x WorkFunc) Work(name string) Work {
+	return New(name, x)
 }
 
 func (x WorkFunc) DoWarn(log comm.Logger, ctx context.Context) error {
@@ -105,18 +113,20 @@ func (x Work) Run(log *structlog.Logger, ctx context.Context) error {
 func (x Works) Work(name string) Work {
 	return Work{
 		Name: name,
-		Func: func(log comm.Logger, ctx context.Context) error {
-			for _, w := range x {
-				if ctx.Err() != nil {
-					return ctx.Err()
-				}
-				if err := w.Perform(log, ctx); err != nil {
-					return err
-				}
-			}
-			return nil
-		},
+		Func: x.Do,
 	}
+}
+
+func (x Works) Do(log comm.Logger, ctx context.Context) error {
+	for _, w := range x {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if err := w.Perform(log, ctx); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type WorkFuncList []WorkFunc

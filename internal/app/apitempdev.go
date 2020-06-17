@@ -3,12 +3,10 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/hardware"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/workgui"
-	"github.com/fpawel/hardware/temp/ktx500"
+	"github.com/fpawel/comm"
 )
 
 type tempDeviceSvc struct{}
@@ -16,52 +14,28 @@ type tempDeviceSvc struct{}
 var _ api.TemperatureDeviceService = new(tempDeviceSvc)
 
 func (tempDeviceSvc) Start(context.Context) error {
-	workgui.RunTask(log, "термокамера: старт", func() error {
-		return hardware.TemperatureStart(log, context.Background())
+	workgui.New("термокамера: старт", func(log comm.Logger, ctx context.Context) error {
+		return hardware.TemperatureStart(log, ctx)
 	})
 	return nil
 }
 
 func (tempDeviceSvc) Stop(context.Context) error {
-	workgui.RunTask(log, "термокамера: стоп", func() error {
-		return hardware.TemperatureStop(log, context.Background())
+	workgui.New("термокамера: стоп", func(log comm.Logger, ctx context.Context) error {
+		return hardware.TemperatureStop(log, ctx)
 	})
 	return nil
 }
 
 func (tempDeviceSvc) Setup(_ context.Context, temperature float64) error {
-	workgui.RunTask(log, fmt.Sprintf("термокамера: уставка %v", temperature), func() error {
-		return hardware.TemperatureSetup(log, context.Background(), temperature)
-	})
-	return nil
+	return runWork(
+		hardware.TemperatureSetup(temperature).
+			Work(fmt.Sprintf("термокамера: уставка %v", temperature)))
 }
 func (tempDeviceSvc) CoolingOn(context.Context) error {
-	workgui.RunTask(log, "термокамера: включить охлаждение", func() error {
-		dd, err := hardware.GetTemperatureDevice()
-		if err != nil {
-			return err
-		}
-		d, f := dd.(ktx500.Client)
-		if !f {
-			return merry.Errorf("заданный тип термокамеры %q не поддерживает управление охлаждением",
-				appcfg.Cfg.Temperature.Type)
-		}
-		return d.CoolingOn(log, context.Background())
-	})
-	return nil
+	return runWorkFunc("термокамера: включить охлаждение", hardware.SetTemperatureCool(true))
 }
+
 func (tempDeviceSvc) CoolingOff(context.Context) error {
-	workgui.RunTask(log, "термокамера: выключить охлаждение", func() error {
-		d, err := hardware.GetTemperatureDevice()
-		if err != nil {
-			return err
-		}
-		c, f := d.(ktx500.Client)
-		if !f {
-			return merry.Errorf("заданный тип термокамеры %q не поддерживает управление охлаждением",
-				appcfg.Cfg.Temperature.Type)
-		}
-		return c.CoolingOff(log, context.Background())
-	})
-	return nil
+	return runWorkFunc("термокамера: выключить охлаждение", hardware.SetTemperatureCool(false))
 }

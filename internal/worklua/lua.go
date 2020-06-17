@@ -220,12 +220,8 @@ func (x *Import) Err(s lua.LValue) {
 	workgui.NotifyErr(x.log, merry.New(stringify(s)))
 }
 
-func (x *Import) PerformWorks(works []workgui.Work) {
-	for _, work := range works {
-		x.performContext(work.Name, func() error {
-			return work.Func(x.log, x.l.Context())
-		})
-	}
+func (x *Import) PerformWorks(works workgui.Works) {
+	x.do(works.Do)
 }
 
 func (x *Import) PerformEachSelectedProduct(name string, Func func(p *luaProduct)) {
@@ -239,37 +235,31 @@ func (x *Import) PerformEachSelectedProduct(name string, Func func(p *luaProduct
 	})
 }
 
-func (x *Import) Perform(name string, Func func()) {
-	x.perform(name, func(comm.Logger, context.Context) error {
-		Func()
-		return nil
-	})
-}
-
 func (x *Import) WriteCoefficients(ks map[int]int, format modbus.FloatBitsFormat) {
-	x.check(workparty.NewWorkWriteCfs(x.log, x.l.Context(), coefficientsList(ks), format))
+	x.do(workparty.WriteCfs(coefficientsList(ks), format))
 }
 
 func (x *Import) ReadCoefficients(ks map[int]int, format modbus.FloatBitsFormat) {
-	x.check(workparty.ReadCfs(x.log, x.l.Context(), coefficientsList(ks), format))
+	x.do(workparty.ReadCfs(coefficientsList(ks), format))
 }
 
 func (x *Import) ReadAndSaveParam(param modbus.Var, format modbus.FloatBitsFormat, dbKey string) {
-	x.check(workparty.ReadAndSaveProductParam(x.log, x.l.Context(), param, format, dbKey))
+	x.do(workparty.ReadAndSaveProductParam(param, format, dbKey))
+}
+
+func (x *Import) Perform(name string, Func func()) {
+	x.do(workgui.NewFunc(name, func(comm.Logger, context.Context) error {
+		Func()
+		return nil
+	}))
 }
 
 func (x *Import) perform(name string, Func workgui.WorkFunc) {
-	x.check(workgui.Perform(x.log, x.l.Context(), name, Func))
+	x.do(workgui.New(name, Func).Perform)
 }
 
 func (x *Import) do(Func workgui.WorkFunc) {
 	x.check(Func(x.log, x.l.Context()))
-}
-
-func (x *Import) performContext(name string, Func func() error) {
-	x.perform(name, func(comm.Logger, context.Context) error {
-		return Func()
-	})
 }
 
 func (x *Import) journalResult(s string, err error) {
@@ -281,16 +271,12 @@ func (x *Import) journalResult(s string, err error) {
 }
 
 func (x *Import) delay(dur time.Duration, what string) {
-	x.check(workparty.Delay(x.log, x.l.Context(), dur, what))
+	x.do(workparty.Delay(dur, what))
 }
 
 func (x *Import) check(err error) {
 	check(x.l, err)
 }
-
-//func (x *Import) withGuiWarn(err error) {
-//	x.check( workgui.WithWarn(x.log, x.l.Context(), err) )
-//}
 
 func (x *Import) getProducts(selectedOnly bool) (Products []*luaProduct) {
 

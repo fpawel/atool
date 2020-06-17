@@ -17,7 +17,7 @@ type productSvc struct{}
 var _ api.ProductService = new(productSvc)
 
 func (h *productSvc) SetNetAddr(_ context.Context, productID int64) error {
-	return workparty.RunSetNetAddr(log, appCtx, productID, notifyComm)
+	return workparty.SetNetAddr(productID, notifyComm)(log, appCtx)
 }
 
 func (h *productSvc) SetProductSerial(_ context.Context, productID int64, serial int64) error {

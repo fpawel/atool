@@ -17,11 +17,11 @@ type coefficientsSvc struct {
 var _ api.CoefficientsService = new(coefficientsSvc)
 
 func (*coefficientsSvc) WriteAll(_ context.Context, in []*apitypes.ProductCoefficientValue) error {
-	return workparty.NewWorkWriteAllCfs(log, appCtx, in)
+	return runWork(workparty.NewWorkWriteAllCfs(in))
 }
 
 func (*coefficientsSvc) ReadAll(context.Context) error {
-	return workparty.NewWorkReadCfs(log, appCtx)
+	return runWork(workparty.NewWorkReadAllCfs())
 }
 
 func (h *coefficientsSvc) ListCoefficients(_ context.Context) (r []*apitypes.Coefficient, err error) {

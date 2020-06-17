@@ -7,6 +7,7 @@ require (
 	github.com/apache/thrift v0.13.0
 	github.com/fpawel/comm v0.0.0-20200527132820-f63adc971f1c
 	github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8
+	github.com/fpawel/gotools v0.0.0-20191030125146-1d6c7465834c // indirect
 	github.com/fpawel/hardware v0.0.0-20200527132915-6358dec4a8fe
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.0

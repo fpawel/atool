@@ -3,13 +3,14 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/data"
-	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/atool/internal/workgui"
+	"github.com/fpawel/comm"
 	"io/ioutil"
 )
 
@@ -18,32 +19,15 @@ type filesSvc struct{}
 var _ api.FilesService = new(filesSvc)
 
 func (h *filesSvc) CopyFile(_ context.Context, partyID int64) error {
-	go func() {
-		if err := data.CopyParty(partyID); err != nil {
-			workgui.NotifyErr(log, merry.Appendf(err, "копирование файла %d", partyID))
-			return
-		}
-		gui.NotifyCurrentPartyChanged()
-	}()
-	return nil
-
+	return runWithNotifyArchiveChanged(fmt.Sprintf("копирование файла %d", partyID), func(log comm.Logger, ctx context.Context) error {
+		return data.CopyParty(partyID)
+	})
 }
 
 func (h *filesSvc) DeleteFile(_ context.Context, partyID int64) error {
-	go func() {
-		currentPartyID, err := data.GetCurrentPartyID()
-		if err != nil {
-			return
-		}
-		if err := data.DeleteParty(partyID); err != nil {
-			workgui.NotifyErr(log, merry.Appendf(err, "удаление файла %d", partyID))
-			return
-		}
-		if currentPartyID == partyID {
-			gui.NotifyCurrentPartyChanged()
-		}
-	}()
-	return nil
+	return runWithNotifyArchiveChanged(fmt.Sprintf("удаление файла %d", partyID), func(log comm.Logger, ctx context.Context) error {
+		return data.DeleteParty(partyID)
+	})
 }
 
 func (h *filesSvc) SaveFile(_ context.Context, partyID int64, filename string) error {
@@ -135,22 +119,26 @@ func (h *filesSvc) CreateNewParty(_ context.Context, productsCount int8) error {
 	if workgui.IsConnected() {
 		return merry.New("нельзя создать новую партию пока выполняется опрос")
 	}
-	if err := data.SetNewCurrentParty(int(productsCount)); err != nil {
-		return err
-	}
-	party, err := data.GetCurrentPartyInfo()
-	if err != nil {
-		return err
-	}
 
-	d, f := appcfg.DeviceTypes[party.DeviceType]
-	if f && d.InitParty != nil {
-		if err := d.InitParty(); err != nil {
+	return runWithNotifyArchiveChanged(fmt.Sprintf("создание новой партии: %d приборов", productsCount), func(log comm.Logger, ctx context.Context) error {
+
+		if err := data.SetNewCurrentParty(int(productsCount)); err != nil {
 			return err
 		}
-	}
+		party, err := data.GetCurrentPartyInfo()
+		if err != nil {
+			return err
+		}
 
-	return nil
+		d, f := appcfg.DeviceTypes[party.DeviceType]
+		if f && d.InitParty != nil {
+			if err := d.InitParty(); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
 
 func convertDataProductToApiProduct(p data.Product) *apitypes.Product {

@@ -11,7 +11,6 @@ import (
 	"github.com/fpawel/atool/internal/workparty"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
-	"github.com/powerman/structlog"
 	lua "github.com/yuin/gopher-lua"
 	"math"
 	"sort"
@@ -42,13 +41,10 @@ func newLuaProduct(p workparty.Product, i *Import) *luaProduct {
 }
 
 func (x *luaProduct) Perform(name string, Func func()) {
-	work := func(logger *structlog.Logger, ctx context.Context) error {
+	x.do(workgui.NewFunc(fmt.Sprintf("%s: %s", x.p, name), func(log comm.Logger, ctx context.Context) error {
 		Func()
 		return nil
-	}
-	name = fmt.Sprintf("%s: %s", x.p, name)
-	err := workgui.Perform(x.log, x.l.Context(), name, work)
-	x.check(err)
+	}))
 }
 
 func (x *luaProduct) ReadKef(k modbus.Var, format modbus.FloatBitsFormat) lua.LNumber {
@@ -70,7 +66,7 @@ func (x *luaProduct) SetKef(k int, LValue lua.LNumber) {
 
 func (x *luaProduct) WriteCoefficients(ks map[modbus.Var]float64, format modbus.FloatBitsFormat) {
 	for k, value := range ks {
-		_ = x.p.WriteKef(x.log, x.l.Context(), k, format, value)
+		_ = x.p.WriteKef(k, format, value)(x.log, x.l.Context())
 	}
 }
 
@@ -147,7 +143,7 @@ func (x *luaProduct) Interpolation(name string, xy [][2]float64, k0, kCount int,
 		r = append(r, 0)
 	}
 	for i, value := range r {
-		_ = x.p.WriteKef(x.log, x.l.Context(), modbus.Var(k0+i), format, value)
+		_ = x.p.WriteKef(modbus.Var(k0+i), format, value)(x.log, x.l.Context())
 	}
 }
 
@@ -157,6 +153,10 @@ func (x *luaProduct) info(s string) {
 
 func (x *luaProduct) check(err error) {
 	check(x.l, err)
+}
+
+func (x *luaProduct) do(Func workgui.WorkFunc) {
+	x.check(Func(x.log, x.l.Context()))
 }
 
 func (x *luaProduct) journalResult(s string, err error) {

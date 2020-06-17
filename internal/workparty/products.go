@@ -89,41 +89,43 @@ func ProcessEachActiveProduct(errs ErrorsOccurred, work WorkProduct) workgui.Wor
 }
 
 func ReadAndSaveProductParam(param modbus.Var, format modbus.FloatBitsFormat, dbKey string) workgui.WorkFunc {
-	return ProcessEachActiveProduct(nil, func(log comm.Logger, ctx context.Context, product Product) error {
-		value, err := modbus.Read3Value(log, ctx, product.Comm(), product.Addr, param, format)
-		if err != nil {
-			return err
-		}
-		const query = `
+	return workgui.NewFunc(fmt.Sprintf("📥 считывание регистр %d %v 💾 %s", param, format, dbKey),
+		ProcessEachActiveProduct(nil, func(log comm.Logger, ctx context.Context, product Product) error {
+			value, err := modbus.Read3Value(log, ctx, product.Comm(), product.Addr, param, format)
+			if err != nil {
+				return err
+			}
+			const query = `
 INSERT INTO product_value
 VALUES (?, ?, ?)
 ON CONFLICT (product_id,key) DO UPDATE
     SET value = ?`
-		_, err = data.DB.Exec(query, product.ProductID, dbKey, value, value)
-		if err != nil {
-			return merry.Appendf(err, "📥 считать %s регистр %d 💾 сохранить %s", format, param, dbKey)
-		}
-		workgui.NotifyInfo(log, fmt.Sprintf("%s считать регистр %d = %v 💾 сохранить %s", product, param, value, dbKey))
-		return nil
-	})
+			_, err = data.DB.Exec(query, product.ProductID, dbKey, value, value)
+			if err != nil {
+				return merry.Appendf(err, "📥 считать %s регистр %d 💾 сохранить %s", format, param, dbKey)
+			}
+			workgui.NotifyInfo(log, fmt.Sprintf("%s считать регистр %d = %v 💾 сохранить %s", product, param, value, dbKey))
+			return nil
+		}))
 }
 
 func Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) workgui.WorkFunc {
-	return ProcessEachActiveProduct(nil, func(log comm.Logger, ctx context.Context, product Product) error {
-		name := fmt.Sprintf("📥 команда %d(%v)", cmd, value)
-		err := modbus.RequestWrite32{
-			Addr:      product.Addr,
-			ProtoCmd:  0x10,
-			DeviceCmd: cmd,
-			Format:    format,
-			Value:     value,
-		}.GetResponse(log, ctx, product.Comm())
-		if err != nil {
-			return err
-		}
-		workgui.NotifyInfo(log, fmt.Sprintf("%s %s - успешно", product, name))
-		return nil
-	})
+	return workgui.NewFunc(fmt.Sprintf("📥 отправка команды %d(%v) всем приборам сети", cmd, value),
+		ProcessEachActiveProduct(nil, func(log comm.Logger, ctx context.Context, product Product) error {
+			name := fmt.Sprintf("📥 команда %d(%v)", cmd, value)
+			err := modbus.RequestWrite32{
+				Addr:      product.Addr,
+				ProtoCmd:  0x10,
+				DeviceCmd: cmd,
+				Format:    format,
+				Value:     value,
+			}.GetResponse(log, ctx, product.Comm())
+			if err != nil {
+				return err
+			}
+			workgui.NotifyInfo(log, fmt.Sprintf("%s %s - успешно", product, name))
+			return nil
+		}))
 }
 
 func ReadProductsParams(ms *data.MeasurementCache, errorsOccurred ErrorsOccurred) workgui.WorkFunc {
@@ -132,10 +134,9 @@ func ReadProductsParams(ms *data.MeasurementCache, errorsOccurred ErrorsOccurred
 	})
 }
 
-func NewWorkWriteCfs(ks CfsList, format modbus.FloatBitsFormat) workgui.WorkFunc {
-	return func(log comm.Logger, ctx context.Context) error {
-		workgui.NotifyInfo(log, fmt.Sprintf("📥 запись коэффициентов %v %v", ks, format))
-		return ProcessEachActiveProduct(nil, func(log comm.Logger, ctx context.Context, product Product) error {
+func WriteCfs(ks CfsList, format modbus.FloatBitsFormat) workgui.WorkFunc {
+	return workgui.NewFunc("📥 запись коэффициентов %v %v",
+		ProcessEachActiveProduct(nil, func(log comm.Logger, ctx context.Context, product Product) error {
 			for _, k := range ks {
 				var value float64
 				err := data.DB.Get(&value,
@@ -150,22 +151,19 @@ func NewWorkWriteCfs(ks CfsList, format modbus.FloatBitsFormat) workgui.WorkFunc
 				}
 			}
 			return nil
-		})(log, ctx)
-	}
+		}))
 }
 
-func ReadCfs(ks CfsList, format modbus.FloatBitsFormat) workgui.Work {
-	return workgui.Work{
-		Name: fmt.Sprintf("📥 💾 считывание коэффициентов %v %v", ks, format),
-		Func: ProcessEachActiveProduct(nil, func(log comm.Logger, ctx context.Context, product Product) error {
+func ReadCfs(ks CfsList, format modbus.FloatBitsFormat) workgui.WorkFunc {
+	return workgui.NewFunc(fmt.Sprintf("📥 💾 считывание коэффициентов %v %v", ks, format),
+		ProcessEachActiveProduct(nil, func(log comm.Logger, ctx context.Context, product Product) error {
 			for _, k := range ks {
 				if _, err := product.ReadKef(log, ctx, k, format); err != nil {
 					return err
 				}
 			}
 			return nil
-		}),
-	}
+		}))
 }
 
 type ProductCoefficientValue struct {

@@ -214,6 +214,35 @@ func cleanTmpDir() {
 	}
 }
 
+func runWork(w workgui.Work) error {
+	return w.Run(log, appCtx)
+}
+
+func runWorkFunc(name string, w workgui.WorkFunc) error {
+	return w.Work(name).Run(log, appCtx)
+}
+
+func runWithNotifyPartyChanged(name string, w workgui.WorkFunc) error {
+	return workgui.New(name, func(log comm.Logger, ctx context.Context) error {
+		defer func() {
+			go gui.NotifyCurrentPartyChanged()
+		}()
+		gui.ShowModalMessage(name)
+		return w(log, ctx)
+	}).Run(log, appCtx)
+}
+
+func runWithNotifyArchiveChanged(name string, w workgui.WorkFunc) error {
+	return workgui.New(name, func(log comm.Logger, ctx context.Context) error {
+		defer func() {
+			go gui.NotifyCurrentPartyChanged()
+			go gui.NotifyPartiesArchiveChanged()
+		}()
+		gui.ShowModalMessage(name)
+		return w(log, ctx)
+	}).Run(log, appCtx)
+}
+
 var (
 	log            = structlog.New()
 	tmpDir         = filepath.Join(filepath.Dir(os.Args[0]), "tmp")

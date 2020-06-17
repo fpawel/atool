@@ -155,6 +155,24 @@ func CloseHardware(log comm.Logger, ctx context.Context) {
 	state.blowGas = 0
 }
 
+func SetTemperatureCool(on bool) workgui.WorkFunc {
+	return func(log comm.Logger, ctx context.Context) error {
+		d, err := GetTemperatureDevice()
+		if err != nil {
+			return err
+		}
+		cli, f := d.(ktx500.Client)
+		if !f {
+			return merry.Errorf("заданный тип термокамеры %q не поддерживает управление охлаждением",
+				appcfg.Cfg.Temperature.Type)
+		}
+		if on {
+			return cli.CoolingOn(log, ctx)
+		}
+		return cli.CoolingOff(log, ctx)
+	}
+}
+
 func GetTemperatureDevice() (temp.TemperatureDevice, error) {
 	comports.CloseComport(appcfg.Cfg.Temperature.Comport)
 

@@ -19,7 +19,7 @@ func work(log comm.Logger, ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return w.runMainWork(log, ctx)
+	return w.mainWork(log, ctx)
 }
 
 type wrk struct {
