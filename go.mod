@@ -10,6 +10,7 @@ require (
 	github.com/fpawel/gotools v0.0.0-20191030125146-1d6c7465834c // indirect
 	github.com/fpawel/hardware v0.0.0-20200527132915-6358dec4a8fe
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
+	github.com/google/uuid v1.1.1 // indirect
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/lib/pq v1.3.0 // indirect
@@ -18,6 +19,7 @@ require (
 	github.com/mitchellh/mapstructure v1.2.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/powerman/structlog v0.7.1
+	github.com/schollz/progressbar/v3 v3.3.3
 	github.com/stretchr/testify v1.5.1
 	github.com/yuin/gluamapper v0.0.0-20150323120927-d836955830e7
 	github.com/yuin/gopher-lua v0.0.0-20191220021717-ab39c6098bdb

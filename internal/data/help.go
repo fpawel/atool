@@ -1,9 +1,7 @@
 package data
 
 import (
-	"database/sql"
 	"fmt"
-	"github.com/ansel1/merry"
 	"strconv"
 	"strings"
 	"time"
@@ -31,17 +29,6 @@ func formatMonth(t time.Time) string {
 		return months[n-1]
 	}
 	return ""
-}
-
-func getNewInsertedID(r sql.Result) (int64, error) {
-	id, err := r.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-	if id <= 0 {
-		return 0, merry.New("was not inserted")
-	}
-	return id, nil
 }
 
 func parseTime(sqlStr string) time.Time {

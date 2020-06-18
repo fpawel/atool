@@ -23,7 +23,7 @@ func New(filenameSuffix string) (*os.File, error) {
 }
 
 func filename(t time.Time, suffix string) string {
-	return filepath.Join(logDir, fmt.Sprintf("%s%s.log", t.Format("2006-01-02"), suffix))
+	return filepath.Join(LogDir, fmt.Sprintf("%s%s.log", t.Format("2006-01-02"), suffix))
 }
 
 func daytime(t time.Time) time.Time {
@@ -31,13 +31,13 @@ func daytime(t time.Time) time.Time {
 }
 
 func ensureDir() error {
-	_, err := os.Stat(logDir)
+	_, err := os.Stat(LogDir)
 	if os.IsNotExist(err) { // создать каталог если его нет
-		err = os.MkdirAll(logDir, os.ModePerm)
+		err = os.MkdirAll(LogDir, os.ModePerm)
 	}
 	return err
 }
 
 var (
-	logDir = filepath.Join(filepath.Dir(os.Args[0]), "logs")
+	LogDir = filepath.Join(filepath.Dir(os.Args[0]), "logs")
 )

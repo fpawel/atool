@@ -36,6 +36,9 @@ func Main() {
 	}
 	defer cleanTmpDir()
 
+	log.Debug("открыть журнал")
+	log.ErrIfFail(workgui.OpenJournal)
+
 	// инициализация конфигурации
 	appcfg.Init(mil82.Device, ikds4.Device)
 
@@ -86,7 +89,7 @@ func Main() {
 	log.ErrIfFail(comportLogfile.Close)
 
 	log.Debug("закрыть журнал")
-	log.ErrIfFail(workgui.File.Close)
+	log.ErrIfFail(workgui.CloseJournal)
 
 	log.Debug("сохранить конфигурацию")
 	log.ErrIfFail(appcfg.Cfg.Save)
@@ -157,6 +160,9 @@ func newApiProcessor() thrift.TProcessor {
 
 	p.RegisterProcessor("WorkDialogService",
 		api.NewWorkDialogServiceProcessor(new(workDialogSvc)))
+
+	p.RegisterProcessor("JournalService",
+		api.NewJournalServiceProcessor(new(journalSvc)))
 
 	return p
 }

@@ -105,3 +105,12 @@ struct CalcValue {
     3:string  detail
     4: string value
 }
+
+struct JournalEntry {
+    1:i64 entryID
+    2:string storedAt
+    4:i64 indent
+    5:bool	ok
+    6:string  text
+    7:string stack
+}

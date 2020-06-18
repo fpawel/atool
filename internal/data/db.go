@@ -263,7 +263,7 @@ VALUES (:party_id, :addr, :active, :comport, :created_at, :created_order);`, p)
 		if err != nil {
 			return err
 		}
-		newProductID, err := getNewInsertedID(r)
+		newProductID, err := pkg.SqlGetNewInsertedID(r)
 		if err != nil {
 			return err
 		}
@@ -339,7 +339,7 @@ func setNewCurrentPartyProducts(newPartyID int64, productsCount int, comport str
 		if err != nil {
 			return err
 		}
-		if _, err = getNewInsertedID(r); err != nil {
+		if _, err = pkg.SqlGetNewInsertedID(r); err != nil {
 			return err
 		}
 	}
@@ -383,7 +383,7 @@ func AddNewProduct(order int) (int64, error) {
 		return 0, err
 	}
 
-	productID, err := getNewInsertedID(r)
+	productID, err := pkg.SqlGetNewInsertedID(r)
 	if err != nil {
 		return 0, err
 	}
@@ -443,9 +443,9 @@ func createNewParty(name, deviceType, productType string) (int64, error) {
 		return 0, err
 	}
 	if n != 1 {
-		return 0, merry.Errorf("excpected 1 rows affected, got %d", n)
+		return 0, merry.Errorf("expected 1 rows affected, got %d", n)
 	}
-	return getNewInsertedID(r)
+	return pkg.SqlGetNewInsertedID(r)
 }
 
 func setPartyValues(p PartyValues) error {

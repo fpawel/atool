@@ -100,3 +100,10 @@ service CoefficientsService {
     void setActive(1:i32 n, 2:bool active)
     list<apitypes.ProductCoefficientValue> getCurrentPartyCoefficients()
 }
+
+service JournalService {
+    list<string> listDays()
+    list<apitypes.JournalEntry> listEntriesOfDay(1:string day)
+    list<i64> listEntriesIDsOfDay(1:string day)
+    apitypes.JournalEntry getEntryByID(1:i64 entryID)
+}

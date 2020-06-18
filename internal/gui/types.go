@@ -86,6 +86,3 @@ type LuaConfigParam struct {
 	List    []string
 	Value   string
 }
-
-type JournalRecord struct {
-}

@@ -9,8 +9,10 @@ import (
 
 func TestCopyCurrentParty(t *testing.T) {
 	dbFilename := filepath.Join(os.Getenv("GOPATH"), "src", "github.com", "fpawel", "atool", "build", "atool.sqlite")
-	db, err := Open(dbFilename)
+	err := Open(dbFilename)
 	must.PanicIf(err)
-	must.PanicIf(CopyCurrentParty(db))
-	must.PanicIf(db.Close())
+	partyID, err := GetCurrentPartyID()
+	must.PanicIf(err)
+	must.PanicIf(CopyParty(partyID))
+	must.PanicIf(DB.Close())
 }
