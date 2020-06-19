@@ -12,6 +12,10 @@ type journalSvc struct{}
 
 var _ api.JournalService = &journalSvc{}
 
+func (journalSvc) DeleteDays(_ context.Context, days []string) error {
+	return workgui.Journal.DeleteDays(days)
+}
+
 func (journalSvc) ListEntriesIDsOfDay(_ context.Context, day string) ([]int64, error) {
 	xs, err := workgui.Journal.GetEntriesIDsOfDay(day)
 	if len(xs) == 0 {

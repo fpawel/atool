@@ -106,4 +106,5 @@ service JournalService {
     list<apitypes.JournalEntry> listEntriesOfDay(1:string day)
     list<i64> listEntriesIDsOfDay(1:string day)
     apitypes.JournalEntry getEntryByID(1:i64 entryID)
+    void deleteDays(1:list<string> days)
 }

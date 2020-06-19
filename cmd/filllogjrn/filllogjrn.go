@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 func main() {
@@ -21,22 +22,52 @@ func main() {
 
 	reStack := regexp.MustCompile(`⤥([^⤣]+)⤣`)
 
-	for i, rec := range recs {
-		ent := &logjrn.Entry{
-			StoredAt: rec.Time,
-			Text:     strings.TrimSpace(rec.Text),
-			Ok:       rec.Ok,
-			Indent:   rec.Level,
+	totalCount := len(recs)
+
+	for n := 0; n < len(recs); {
+		recs := recs[n:]
+		offset := len(recs)
+		if offset > 10000 {
+			offset = 10000
+		}
+		recs = recs[:offset]
+		n += offset
+
+		var entList []*logjrn.Entry
+		for _, rec := range recs {
+			ent := &logjrn.Entry{
+				StoredAt: rec.Time,
+				Text:     strings.TrimSpace(rec.Text),
+				Ok:       rec.Ok,
+				Indent:   rec.Level,
+			}
+
+			xs := reStack.FindStringSubmatch(rec.Text)
+			if len(xs) == 2 {
+				ent.Stack = xs[1]
+				ent.Text = reStack.ReplaceAllString(ent.Text, "")
+			}
+			ent.Text = removeInvalidRunes(ent.Text)
+			ent.Stack = removeInvalidRunes(ent.Stack)
+			entList = append(entList, ent)
 		}
 
-		xs := reStack.FindStringSubmatch(rec.Text)
-		if len(xs) == 2 {
-			ent.Stack = xs[1]
-		}
-		must.PanicIf(j.AddEntry(ent))
-		must.PanicIf(bar.Add(1))
-		bar.Describe(fmt.Sprintf("%d from %d", i+1, len(recs)))
+		must.PanicIf(j.AddEntries(entList))
+		must.PanicIf(bar.Add(len(entList)))
+
+		bar.Describe(fmt.Sprintf("%d из %d", n, totalCount))
 	}
+
 	must.PanicIf(bar.Finish())
 	must.PanicIf(j.Close())
+}
+
+func removeInvalidRunes(s string) string {
+	var xs []rune
+	for _, r := range s {
+		if utf8.ValidRune(r) {
+			xs = append(xs, r)
+		}
+	}
+	return string(xs)
 }

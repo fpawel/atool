@@ -5,6 +5,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/jmoiron/sqlx"
+	"io/ioutil"
 	"strings"
 	"time"
 )
@@ -80,6 +81,16 @@ WHERE STRFTIME('%Y.%m.%d', stored_at) = ? `, strTm)
 	return r, nil
 }
 
+func (x *J) DeleteDays(days []string) error {
+	var xs []string
+	for _, day := range days {
+		xs = append(xs, fmt.Sprintf("'%s'", day))
+	}
+	query := `DELETE FROM entry WHERE STRFTIME('%Y.%m.%d', stored_at) IN ` + fmt.Sprintf("(%s)", strings.Join(xs, ","))
+	_, err := x.db.Exec(query)
+	return err
+}
+
 func (x *J) ListDays() ([]string, error) {
 	var days []string
 	const q = `
@@ -130,12 +141,17 @@ func (x *J) AddEntries(ents []*Entry) error {
 		if ent.Ok {
 			ok = 1
 		}
-		xs = append(xs, fmt.Sprintf("(%s, %d, %s, %d, %s)", ent.StoredAt, ok, ent.Text, ent.Indent, ent.Stack))
+		xs = append(xs, fmt.Sprintf("(%s, %d, '%s', %d, '%s')",
+			formatTimeAsQuery(ent.StoredAt),
+			ok,
+			removeQuote(ent.Text), ent.Indent,
+			removeQuote(ent.Stack)))
 	}
 	q := `INSERT INTO entry(stored_at, ok, text, indent, stack) VALUES ` + strings.Join(xs, ",")
 
 	r, err := x.db.Exec(q)
 	if err != nil {
+		_ = ioutil.WriteFile("sql.sql", []byte(q), 0644)
 		return merry.Wrap(err)
 	}
 	n, err := r.RowsAffected()
@@ -149,3 +165,19 @@ func (x *J) AddEntries(ents []*Entry) error {
 }
 
 const layoutDate = "2006.01.02"
+
+func removeQuote(value string) string {
+	replace := map[string]string{"'": ""}
+
+	for b, a := range replace {
+		value = strings.Replace(value, b, a, -1)
+	}
+
+	return value
+}
+
+func formatTimeAsQuery(t time.Time) string {
+	const timeLayout = "2006-01-02 15:04:05.000"
+	return "STRFTIME('%Y-%m-%d %H:%M:%f','" +
+		t.Format(timeLayout) + "')"
+}

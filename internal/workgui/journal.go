@@ -41,23 +41,31 @@ func WithNotifyValue(log *structlog.Logger, what string, work func() (float64, e
 }
 
 func NotifyInfo(log *structlog.Logger, x string) {
-	notifyStatus(log, gui.Status{Text: x, Ok: true, PopupLevel: gui.LJournal})
-	go newEntry(x).save()
+	go func() {
+		newEntry(x).save()
+		notifyStatus(log, gui.Status{Text: x, Ok: true, PopupLevel: gui.LJournal})
+	}()
 }
 
 func NotifyErr(log *structlog.Logger, err error) {
-	notifyStatus(log, gui.Status{Text: "⚠️ " + err.Error(), Ok: false, PopupLevel: gui.LJournal})
-	go newEntryError(err).save()
+	go func() {
+		newEntryError(err).save()
+		notifyStatus(log, gui.Status{Text: "⚠️ " + err.Error(), Ok: false, PopupLevel: gui.LJournal})
+	}()
 }
 
 func NotifyWarn(log *structlog.Logger, warn string) {
-	notifyStatus(log, gui.Status{Text: "⚠️ " + warn, Ok: false, PopupLevel: gui.LJournal})
-	go newEntryErrorText(warn).save()
+	go func() {
+		newEntryErrorText(warn).save()
+		notifyStatus(log, gui.Status{Text: "⚠️ " + warn, Ok: false, PopupLevel: gui.LJournal})
+	}()
 }
 
 func NotifyWarnError(log *structlog.Logger, err error) {
-	notifyStatus(log, gui.Status{Text: "⚠️ " + err.Error(), Ok: false, PopupLevel: gui.LWarn})
-	go newEntryError(err).save()
+	go func() {
+		newEntryError(err).save()
+		notifyStatus(log, gui.Status{Text: "⚠️ " + err.Error(), Ok: false, PopupLevel: gui.LWarn})
+	}()
 }
 
 func notifyStatus(log *structlog.Logger, x gui.Status) {
@@ -71,7 +79,7 @@ func notifyStatus(log *structlog.Logger, x gui.Status) {
 		log.PrintErr(x.Text)
 	}
 	x.Text = indentStr() + x.Text
-	go gui.NotifyStatus(x)
+	gui.NotifyStatus(x)
 }
 
 func indentStr() string {
