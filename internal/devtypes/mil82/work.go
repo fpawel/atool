@@ -6,6 +6,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/hardware"
+	"github.com/fpawel/atool/internal/pkg/numeth"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/atool/internal/workparty"
 	"github.com/fpawel/comm"
@@ -23,78 +24,87 @@ func work(log comm.Logger, ctx context.Context) error {
 }
 
 type wrk struct {
-	C     [4]float64
-	Type  productType
-	ks    KefValueMap
-	temps map[ptTemp]float64
-	warn  hardware.WithWarn
+	C            [4]float64
+	Type         productType
+	ks           KefValueMap
+	temps        map[ptTemp]float64
+	linearDegree linearDegree
+	warn         hardware.WithWarn
 }
 
 type ptTemp string
 
 const (
-	tLow  = "t_low"
-	tHigh = "t_high"
-	tNorm = "t_norm"
-
+	tLow            = "t_low"
+	tHigh           = "t_high"
+	tNorm           = "t_norm"
 	floatBitsFormat = modbus.BCD
+	linearDegree3   = 3
+	linearDegree4   = 4
 )
 
-func newWrk() (wrk, error) {
-	w := wrk{
+func (x *wrk) init() error {
+	*x = wrk{
 		ks:    make(KefValueMap),
 		temps: make(map[ptTemp]float64),
 	}
 	party, err := data.GetCurrentParty()
 	if err != nil {
-		return wrk{}, err
+		return err
 	}
 	if party.DeviceType != "МИЛ-82" {
-		return wrk{}, merry.Errorf("нельзя выполнить настройку МИЛ-82 для %s", party.DeviceType)
+		return merry.Errorf("нельзя выполнить настройку МИЛ-82 для %s", party.DeviceType)
 	}
 	pv, err := data.GetPartyValues1(party.PartyID)
 	if err != nil {
-		return wrk{}, err
+		return err
 	}
 
-	var ok bool
-
-	w.Type, ok = prodTypes[party.ProductType]
+	lnDgr, ok := pv[keyLinearDegree]
 	if !ok {
-		return wrk{}, merry.Errorf("%s не правильное исполнение %s", party.DeviceType, party.ProductType)
+		return merry.New("не указана степень линеаризации")
+	}
+	x.linearDegree = linearDegree(lnDgr)
+	if err := x.linearDegree.validate(); err != nil {
+		return err
+	}
+
+	x.Type, ok = prodTypes[party.ProductType]
+	if !ok {
+		return merry.Errorf("%s не правильное исполнение %s", party.DeviceType, party.ProductType)
 	}
 
 	Tnorm, ok := pv[keyTempNorm]
 	if !ok {
-		return wrk{}, merry.Errorf("нет значения %q", keyTempNorm)
+		return merry.Errorf("нет значения %q", keyTempNorm)
 	}
 	Tlow, ok := pv[keyTempLow]
 	if !ok {
-		return wrk{}, merry.Errorf("нет значения %q", keyTempLow)
+		return merry.Errorf("нет значения %q", keyTempLow)
 	}
 	Thigh, ok := pv[keyTempHigh]
 	if !ok {
-		return wrk{}, merry.Errorf("нет значения %q", keyTempHigh)
+		return merry.Errorf("нет значения %q", keyTempHigh)
 	}
-	w.temps[tNorm] = Tnorm
-	w.temps[tLow] = Tlow
-	w.temps[tHigh] = Thigh
+	x.temps[tNorm] = Tnorm
+	x.temps[tLow] = Tlow
+	x.temps[tHigh] = Thigh
 
 	for i := 1; i < 5; i++ {
 		k := fmt.Sprintf("c%d", i)
 		c, ok := pv[k]
 		if !ok {
-			return wrk{}, merry.Errorf("нет значения ПГС%d", i)
+			return merry.Errorf("нет значения ПГС%d", i)
 		}
-		w.C[i] = c
+		x.C[i] = c
 	}
 
-	w.ks = KefValueMap{
+	x.ks = KefValueMap{
 		2:  float64(time.Now().Year()),
-		8:  w.Type.Scale0,
-		9:  w.Type.Scale,
-		10: w.C[0],
-		11: w.C[3],
+		8:  x.Type.Scale0,
+		9:  x.Type.Scale,
+		10: x.C[0],
+		11: x.C[3],
 		16: 0,
 		17: 1,
 		18: 0,
@@ -109,47 +119,46 @@ func newWrk() (wrk, error) {
 		38: 0,
 		39: 0,
 
-		47: encode2(float64(time.Now().Month()), float64(w.Type.Index)),
+		47: encode2(float64(time.Now().Month()), float64(x.Type.Index)),
 	}
 
-	for k, v := range w.Type.Kef {
-		w.ks[k] = v
+	for k, v := range x.Type.Kef {
+		x.ks[k] = v
 	}
 
-	w.ks[5], ok = map[string]float64{
+	x.ks[5], ok = map[string]float64{
 		"CO2":   7,
 		"CH4":   14,
 		"C3H8":  14,
 		"C6H14": 14,
-	}[w.Type.Gas]
+	}[x.Type.Gas]
 	if !ok {
-		return wrk{}, merry.Errorf("%s %s: нет кода единиц измерения для газа %s", party.DeviceType, party.ProductType, w.Type.Gas)
+		return merry.Errorf("%s %s: нет кода единиц измерения для газа %s", party.DeviceType, party.ProductType, x.Type.Gas)
 	}
 
-	w.ks[6], ok = map[string]float64{
+	x.ks[6], ok = map[string]float64{
 		"CO2":   4,
 		"CH4":   5,
 		"C3H8":  7,
 		"C6H14": 7,
-	}[w.Type.Gas]
+	}[x.Type.Gas]
 	if !ok {
-		return wrk{}, merry.Errorf("%s %s: нет кода газа %s", party.DeviceType, party.ProductType, w.Type.Gas)
+		return merry.Errorf("%s %s: нет кода газа %s", party.DeviceType, party.ProductType, x.Type.Gas)
 	}
-	w.ks[7], ok = map[float64]float64{
+	x.ks[7], ok = map[float64]float64{
 		4:   57,
 		10:  7,
 		20:  9,
 		50:  0,
 		100: 21,
-	}[w.Type.Scale]
+	}[x.Type.Scale]
 	if !ok {
-		return wrk{}, merry.Errorf("%s %s: нет кода шкалы %v", party.DeviceType, party.ProductType, w.Type.Scale)
+		return merry.Errorf("%s %s: нет кода шкалы %v", party.DeviceType, party.ProductType, x.Type.Scale)
 	}
-
-	return w, nil
+	return nil
 }
 
-func (x wrk) holdTemperature(pt ptTemp) workgui.WorkFunc {
+func (x *wrk) holdTemperature(pt ptTemp) workgui.WorkFunc {
 	t, ok := x.temps[pt]
 	if !ok {
 		panic(fmt.Errorf("не правильная точка температуры %q", pt))
@@ -157,8 +166,22 @@ func (x wrk) holdTemperature(pt ptTemp) workgui.WorkFunc {
 	return x.warn.HoldTemperature(t)
 }
 
-func (x wrk) mainWork(log *structlog.Logger, ctx context.Context) error {
+func (x *wrk) mainWork(log *structlog.Logger, ctx context.Context) error {
 	type lst = workgui.WorkFuncList
+
+	var lin workgui.WorkFuncList
+
+	linGases := []byte{1, 3, 4}
+	if x.linearDegree == linearDegree4 {
+		linGases = []byte{1, 2, 3, 4}
+	}
+
+	for _, gas := range linGases {
+		lin = append(lin,
+			x.warn.BlowGas(gas),
+			workparty.ReadAndSaveProductParam(0, floatBitsFormat, fmt.Sprintf("lin%d", gas)))
+	}
+
 	works := workgui.Works{
 		{
 			"запись коэффициентов",
@@ -191,9 +214,21 @@ func (x wrk) mainWork(log *structlog.Logger, ctx context.Context) error {
 			}.Do,
 		},
 		{
-			"Снятие линеаризации",
-			func(log *structlog.Logger, ctx context.Context) error {
-				return nil
+			"снятие линеаризации",
+			lin.Do,
+		},
+		{
+			"расчёт и запись линеаризации",
+			func(log comm.Logger, ctx context.Context) error {
+				workparty.ProcessEachActiveProduct(nil, func(log comm.Logger, ctx context.Context, product workparty.Product) error {
+					type xy = numeth.Coordinate
+					var dt []xy
+					for _, gas := range linGases {
+						dt = append(dt, xy{x.C[gas-1]})
+					}
+					product.InterpolationCoefficients("lin", dt, 16, 4, floatBitsFormat)
+
+				})
 			},
 		},
 	}.ExecuteSelectWorksDialog(ctx.Done())
@@ -203,7 +238,7 @@ func (x wrk) mainWork(log *structlog.Logger, ctx context.Context) error {
 	return works.Work("Настройка МИЛ-82").Run(log, ctx)
 }
 
-func (x wrk) writeProductsCoefficients(log *structlog.Logger, ctx context.Context) error {
+func (x *wrk) writeProductsCoefficients(log *structlog.Logger, ctx context.Context) error {
 	xs, err := x.getProductsCoefficients()
 	if err != nil {
 		return err
@@ -211,7 +246,7 @@ func (x wrk) writeProductsCoefficients(log *structlog.Logger, ctx context.Contex
 	return workparty.WriteProdsCfs(xs, nil)(log, ctx)
 }
 
-func (x wrk) getProductsCoefficients() ([]workparty.ProductCoefficientValue, error) {
+func (x *wrk) getProductsCoefficients() ([]workparty.ProductCoefficientValue, error) {
 	var xs []workparty.ProductCoefficientValue
 	products, err := data.GetActiveProducts()
 	if err != nil {
@@ -231,7 +266,7 @@ func (x wrk) getProductsCoefficients() ([]workparty.ProductCoefficientValue, err
 	return xs, nil
 }
 
-func (x wrk) write32(cmd modbus.DevCmd, value float64) workgui.WorkFunc {
+func (x *wrk) write32(cmd modbus.DevCmd, value float64) workgui.WorkFunc {
 	return workparty.Write32(cmd, floatBitsFormat, value)
 }
 
@@ -245,4 +280,15 @@ func copyKefValueMap(x KefValueMap) KefValueMap {
 
 func encode2(a, b float64) float64 {
 	return a*10000 + b
+}
+
+type linearDegree float64
+
+func (x linearDegree) validate() error {
+	switch x {
+	case linearDegree3, linearDegree4:
+		return nil
+	default:
+		return merry.Errorf("unexpcpected linear degree value: %s", x)
+	}
 }

@@ -10,10 +10,12 @@ import (
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/comports"
+	"github.com/fpawel/atool/internal/pkg/numeth"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
 	"math"
+	"sort"
 )
 
 type Product struct {
@@ -122,6 +124,32 @@ func (x Product) SaveKefValue(k int, value float64) error {
 
 func (x Product) Comm() comm.T {
 	return comm.New(comports.GetComport(x.Comport, x.Device.Baud), x.Device.CommConfig())
+}
+
+func (x Product) InterpolationCoefficients(name string, dt []numeth.Coordinate, k0, kCount int, format modbus.FloatBitsFormat) workgui.WorkFunc {
+	return func(log comm.Logger, ctx context.Context) error {
+		sort.Slice(dt, func(i, j int) bool {
+			return dt[i].X < dt[i].Y
+		})
+		what := fmt.Sprintf("%s: 📈 расчёт %s K%d...K%d 📝 %v", x, name, k0, k0+kCount, dt)
+		workgui.NotifyInfo(log, fmt.Sprintf("%s: 📈 расчёт %s K%d...K%d 📝 %v", x, name, k0, k0+kCount, dt))
+		r, ok := numeth.InterpolationCoefficients(dt)
+		if !ok {
+			r = make([]float64, len(dt))
+			for i := range r {
+				r[i] = math.NaN()
+			}
+			workgui.NotifyErr(log, merry.Errorf("расчёт не выполнен: %s", what))
+			return nil
+		}
+		for len(r) < kCount {
+			r = append(r, 0)
+		}
+		for i, value := range r {
+			_ = x.WriteKef(modbus.Var(k0+i), format, value)(log, ctx)
+		}
+		return nil
+	}
 }
 
 func (x Product) readAllCoefficients(log comm.Logger, ctx context.Context) error {
