@@ -9,13 +9,13 @@ type productType struct {
 	Gas     string
 	Scale0  float64
 	Scale   float64
-	Kef     map[modbus.Var]float64
+	Kef     map[modbus.Coefficient]float64
 	TempMin float64
 	TempMax float64
 	Index   int
 }
 
-type KefValueMap = map[modbus.Var]float64
+type KefValueMap = map[modbus.Coefficient]float64
 
 var (
 	prodTypesList = []productType{

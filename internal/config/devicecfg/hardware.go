@@ -2,6 +2,7 @@ package devicecfg
 
 import (
 	"github.com/ansel1/merry"
+	"github.com/fpawel/comm/modbus"
 	"sort"
 )
 
@@ -15,15 +16,17 @@ func (xs Hardware) GetDevice(deviceType string) (Device, error) {
 	return device, nil
 }
 
-func (xs Hardware) GetDeviceParamAddresses(deviceType string) (ps []int) {
+func (xs Hardware) GetDeviceParamAddresses(deviceType string) (ps []modbus.Var) {
 	device, _ := xs[deviceType]
 	for _, p := range device.Params {
-		for n := 0; n < p.Count; n++ {
+		for n := modbus.Var(0); n < p.Count; n++ {
 			ps = append(ps, p.ParamAddr+2*n)
 		}
 
 	}
-	sort.Ints(ps)
+	sort.Slice(ps, func(i, j int) bool {
+		return ps[i] < ps[j]
+	})
 	return
 }
 

@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/fpawel/atool/internal/config/devicecfg"
+	"github.com/fpawel/comm/modbus"
 	"github.com/fpawel/hardware/gas"
 	"github.com/fpawel/hardware/temp/ktx500"
 	"time"
@@ -40,7 +41,7 @@ func defaultConfig() Config {
 			Addr:   99,
 		},
 		Ktx500:               ktx500.NewDefaultConfig(),
-		InactiveCoefficients: make(map[int]struct{}),
+		InactiveCoefficients: make(map[modbus.Coefficient]struct{}),
 		Hardware:             devicecfg.Hardware{},
 	}
 	return c

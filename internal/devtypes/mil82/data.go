@@ -65,9 +65,9 @@ func DataSections() (result devdata.DataSections) {
 	}
 
 	pts := [][2]string{
-		{"t_low", "компенсация Т-"},
-		{"t_norm", "компенсация НКУ"},
-		{"t_high", "компенсация Т+"},
+		{keyTempLow, "компенсация Т-"},
+		{keyTempNorm, "компенсация НКУ"},
+		{keyTempHigh, "компенсация Т+"},
 		{"test_t_norm", "проверка погрешности: НКУ"},
 		{"test_t_low", "проверка погрешности: Т-"},
 		{"test_t_high", "проверка погрешности: Т+"},

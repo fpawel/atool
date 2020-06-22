@@ -132,6 +132,32 @@ func GetPartyValues1(partyID int64) (Values, error) {
 	return xs, nil
 }
 
+type ProductIDKey struct {
+	ProductID int64
+	Key       string
+}
+
+type ProductIDKeyValues map[ProductIDKey]float64
+
+func GetCurrentProductValues() (ProductIDKeyValues, error) {
+	const query = `SELECT product_id, key, value FROM product_value
+WHERE product_id IN (SELECT product_id FROM product WHERE party_id = (SELECT party_id FROM app_config))`
+	var xs []struct {
+		ProductID int64   `db:"product_id"`
+		Key       string  `db:"key"`
+		Value     float64 `db:"value"`
+	}
+	if err := DB.Select(&xs, query); err != nil {
+		return nil, err
+	}
+	result := make(ProductIDKeyValues)
+	for _, v := range xs {
+		result[ProductIDKey{v.ProductID, v.Key}] = v.Value
+	}
+	return result, nil
+
+}
+
 func GetPartyValues(partyID int64, party *PartyValues, filterSerial int64) error {
 
 	err := DB.Get(party, `SELECT * FROM party WHERE party_id=?`, partyID)
@@ -211,11 +237,11 @@ ORDER BY created_at, created_order`
 	return nil
 }
 
-func SaveProductKefValue(productID int64, kef int, value float64) error {
+func SaveProductKefValue(productID int64, kef modbus.Coefficient, value float64) error {
 	return SaveProductValue(productID, KeyCoefficient(kef), value)
 }
 
-func KeyCoefficient(k int) string {
+func KeyCoefficient(k modbus.Coefficient) string {
 	return fmt.Sprintf("K%02d", k)
 }
 

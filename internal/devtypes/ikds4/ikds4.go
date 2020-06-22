@@ -57,11 +57,11 @@ var Device = devdata.Device{
 		},
 		Coefficients: []devicecfg.Coefficients{
 			{
-				Range:  [2]int{0, 50},
+				Range:  [2]modbus.Coefficient{0, 50},
 				Format: modbus.FloatBigEndian,
 			},
 		},
-		ParamsNames: map[int]string{
+		ParamsNames: map[modbus.Var]string{
 			0:   "C",
 			2:   "I",
 			4:   "Is",

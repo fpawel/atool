@@ -4,9 +4,7 @@ import (
 	"math"
 )
 
-type Coordinate = struct {
-	X, Y float64
-}
+type Coordinate = [2]float64
 
 func PolynomialValue(x float64, coefficients []float64) (y float64) {
 	for i, c := range coefficients {
@@ -19,8 +17,8 @@ func InterpolationCoefficients(xs []Coordinate) (coefficients []float64, ok bool
 	matrix := make([][]float64, 0)
 	for i := range xs {
 		matrix = append(matrix, make([]float64, len(xs)+1))
-		s, r := xs[i].X, float64(1)
-		matrix[i][len(xs)] = xs[i].Y
+		s, r := xs[i][0], float64(1)
+		matrix[i][len(xs)] = xs[i][1]
 		for j := range xs {
 			matrix[i][j] = r
 			r *= s

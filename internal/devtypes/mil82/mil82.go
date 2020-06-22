@@ -57,17 +57,17 @@ var Device = devdata.Device{
 		},
 		Coefficients: []devicecfg.Coefficients{
 			{
-				Range:  [2]int{0, 50},
+				Range:  [2]modbus.Coefficient{0, 50},
 				Format: modbus.BCD,
 			},
 		},
-		ParamsNames: map[int]string{
-			0:  "C",
-			2:  "I",
-			4:  "Is",
-			12: "Work",
-			14: "Ref",
-			16: "Var16",
+		ParamsNames: map[modbus.Var]string{
+			varConcentration: "C",
+			varTemp:          "T",
+			4:                "Is",
+			12:               "Work",
+			14:               "Ref",
+			var16:            "Var16",
 		},
 	},
 
@@ -104,6 +104,10 @@ var Device = devdata.Device{
 		{
 			Key:  keyTempHigh,
 			Name: "уставка высокой температуры,⁰C",
+		},
+		{
+			Key:  keyTestTemp80,
+			Name: "уставка высокой температуры 80⁰C",
 		},
 	},
 }
@@ -154,7 +158,25 @@ func initParty() error {
 
 const (
 	keyLinearDegree = "linear_degree"
-	keyTempNorm     = "temp_norm"
-	keyTempLow      = "temp_low"
-	keyTempHigh     = "temp_high"
+	keyTempNorm     = "t_norm"
+	keyTempLow      = "t_low"
+	keyTempHigh     = "t_high"
+
+	keyTestTempNorm = "test_t_norm"
+	keyTestTempLow  = "test_t_low"
+	keyTestTempHigh = "test_t_high"
+	keyTestTemp80   = "test_t80"
+
+	keyTest2 = "test2"
+)
+
+const (
+	varConcentration modbus.Var = 0
+	varTemp          modbus.Var = 2
+	var16                       = 16
+)
+
+var (
+	vars    = []modbus.Var{varConcentration, varTemp, 4, 8, 10, 12, 14, var16}
+	ptsTemp = []string{keyTempLow, keyTempNorm, keyTempHigh}
 )

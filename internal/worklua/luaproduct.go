@@ -47,7 +47,7 @@ func (x *luaProduct) Perform(name string, Func func()) {
 	}))
 }
 
-func (x *luaProduct) ReadKef(k modbus.Var, format modbus.FloatBitsFormat) lua.LNumber {
+func (x *luaProduct) ReadKef(k modbus.Coefficient, format modbus.FloatBitsFormat) lua.LNumber {
 	if err := format.Validate(); err != nil {
 		x.l.ArgError(2, err.Error())
 	}
@@ -60,11 +60,11 @@ func (x *luaProduct) ReadKef(k modbus.Var, format modbus.FloatBitsFormat) lua.LN
 	return lua.LNumber(v)
 }
 
-func (x *luaProduct) SetKef(k int, LValue lua.LNumber) {
+func (x *luaProduct) SetKef(k modbus.Coefficient, LValue lua.LNumber) {
 	x.SetValue(data.KeyCoefficient(k), LValue)
 }
 
-func (x *luaProduct) WriteCoefficients(ks map[modbus.Var]float64, format modbus.FloatBitsFormat) {
+func (x *luaProduct) WriteCoefficients(ks map[modbus.Coefficient]float64, format modbus.FloatBitsFormat) {
 	for k, value := range ks {
 		_ = x.p.WriteKef(k, format, value)(x.log, x.l.Context())
 	}
@@ -82,7 +82,7 @@ func (x *luaProduct) SetValue(key string, LValue lua.LNumber) {
 	x.info(fmt.Sprintf("💾 %s = %v", key, value))
 }
 
-func (x *luaProduct) Kef(k int) lua.LNumber {
+func (x *luaProduct) Kef(k modbus.Coefficient) lua.LNumber {
 	return x.Value(data.KeyCoefficient(k))
 }
 
@@ -120,12 +120,12 @@ func (x *luaProduct) Interpolation(name string, xy [][2]float64, k0, kCount int,
 	var dt []numeth.Coordinate
 	for _, pt := range xy {
 		dt = append(dt, numeth.Coordinate{
-			X: pt[0],
-			Y: pt[1],
+			pt[0],
+			pt[1],
 		})
 	}
 	sort.Slice(dt, func(i, j int) bool {
-		return dt[i].X < dt[i].Y
+		return dt[i][0] < dt[i][1]
 	})
 
 	r, ok := numeth.InterpolationCoefficients(dt)
@@ -143,7 +143,7 @@ func (x *luaProduct) Interpolation(name string, xy [][2]float64, k0, kCount int,
 		r = append(r, 0)
 	}
 	for i, value := range r {
-		_ = x.p.WriteKef(modbus.Var(k0+i), format, value)(x.log, x.l.Context())
+		_ = x.p.WriteKef(modbus.Coefficient(k0+i), format, value)(x.log, x.l.Context())
 	}
 }
 

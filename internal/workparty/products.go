@@ -12,9 +12,12 @@ import (
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/pkg/intrng"
+	"github.com/fpawel/atool/internal/pkg/numeth"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
+	"math"
+	"sort"
 )
 
 type ErrorsOccurred map[string]struct{}
@@ -141,7 +144,7 @@ func WriteCfs(ks CfsList, format modbus.FloatBitsFormat) workgui.WorkFunc {
 				var value float64
 				err := data.DB.Get(&value,
 					`SELECT value FROM product_value WHERE product_id = ? AND key = ?`,
-					product.ProductID, data.KeyCoefficient(int(k)))
+					product.ProductID, data.KeyCoefficient(k))
 				if err == sql.ErrNoRows {
 					workgui.NotifyErr(log, fmt.Errorf("нет значения коэффициента %d", k))
 					continue
@@ -168,7 +171,7 @@ func ReadCfs(ks CfsList, format modbus.FloatBitsFormat) workgui.WorkFunc {
 
 type ProductCoefficientValue struct {
 	ProductID   int64
-	Coefficient modbus.Var
+	Coefficient modbus.Coefficient
 	Value       float64
 }
 
@@ -197,7 +200,7 @@ func WriteProdsCfs(productCoefficientValues []ProductCoefficientValue, handleErr
 				return ctx.Err()
 			}
 
-			valFmt, err := device.GetCoefficientFormat(int(x.Coefficient))
+			valFmt, err := device.GetCoefficientFormat(x.Coefficient)
 			if err != nil {
 				return err
 			}
@@ -226,7 +229,7 @@ func WriteProdsCfs(productCoefficientValues []ProductCoefficientValue, handleErr
 			}
 
 			// сохранить значение к-та
-			if err := data.SaveProductKefValue(x.ProductID, int(x.Coefficient), x.Value); err != nil {
+			if err := data.SaveProductKefValue(x.ProductID, x.Coefficient, x.Value); err != nil {
 				return err
 			}
 		}
@@ -234,7 +237,107 @@ func WriteProdsCfs(productCoefficientValues []ProductCoefficientValue, handleErr
 	}
 }
 
-type CfsList []modbus.Var
+type ProductValues struct {
+	Product            Product
+	ProductIDKeyValues data.ProductIDKeyValues
+}
+
+func (x ProductValues) KefNaN(kef modbus.Coefficient) float64 {
+	return x.GetNaN(data.KeyCoefficient(kef))
+}
+
+func (x ProductValues) GetNaN(dbKey string) float64 {
+	v, ok := x.Get(dbKey)
+	if !ok {
+		return math.NaN()
+	}
+	return v
+}
+
+func (x ProductValues) Get(dbKey string) (float64, bool) {
+	v, f := x.ProductIDKeyValues[data.ProductIDKey{
+		ProductID: x.Product.ProductID,
+		Key:       dbKey,
+	}]
+	return v, f
+}
+
+func (x ProductValues) GetValuesNaN(keys []string) (values []float64) {
+	for _, key := range keys {
+		values = append(values, x.GetNaN(key))
+	}
+	return
+}
+
+type InterpolateCfsFunc func(pv ProductValues) ([]numeth.Coordinate, error)
+
+type InterpolateCfs struct {
+	Name               string
+	Coefficient        modbus.Coefficient
+	Count              modbus.Coefficient
+	Format             modbus.FloatBitsFormat
+	InterpolateCfsFunc InterpolateCfsFunc
+}
+
+func (x InterpolateCfs) String() string {
+	return fmt.Sprintf("📈 расчёт %s 📥 💾 запись K%d...K%d", x.Name, x.Coefficient, x.Coefficient+x.Count)
+}
+
+func (x InterpolateCfs) performProduct(productsValues data.ProductIDKeyValues, product Product) workgui.WorkFunc {
+	return workgui.New(product.String(), func(log comm.Logger, ctx context.Context) error {
+		pv := ProductValues{
+			Product:            product,
+			ProductIDKeyValues: productsValues,
+		}
+		dt, err := x.InterpolateCfsFunc(pv)
+		if err != nil {
+			workgui.NotifyErr(log, merry.Prepend(err, "нет данных для расчёта"))
+			return nil
+		}
+		sort.Slice(dt, func(i, j int) bool {
+			return dt[i][0] < dt[i][1]
+		})
+		workgui.NotifyInfo(log, fmt.Sprintf("📝 таблица интерполяции: %v", dt))
+
+		r, ok := numeth.InterpolationCoefficients(dt)
+		if !ok {
+			r = make([]float64, len(dt))
+			for i := range r {
+				r[i] = math.NaN()
+			}
+			workgui.NotifyErr(log, merry.New("точки не интерполируемы"))
+			return nil
+		}
+		for len(r) < int(x.Count) {
+			r = append(r, 0)
+		}
+
+		workgui.NotifyInfo(log, fmt.Sprintf("📈 расчитано: %v", r))
+
+		for i, value := range r {
+			kef := x.Coefficient + modbus.Coefficient(i)
+			if err := product.SaveKefValue(kef, value); err != nil {
+				return err
+			}
+			_ = product.WriteKef(kef, x.Format, value)(log, ctx)
+		}
+		return nil
+	}).Perform
+}
+
+func (x InterpolateCfs) Work() workgui.Work {
+	return workgui.New(x.String(), func(log comm.Logger, ctx context.Context) error {
+		productsValues, err := data.GetCurrentProductValues()
+		if err != nil {
+			return err
+		}
+		return ProcessEachActiveProduct(nil, func(log comm.Logger, ctx context.Context, product Product) error {
+			return x.performProduct(productsValues, product)(log, ctx)
+		})(log, ctx)
+	})
+}
+
+type CfsList []modbus.Coefficient
 
 func (x CfsList) String() string {
 	var coefficients []int

@@ -10,6 +10,8 @@ import (
 	"os"
 )
 
+type Kef = modbus.Coefficient
+
 type Config struct {
 	LogComm              bool               `yaml:"log_comm"`
 	FloatPrecision       int                `yaml:"float_precision"`
@@ -18,7 +20,7 @@ type Config struct {
 	Temperature          Temperature        `yaml:"temperature"`
 	WarmSheets           Mil82WarmSheets    `yaml:"warm_sheets"`
 	Ktx500               ktx500.Config      `yaml:"ktx500"`
-	InactiveCoefficients map[int]struct{}   `yaml:"inactive_coefficients"`
+	InactiveCoefficients map[Kef]struct{}   `yaml:"inactive_coefficients"`
 }
 
 type Mil82WarmSheets struct {

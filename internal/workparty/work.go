@@ -68,7 +68,7 @@ func NewWorkWriteAllCfs(in []*apitypes.ProductCoefficientValue) Work {
 		for _, p := range in {
 			xs = append(xs, ProductCoefficientValue{
 				ProductID:   p.ProductID,
-				Coefficient: modbus.Var(p.Coefficient),
+				Coefficient: modbus.Coefficient(p.Coefficient),
 				Value:       p.Value,
 			})
 		}

@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"github.com/fpawel/comm/modbus"
 	"strconv"
 	"strings"
 	"time"
@@ -37,6 +38,14 @@ func parseTime(sqlStr string) time.Time {
 		panic(err)
 	}
 	return t
+}
+
+func formatIntSliceAsQuery2(xs []modbus.Var) string {
+	var sx []string
+	for _, n := range xs {
+		sx = append(sx, strconv.Itoa(int(n)))
+	}
+	return formatStrSliceAsQuery(sx)
 }
 
 func formatIntSliceAsQuery(xs []int) string {

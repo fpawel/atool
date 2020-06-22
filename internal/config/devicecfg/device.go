@@ -10,15 +10,15 @@ import (
 )
 
 type Device struct {
-	Baud               int            `yaml:"baud"`
-	TimeoutGetResponse time.Duration  `yaml:"timeout_get_response"` // таймаут получения ответа
-	TimeoutEndResponse time.Duration  `yaml:"timeout_end_response"` // таймаут окончания ответа
-	MaxAttemptsRead    int            `yaml:"max_attempts_read"`    //число попыток получения ответа
-	Pause              time.Duration  `yaml:"pause"`                //пауза перед опросом
-	NetAddr            NetAddr        `yaml:"net_addr"`
-	Params             []Params       `yaml:"params"`
-	Coefficients       []Coefficients `yaml:"coefficients"`
-	ParamsNames        map[int]string `yaml:"params_names"`
+	Baud               int                   `yaml:"baud"`
+	TimeoutGetResponse time.Duration         `yaml:"timeout_get_response"` // таймаут получения ответа
+	TimeoutEndResponse time.Duration         `yaml:"timeout_end_response"` // таймаут окончания ответа
+	MaxAttemptsRead    int                   `yaml:"max_attempts_read"`    //число попыток получения ответа
+	Pause              time.Duration         `yaml:"pause"`                //пауза перед опросом
+	NetAddr            NetAddr               `yaml:"net_addr"`
+	Params             []Params              `yaml:"params"`
+	Coefficients       []Coefficients        `yaml:"coefficients"`
+	ParamsNames        map[modbus.Var]string `yaml:"params_names"`
 }
 
 type PartyParams = map[string]string
@@ -31,24 +31,26 @@ type NetAddr struct {
 func (d Device) BufferSize() (r int) {
 	for _, p := range d.Params {
 		x := p.ParamAddr*2 + p.Count*4
-		if r < x {
-			r = x
+		if r < int(x) {
+			r = int(x)
 		}
 	}
 	return
 }
 
-func (d Device) ParamAddresses() (ps []int) {
+func (d Device) ParamAddresses() (ps []modbus.Var) {
 	for _, p := range d.Params {
-		for i := 0; i < p.Count; i++ {
-			ps = append(ps, p.ParamAddr+i*2)
+		for i := 0; i < int(p.Count); i++ {
+			ps = append(ps, p.ParamAddr+modbus.Var(i)*2)
 		}
 	}
-	sort.Ints(ps)
+	sort.Slice(ps, func(i, j int) bool {
+		return ps[i] < ps[j]
+	})
 	return
 }
 
-func (d Device) ParamName(paramAddr int) string {
+func (d Device) ParamName(paramAddr modbus.Var) string {
 	for n, s := range d.ParamsNames {
 		if n == paramAddr {
 			return fmt.Sprintf("%d: %s", paramAddr, s)
@@ -87,7 +89,7 @@ func (d Device) Validate() error {
 		}
 	}
 
-	m := make(map[int]struct{})
+	m := make(map[modbus.Var]struct{})
 	for _, x := range d.ParamAddresses() {
 		if _, f := m[x]; f {
 			return merry.Errorf(`дублирование адреса параметра %d`, x)
@@ -117,7 +119,7 @@ func (d Device) CommConfig() comm.Config {
 	}
 }
 
-func (d Device) GetCoefficientFormat(n int) (FloatBitsFormat, error) {
+func (d Device) GetCoefficientFormat(n modbus.Coefficient) (FloatBitsFormat, error) {
 	for _, c := range d.Coefficients {
 		if err := c.Validate(); err != nil {
 			return "", merry.Prependf(err, "коэффициент %d: %+v", n, c)
@@ -129,8 +131,8 @@ func (d Device) GetCoefficientFormat(n int) (FloatBitsFormat, error) {
 	return "", merry.Errorf("коэффициент %d не найден в настройках", n)
 }
 
-func (d Device) ListCoefficients() (xs []int) {
-	m := map[int]struct{}{}
+func (d Device) ListCoefficients() (xs []modbus.Coefficient) {
+	m := map[modbus.Coefficient]struct{}{}
 	for _, p := range d.Coefficients {
 		for i := p.Range[0]; i <= p.Range[1]; i++ {
 			m[i] = struct{}{}
@@ -139,6 +141,8 @@ func (d Device) ListCoefficients() (xs []int) {
 	for i := range m {
 		xs = append(xs, i)
 	}
-	sort.Ints(xs)
+	sort.Slice(xs, func(i, j int) bool {
+		return xs[i] < xs[j]
+	})
 	return
 }

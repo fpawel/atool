@@ -135,21 +135,6 @@ local function new_product(p)
         return values
     end
 
-    function ret.calc_lin(linear_degree)
-        local xy = {}
-        local gases = { 1, 2, 3, 4 }
-        if linear_degree == 3 then
-            gases = { 1, 3, 4 }
-        end
-        local cfg = go:GetConfig()
-        for _, gas in pairs(gases) do
-            local x = p:Value('lin' .. tostring(gas))
-            local y = cfg['c' .. tostring(gas)]
-            xy[gas] = { x, y }
-        end
-        p:Interpolation('LIN', xy, 16, 4, FLOAT_FORMAT)
-    end
-
     function ret.calc_T0()
         local t1 = t_values(1, var_temp)
         local var1 = t_values(1, var16)
@@ -225,6 +210,23 @@ local function new_product(p)
     end
 
     return ret
+end
+
+local function lin_calc_write(linear_degree)
+    go:Interpolation('LIN', 16, 4, FLOAT_FORMAT, function(getValue)
+        local xy = {}
+        local gases = { 1, 2, 3, 4 }
+        if linear_degree == 3 then
+            gases = { 1, 3, 4 }
+        end
+        local cfg = go:GetConfig()
+        for _, gas in pairs(gases) do
+            local x = getValue('lin' .. tostring(gas))
+            local y = cfg['c' .. tostring(gas)]
+            xy[gas] = { x, y }
+        end
+        return xy
+    end )
 end
 
 local function main()
@@ -317,8 +319,8 @@ local function main()
 
         go:Work("Снятие линеаризации", read_lin),
 
-        go:WorkEachSelectedProduct("Расчёт и запись линеаризации", function(p)
-            new_product(p).calc_lin(params.linear_degree)
+        go:Work("Расчёт и запись линеаризации", function()
+            lin_calc_write(params.linear_degree)
         end),
 
         go:Work("запись линеаризации", function()

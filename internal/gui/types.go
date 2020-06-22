@@ -19,7 +19,7 @@ type ProductConnection struct {
 type ProductParamValue struct {
 	Addr      modbus.Addr
 	Comport   string
-	ParamAddr int
+	ParamAddr modbus.Var
 	Value     string
 }
 

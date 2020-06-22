@@ -116,8 +116,13 @@ ORDER BY stored_at DESC`
 }
 
 func (x *J) AddEntry(ent *Entry) error {
-	r, err := x.db.NamedExec(
-		`INSERT INTO entry(stored_at, ok, text, indent, stack) VALUES (:stored_at, :ok, :text, :indent, :stack)`, ent)
+	r, err := x.db.Exec(
+		`INSERT INTO entry(stored_at, ok, text, indent, stack) VALUES ( STRFTIME('%Y-%m-%d %H:%M:%f',?), ?,?,?,?)`,
+		ent.StoredAt.Format(timeLayout),
+		ent.Ok,
+		ent.Text,
+		ent.Indent,
+		ent.Stack)
 	if err != nil {
 		return merry.Wrap(err)
 	}
@@ -177,7 +182,8 @@ func removeQuote(value string) string {
 }
 
 func formatTimeAsQuery(t time.Time) string {
-	const timeLayout = "2006-01-02 15:04:05.000"
 	return "STRFTIME('%Y-%m-%d %H:%M:%f','" +
 		t.Format(timeLayout) + "')"
 }
+
+const timeLayout = "2006-01-02 15:04:05.000"

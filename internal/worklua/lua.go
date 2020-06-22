@@ -86,39 +86,20 @@ func (x *Import) ForEachProduct(f func(*luaProduct)) {
 	}
 }
 
-func (x *Import) InterpolationCoefficients(a *lua.LTable) lua.LValue {
-	var dt []numeth.Coordinate
-	a.ForEach(func(_ lua.LValue, a lua.LValue) {
-		par, f := a.(*lua.LTable)
-		if !f || par.Len() != 2 {
-			x.l.RaiseError("type error: %+v: table with two elements expected", a)
-		}
-		vx, xOk := par.RawGetInt(1).(lua.LNumber)
-		vy, yOk := par.RawGetInt(2).(lua.LNumber)
-		if xOk && yOk {
-			dt = append(dt, numeth.Coordinate{
-				X: float64(vx),
-				Y: float64(vy),
-			})
-		}
-	})
-	sort.Slice(dt, func(i, j int) bool {
-		return dt[i].X < dt[i].Y
-	})
-	r, ok := numeth.InterpolationCoefficients(dt)
+type GetProductValueFunc func(dbKey string) float64
+type InterpolateCfsFunc func(getProductValueFunc GetProductValueFunc) *lua.LTable
 
-	if !ok {
-		r = make([]float64, len(dt))
-		for i := range r {
-			r[i] = math.NaN()
-		}
-		workgui.NotifyErr(x.log, merry.Errorf("расчёт не выполнен: %+v", dt))
-	}
-	a = x.l.NewTable()
-	for i, v := range r {
-		a.RawSetInt(i+1, lua.LNumber(v))
-	}
-	return a
+func (x *Import) Interpolation(name string, kef, count modbus.Coefficient, format modbus.FloatBitsFormat, interpolateCfsFunc InterpolateCfsFunc) {
+	w := workparty.InterpolateCfs{
+		Name:        name,
+		Coefficient: kef,
+		Count:       count,
+		Format:      format,
+		InterpolateCfsFunc: func(pv workparty.ProductValues) ([]numeth.Coordinate, error) {
+			return x.luaTableToXY(interpolateCfsFunc(pv.GetNaN)), nil
+		},
+	}.Work()
+	x.perform(w.Name, w.Func)
 }
 
 func (x *Import) Temperature(destinationTemperature float64) {
@@ -235,11 +216,11 @@ func (x *Import) PerformEachSelectedProduct(name string, Func func(p *luaProduct
 	})
 }
 
-func (x *Import) WriteCoefficients(ks map[int]int, format modbus.FloatBitsFormat) {
+func (x *Import) WriteCoefficients(ks map[int]modbus.Coefficient, format modbus.FloatBitsFormat) {
 	x.do(workparty.WriteCfs(coefficientsList(ks), format))
 }
 
-func (x *Import) ReadCoefficients(ks map[int]int, format modbus.FloatBitsFormat) {
+func (x *Import) ReadCoefficients(ks map[int]modbus.Coefficient, format modbus.FloatBitsFormat) {
 	x.do(workparty.ReadCfs(coefficientsList(ks), format))
 }
 
@@ -309,10 +290,31 @@ func check(l *lua.LState, err error) {
 	}
 }
 
-func coefficientsList(xs map[int]int) (r workparty.CfsList) {
+func coefficientsList(xs map[int]modbus.Coefficient) (r workparty.CfsList) {
 	for _, k := range xs {
-		r = append(r, modbus.Var(k))
+		r = append(r, k)
 	}
+	return
+}
+
+func (x *Import) luaTableToXY(a *lua.LTable) (dt []numeth.Coordinate) {
+	a.ForEach(func(_ lua.LValue, a lua.LValue) {
+		par, f := a.(*lua.LTable)
+		if !f || par.Len() != 2 {
+			x.l.RaiseError("type error: %+v: table with two elements expected", a)
+		}
+		vx, xOk := par.RawGetInt(1).(lua.LNumber)
+		vy, yOk := par.RawGetInt(2).(lua.LNumber)
+		if xOk && yOk {
+			dt = append(dt, numeth.Coordinate{
+				float64(vx),
+				float64(vy),
+			})
+		}
+	})
+	sort.Slice(dt, func(i, j int) bool {
+		return dt[i][0] < dt[i][1]
+	})
 	return
 }
 

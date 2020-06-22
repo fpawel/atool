@@ -7,6 +7,7 @@ import (
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/atool/internal/workparty"
+	"github.com/fpawel/comm/modbus"
 	"regexp"
 	"strconv"
 )
@@ -39,9 +40,9 @@ func (h *coefficientsSvc) ListCoefficients(_ context.Context) (r []*apitypes.Coe
 
 func (h *coefficientsSvc) SetActive(_ context.Context, n int32, active bool) (err error) {
 	if active {
-		delete(appcfg.Cfg.InactiveCoefficients, int(n))
+		delete(appcfg.Cfg.InactiveCoefficients, modbus.Coefficient(n))
 	} else {
-		appcfg.Cfg.InactiveCoefficients[int(n)] = struct{}{}
+		appcfg.Cfg.InactiveCoefficients[modbus.Coefficient(n)] = struct{}{}
 	}
 	return nil
 }

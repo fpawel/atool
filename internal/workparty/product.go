@@ -10,12 +10,10 @@ import (
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/comports"
-	"github.com/fpawel/atool/internal/pkg/numeth"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
 	"math"
-	"sort"
 )
 
 type Product struct {
@@ -48,7 +46,7 @@ func (x Product) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value
 	}
 }
 
-func (x Product) WriteKef(kef modbus.Var, format modbus.FloatBitsFormat, value float64) workgui.WorkFunc {
+func (x Product) WriteKef(kef modbus.Coefficient, format modbus.FloatBitsFormat, value float64) workgui.WorkFunc {
 	return func(log comm.Logger, ctx context.Context) error {
 		what := fmt.Sprintf("%s 📥 запись K%d=%v %s", x, kef, value, format)
 		err := func() error {
@@ -87,10 +85,10 @@ func (x Product) WriteKef(kef modbus.Var, format modbus.FloatBitsFormat, value f
 	}
 }
 
-func (x Product) ReadKef(log comm.Logger, ctx context.Context, k modbus.Var, format modbus.FloatBitsFormat) (float64, error) {
+func (x Product) ReadKef(log comm.Logger, ctx context.Context, k modbus.Coefficient, format modbus.FloatBitsFormat) (float64, error) {
 	what := fmt.Sprintf("%s 📥 💾 %s K%d", x, format, k)
 	return workgui.WithNotifyValue(log, what, func() (float64, error) {
-		value, err := modbus.Read3Value(log, ctx, x.Comm(), x.Addr, 224+2*k, format)
+		value, err := modbus.Read3Value(log, ctx, x.Comm(), x.Addr, 224+2*modbus.Var(k), format)
 
 		i := gui.CoefficientValue{
 			ProductID:   x.ProductID,
@@ -110,7 +108,7 @@ func (x Product) ReadKef(log comm.Logger, ctx context.Context, k modbus.Var, for
 		go gui.NotifyCoefficient(i)
 
 		// сохранить значение к-та
-		if err := x.SaveKefValue(int(k), value); err != nil {
+		if err := x.SaveKefValue(k, value); err != nil {
 			return math.NaN(), err
 		}
 
@@ -118,38 +116,12 @@ func (x Product) ReadKef(log comm.Logger, ctx context.Context, k modbus.Var, for
 	})
 }
 
-func (x Product) SaveKefValue(k int, value float64) error {
+func (x Product) SaveKefValue(k modbus.Coefficient, value float64) error {
 	return data.SaveProductKefValue(x.ProductID, k, value)
 }
 
 func (x Product) Comm() comm.T {
 	return comm.New(comports.GetComport(x.Comport, x.Device.Baud), x.Device.CommConfig())
-}
-
-func (x Product) InterpolationCoefficients(name string, dt []numeth.Coordinate, k0, kCount int, format modbus.FloatBitsFormat) workgui.WorkFunc {
-	return func(log comm.Logger, ctx context.Context) error {
-		sort.Slice(dt, func(i, j int) bool {
-			return dt[i].X < dt[i].Y
-		})
-		what := fmt.Sprintf("%s: 📈 расчёт %s K%d...K%d 📝 %v", x, name, k0, k0+kCount, dt)
-		workgui.NotifyInfo(log, fmt.Sprintf("%s: 📈 расчёт %s K%d...K%d 📝 %v", x, name, k0, k0+kCount, dt))
-		r, ok := numeth.InterpolationCoefficients(dt)
-		if !ok {
-			r = make([]float64, len(dt))
-			for i := range r {
-				r[i] = math.NaN()
-			}
-			workgui.NotifyErr(log, merry.Errorf("расчёт не выполнен: %s", what))
-			return nil
-		}
-		for len(r) < kCount {
-			r = append(r, 0)
-		}
-		for i, value := range r {
-			_ = x.WriteKef(modbus.Var(k0+i), format, value)(log, ctx)
-		}
-		return nil
-	}
 }
 
 func (x Product) readAllCoefficients(log comm.Logger, ctx context.Context) error {
@@ -165,7 +137,7 @@ func (x Product) readAllCoefficients(log comm.Logger, ctx context.Context) error
 				continue
 			}
 
-			_, err := x.ReadKef(log, ctx, modbus.Var(kef), Kr.Format)
+			_, err := x.ReadKef(log, ctx, kef, Kr.Format)
 			if err != nil {
 				if merry.Is(err, context.DeadlineExceeded) {
 					return err
@@ -186,7 +158,7 @@ func (x Product) readParams(log comm.Logger, ctx context.Context, ms *data.Measu
 		}
 	}
 	for _, p := range x.Device.Params {
-		for i := 0; i < p.Count; i++ {
+		for i := modbus.Var(0); i < p.Count; i++ {
 			rdr.processParamValueRead(p, i, ms)
 		}
 	}
@@ -213,7 +185,7 @@ type productParamsReader struct {
 
 func (r productParamsReader) getResponse(log comm.Logger, ctx context.Context, prm devicecfg.Params) error {
 
-	regsCount := prm.Count * 2
+	regsCount := int(prm.Count) * 2
 	bytesCount := regsCount * 2
 
 	req3 := modbus.RequestRead3{
@@ -223,7 +195,7 @@ func (r productParamsReader) getResponse(log comm.Logger, ctx context.Context, p
 	}
 	response, err := req3.GetResponse(log, ctx, r.Comm())
 	if err == nil {
-		offset := 2 * prm.ParamAddr
+		offset := 2 * int(prm.ParamAddr)
 		copy(r.dt[offset:], response[3:][:bytesCount])
 		for i := 0; i < bytesCount; i++ {
 			r.rd[offset+i] = true
@@ -232,7 +204,7 @@ func (r productParamsReader) getResponse(log comm.Logger, ctx context.Context, p
 	return err
 }
 
-func (r productParamsReader) processParamValueRead(p devicecfg.Params, i int, ms *data.MeasurementCache) {
+func (r productParamsReader) processParamValueRead(p devicecfg.Params, i modbus.Var, ms *data.MeasurementCache) {
 	paramAddr := p.ParamAddr + 2*i
 	offset := 2 * paramAddr
 	if !r.rd[offset] {

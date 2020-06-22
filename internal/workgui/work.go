@@ -119,6 +119,7 @@ func (x Works) Work(name string) Work {
 
 func (x Works) Do(log comm.Logger, ctx context.Context) error {
 	for _, w := range x {
+		w := w
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -137,6 +138,7 @@ func NewWorkFuncList(args ...WorkFunc) WorkFuncList {
 
 func (xs WorkFuncList) Do(log *structlog.Logger, ctx context.Context) error {
 	for _, w := range xs {
+		w := w
 		if err := w(log, ctx); err != nil {
 			return err
 		}

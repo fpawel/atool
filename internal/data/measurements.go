@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/pkg/must"
+	"github.com/fpawel/comm/modbus"
 	"strings"
 	"time"
 )
@@ -11,10 +12,10 @@ import (
 type Measurement struct {
 	//Tm        float64 `db:"tm"`
 
-	Tm        int64   `db:"tm"`
-	ProductID int64   `db:"product_id"`
-	ParamAddr int     `db:"param_addr"`
-	Value     float64 `db:"value"`
+	Tm        int64      `db:"tm"`
+	ProductID int64      `db:"product_id"`
+	ParamAddr modbus.Var `db:"param_addr"`
+	Value     float64    `db:"value"`
 }
 
 func (x Measurement) Time() time.Time {
@@ -22,7 +23,7 @@ func (x Measurement) Time() time.Time {
 	return time.Unix(0, x.Tm)
 }
 
-func NewMeasurement(ProductID int64, ParamAddr int, Value float64) Measurement {
+func NewMeasurement(ProductID int64, ParamAddr modbus.Var, Value float64) Measurement {
 	return Measurement{
 		//Tm:        pkg.TimeToJulian(time.Now()),
 
@@ -51,7 +52,7 @@ func SaveMeasurements(measurements []Measurement) error {
 
 type MeasurementCache []Measurement
 
-func (xs *MeasurementCache) Add(ProductID int64, ParamAddr int, Value float64) {
+func (xs *MeasurementCache) Add(ProductID int64, ParamAddr modbus.Var, Value float64) {
 	*xs = append(*xs, NewMeasurement(ProductID, ParamAddr, Value))
 	if len(*xs) >= 1000 {
 		xs.Save()
@@ -63,7 +64,7 @@ func (xs *MeasurementCache) Save() {
 	*xs = nil
 }
 
-func GetPartyChart(partyID int64, paramAddresses []int) ([]Measurement, error) {
+func GetPartyChart(partyID int64, paramAddresses []modbus.Var) ([]Measurement, error) {
 
 	productsIDs, err := GetPartyProductsIDs(partyID)
 	if err != nil {
@@ -75,7 +76,7 @@ FROM measurement
 WHERE product_id IN ` +
 		formatInt64SliceAsQuery(productsIDs) +
 		` AND param_addr IN ` +
-		formatIntSliceAsQuery(paramAddresses)
+		formatIntSliceAsQuery2(paramAddresses)
 
 	var xs []Measurement
 

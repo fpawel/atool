@@ -8,8 +8,8 @@ import (
 type FloatBitsFormat = modbus.FloatBitsFormat
 type Params struct {
 	Format    FloatBitsFormat `yaml:"format"`
-	ParamAddr int             `yaml:"reg"`
-	Count     int             `yaml:"count"`
+	ParamAddr modbus.Var      `yaml:"reg"`
+	Count     modbus.Var      `yaml:"count"`
 }
 
 func (p Params) Validate() error {
