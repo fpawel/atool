@@ -69,20 +69,20 @@ func AddSectionProdOut(party data.PartyValues, sections *devdata.CalcSections) {
 func calcSections(party data.PartyValues, sections *devdata.CalcSections) error {
 	prodT, ok := prodTypes[party.ProductType]
 	if !ok {
-		return merry.Errorf("не правильное исполнение МИЛ-82: %s", party.ProductType)
+		return merry.Errorf("неправильное исполнение МИЛ-82: %s", party.ProductType)
 	}
 	for _, pt := range []section{
-		{key: "test_t_norm", name: "НКУ"},
-		{key: "test_t_low", name: "Т-", tNorm: ptrFloat(20)},
-		{key: "test_t_high", name: "Т+", tNorm: ptrFloat(20)},
-		{key: "test2", name: "возврат НКУ"},
-		{key: "test_t80", name: "90⁰C", tNorm: ptrFloat(80)},
-		{key: "tex1", name: "перед техпрогоном"},
-		{key: "tex1", name: "после техпрогона"},
+		{key: keyTestTempNorm, name: "НКУ"},
+		{key: keyTestTempLow, name: "Т-", tNorm: ptrFloat(20)},
+		{key: keyTestTempHigh, name: "Т+", tNorm: ptrFloat(20)},
+		{key: keyTest2, name: "возврат НКУ"},
+		{key: keyTestTemp80, name: "80⁰C", tNorm: ptrFloat(80)},
+		{key: keyTex1, name: "перед техпрогоном"},
+		{key: keyTex2, name: "после техпрогона"},
 	} {
 		sect := devdata.AddSect(sections, "Расчёт погрешности: "+pt.name)
 		gases := []int{1, 3, 4}
-		if pt.key == "test_t_norm" {
+		if pt.key == keyTestTempNorm {
 			gases = []int{1, 2, 3, 4}
 		}
 		for _, gas := range gases {

@@ -1,4 +1,4 @@
-package mil82
+package ikds4
 
 import (
 	"context"
@@ -34,7 +34,7 @@ type wrk struct {
 }
 
 const (
-	floatBitsFormat = modbus.BCD
+	floatBitsFormat = modbus.FloatBigEndian
 	linearDegree3   = 3
 	linearDegree4   = 4
 )
@@ -48,8 +48,8 @@ func (x *wrk) do(log comm.Logger, ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if party.DeviceType != "МИЛ-82" {
-		return merry.Errorf("нельзя выполнить настройку МИЛ-82 для %s", party.DeviceType)
+	if party.DeviceType != "ИКД-С4" {
+		return merry.Errorf("нельзя выполнить настройку ИКД-С4 для %s", party.DeviceType)
 	}
 	pv, err := data.GetPartyValues1(party.PartyID)
 	if err != nil {
@@ -82,14 +82,9 @@ func (x *wrk) do(log comm.Logger, ctx context.Context) error {
 	if !ok {
 		return merry.Errorf("нет значения %q", keyTempHigh)
 	}
-	T80, ok := pv[keyTestTemp80]
-	if !ok {
-		return merry.Errorf("нет значения %q", keyTestTemp80)
-	}
 	x.temps[keyTempNorm] = Tnorm
 	x.temps[keyTempLow] = Tlow
 	x.temps[keyTempHigh] = Thigh
-	x.temps[keyTestTemp80] = T80
 
 	for i := 0; i < 4; i++ {
 		k := fmt.Sprintf("c%d", i+1)
@@ -102,7 +97,7 @@ func (x *wrk) do(log comm.Logger, ctx context.Context) error {
 
 	x.ks = KefValueMap{
 		2:  float64(time.Now().Year()),
-		8:  x.Type.Scale0,
+		8:  0,
 		9:  x.Type.Scale,
 		10: x.C[0],
 		11: x.C[3],
@@ -158,7 +153,7 @@ func (x *wrk) do(log comm.Logger, ctx context.Context) error {
 	}
 
 	work, ok := workgui.NewWorks(
-		workgui.New("Настройка МИЛ-82", x.main),
+		workgui.New("Настройка ИКД-С4", x.main),
 		workgui.New("Технологический прогон", x.technologicalTest),
 		workgui.New("Перевод климатики", x.reworkTempComp),
 		workgui.New("Выпуск в эксплуатацию", x.toProduction),
@@ -208,7 +203,8 @@ func (x *wrk) main(log *structlog.Logger, ctx context.Context) error {
 			x.calcWriteT0(),
 			x.calcWriteTK(),
 			x.calcWriteTM()).Work("расчёт и запись термокомпенсации"),
-		workgui.New("снятие сигналов каналов", workparty.ReadCfs(workparty.CfsList{20, 21, 43, 44}, floatBitsFormat)),
+		workgui.New("снятие сигналов каналов",
+			workparty.ReadCfs(workparty.CfsList{20, 21, 43, 44}, floatBitsFormat)),
 		workgui.New("НКУ: снятие для проверки погрешности", workgui.WorkFuncList{
 			x.warn.HoldTemperature(x.temps[keyTempNorm]),
 			x.adjust().Func,
@@ -218,8 +214,6 @@ func (x *wrk) main(log *structlog.Logger, ctx context.Context) error {
 			x.readSaveTemp(keyTestTempLow)),
 		workgui.New(fmt.Sprintf("Т+: снятие для проверки погрешности: %g⁰C", x.temps[keyTempHigh]),
 			x.readSaveTemp(keyTestTempHigh)),
-		workgui.New(fmt.Sprintf("80⁰C: снятие для проверки погрешности: %g⁰C", x.temps[keyTestTemp80]),
-			x.readSaveTemp(keyTestTemp80)),
 		workgui.New("НКУ: повторное снятие для проверки погрешности",
 			x.readSaveTemp(keyTest2)),
 	}.ExecuteSelectWorksDialog(ctx.Done())

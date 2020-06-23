@@ -238,7 +238,7 @@ func WriteProdsCfs(productCoefficientValues []ProductCoefficientValue, handleErr
 }
 
 type ProductValues struct {
-	Product            Product
+	ProductID          int64
 	ProductIDKeyValues data.ProductIDKeyValues
 }
 
@@ -256,7 +256,7 @@ func (x ProductValues) GetNaN(dbKey string) float64 {
 
 func (x ProductValues) Get(dbKey string) (float64, bool) {
 	v, f := x.ProductIDKeyValues[data.ProductIDKey{
-		ProductID: x.Product.ProductID,
+		ProductID: x.ProductID,
 		Key:       dbKey,
 	}]
 	return v, f
@@ -286,7 +286,7 @@ func (x InterpolateCfs) String() string {
 func (x InterpolateCfs) performProduct(productsValues data.ProductIDKeyValues, product Product) workgui.WorkFunc {
 	return workgui.New(product.String(), func(log comm.Logger, ctx context.Context) error {
 		pv := ProductValues{
-			Product:            product,
+			ProductID:          product.ProductID,
 			ProductIDKeyValues: productsValues,
 		}
 		dt, err := x.InterpolateCfsFunc(pv)

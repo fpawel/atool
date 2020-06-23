@@ -30,6 +30,7 @@ const (
 	MsgTemperatureSetPoint
 	MsgProgress
 	MsgModalMessage
+	MsgExecuteSelectWorkDialog
 )
 
 const (
@@ -62,6 +63,10 @@ func RequestConfigParamValues() {
 
 func ExecuteSelectWorksDialog(works []string) bool {
 	return copyData().SendJson(MsgExecuteSelectWorksDialog, works)
+}
+
+func ExecuteSelectWorkDialog(works []string) bool {
+	return copyData().SendJson(MsgExecuteSelectWorkDialog, works)
 }
 
 func NotifyWorkSuspended(Text string) bool {

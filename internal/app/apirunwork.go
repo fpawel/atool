@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/atool/internal/config/appcfg"
+	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/hardware"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/workgui"
@@ -14,6 +16,21 @@ import (
 type runWorkSvc struct{}
 
 var _ api.RunWorkService = new(runWorkSvc)
+
+func (h *runWorkSvc) RunDeviceWork(context.Context) error {
+	p, err := data.GetCurrentParty()
+	if err != nil {
+		return err
+	}
+	d, ok := appcfg.DeviceTypes[p.DeviceType]
+	if !ok {
+		return fmt.Errorf("не задан тип прибора: %s", p.DeviceType)
+	}
+	if d.Work == nil {
+		return fmt.Errorf("тип прибора %s не поддерживает автоматическую настройку", p.DeviceType)
+	}
+	return runWorkFunc("Автоматическая настройка: "+p.DeviceType, d.Work)
+}
 
 func (h *runWorkSvc) SearchProducts(ctx context.Context, comportName string) error {
 	return workparty.NewWorkScanModbus(comportName).Run(log, ctx)

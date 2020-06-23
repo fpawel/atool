@@ -15,8 +15,6 @@ type productType struct {
 	Index   int
 }
 
-type KefValueMap = map[modbus.Coefficient]float64
-
 var (
 	prodTypesList = []productType{
 		{

@@ -29,8 +29,8 @@ func NewFunc(name string, work WorkFunc) WorkFunc {
 	return Work{name, work}.Perform
 }
 
-func NewWorks(name string, works ...Work) Work {
-	return Works(works).Work(name)
+func NewWorks(works ...Work) Works {
+	return works
 }
 
 func (x WorkFunc) Work(name string) Work {

@@ -11,6 +11,11 @@ type workDialogSvc struct{}
 
 var _ api.WorkDialogService = new(workDialogSvc)
 
+func (_ *workDialogSvc) SelectWork(_ context.Context, workIndex int32) (err error) {
+	workgui.ChanSelectedWork <- int(workIndex)
+	return nil
+}
+
 func (_ *workDialogSvc) SelectWorks(_ context.Context, works []bool) (err error) {
 	workgui.ChanSelectedWorks <- works
 	return nil

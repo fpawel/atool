@@ -10,7 +10,24 @@ type ConfigParamValue = *apitypes.ConfigParamValue
 var (
 	ConfigParamValues []ConfigParamValue
 	ChanSelectedWorks = make(chan []bool)
+	ChanSelectedWork  = make(chan int)
 )
+
+func (x Works) ExecuteSelectWorkDialog(done <-chan struct{}) (Work, bool) {
+	var names = make([]string, len(x))
+	for i := range x {
+		names[i] = x[i].Name
+	}
+
+	go gui.ExecuteSelectWorkDialog(names)
+
+	select {
+	case <-done:
+		return Work{}, false
+	case n := <-ChanSelectedWork:
+		return x[n], true
+	}
+}
 
 func (x Works) ExecuteSelectWorksDialog(done <-chan struct{}) (result Works) {
 	var names = make([]string, len(x))

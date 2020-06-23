@@ -1,9 +1,7 @@
 package mil82
 
 import (
-	"fmt"
 	"github.com/fpawel/atool/internal/config/devicecfg"
-	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/devtypes/devdata"
 	"github.com/fpawel/comm/modbus"
 	"time"
@@ -13,17 +11,50 @@ var Device = devdata.Device{
 
 	Name: "МИЛ-82",
 
-	Work: work,
+	Work: main,
 
 	Calc: calcSections,
 
 	ProductTypes: prodTypeNames,
 
-	DataSections: DataSections(),
+	DataSections: dataSections(),
 
 	InitParty: initParty,
 
-	Config: devicecfg.Device{
+	Config: deviceConfig,
+
+	PartyParams: partyParams,
+}
+
+const (
+	keyLinearDegree = "linear_degree"
+	keyTempNorm     = "t_norm"
+	keyTempLow      = "t_low"
+	keyTempHigh     = "t_high"
+
+	keyTestTempNorm = "test_t_norm"
+	keyTestTempLow  = "test_t_low"
+	keyTestTempHigh = "test_t_high"
+	keyTestTemp80   = "test_t80"
+
+	keyTest2 = "test2"
+	keyTex1  = "tex1"
+	keyTex2  = "tex2"
+)
+
+const (
+	varConcentration modbus.Var = 0
+	varTemp          modbus.Var = 2
+	var16                       = 16
+)
+
+var (
+	vars    = []modbus.Var{varConcentration, varTemp, 4, 8, 10, 12, 14, var16}
+	ptsTemp = []string{keyTempLow, keyTempNorm, keyTempHigh}
+)
+
+var (
+	deviceConfig = devicecfg.Device{
 		Baud:               9600,
 		TimeoutGetResponse: time.Second,
 		TimeoutEndResponse: 50 * time.Millisecond,
@@ -69,9 +100,9 @@ var Device = devdata.Device{
 			14:               "Ref",
 			var16:            "Var16",
 		},
-	},
+	}
 
-	PartyParams: []devdata.PartyParam{
+	partyParams = []devdata.PartyParam{
 		{
 			Key:  "c1",
 			Name: "ПГС1",
@@ -109,74 +140,7 @@ var Device = devdata.Device{
 			Key:  keyTestTemp80,
 			Name: "уставка высокой температуры 80⁰C",
 		},
-	},
-}
-
-func initParty() error {
-	party, err := data.GetCurrentParty()
-	if err != nil {
-		return err
 	}
-	pv, err := data.GetPartyValues1(party.PartyID)
-	if err != nil {
-		return err
-	}
-
-	if _, f := pv[keyLinearDegree]; !f {
-		if err := data.SetCurrentPartyValue(keyLinearDegree, 4); err != nil {
-			return err
-		}
-	}
-
-	for i, v := range []float64{0, 25, 50, 100} {
-		key := fmt.Sprintf("c%d", i+1)
-		if _, f := pv[key]; !f {
-			if err := data.SetCurrentPartyValue(key, v); err != nil {
-				return err
-			}
-		}
-	}
-	Type, ok := prodTypes[party.ProductType]
-	if !ok {
-		Type = prodTypesList[0]
-		if _, err := data.DB.Exec(`UPDATE party SET product_type = ? WHERE party_id = (SELECT party_id FROM app_config)`, Type.Name); err != nil {
-			return err
-		}
-	}
-
-	if err := data.SetCurrentPartyValue(keyTempNorm, 20); err != nil {
-		return err
-	}
-	if err := data.SetCurrentPartyValue(keyTempLow, Type.TempMin); err != nil {
-		return err
-	}
-	if err := data.SetCurrentPartyValue(keyTempHigh, Type.TempMax); err != nil {
-		return err
-	}
-	return nil
-}
-
-const (
-	keyLinearDegree = "linear_degree"
-	keyTempNorm     = "t_norm"
-	keyTempLow      = "t_low"
-	keyTempHigh     = "t_high"
-
-	keyTestTempNorm = "test_t_norm"
-	keyTestTempLow  = "test_t_low"
-	keyTestTempHigh = "test_t_high"
-	keyTestTemp80   = "test_t80"
-
-	keyTest2 = "test2"
 )
 
-const (
-	varConcentration modbus.Var = 0
-	varTemp          modbus.Var = 2
-	var16                       = 16
-)
-
-var (
-	vars    = []modbus.Var{varConcentration, varTemp, 4, 8, 10, 12, 14, var16}
-	ptsTemp = []string{keyTempLow, keyTempNorm, keyTempHigh}
-)
+type KefValueMap = map[modbus.Coefficient]float64

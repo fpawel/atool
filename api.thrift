@@ -9,6 +9,7 @@ service RunWorkService {
     void command(1:i16 cmd; 2:string s)
     void switchGas(1:i8 valve)
     void searchProducts(1:string comportName)
+    void runDeviceWork()
 }
 
 service ScriptService {
@@ -20,6 +21,7 @@ service WorkDialogService {
     list<apitypes.ConfigParamValue> getConfigParamValues ()
     void IgnoreError()
     void selectWorks(1:list<bool> works)
+    void selectWork(1:i32 workIndex)
 }
 
 service CurrentFileService {

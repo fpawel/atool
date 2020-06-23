@@ -25,8 +25,6 @@ func (x Measurement) Time() time.Time {
 
 func NewMeasurement(ProductID int64, ParamAddr modbus.Var, Value float64) Measurement {
 	return Measurement{
-		//Tm:        pkg.TimeToJulian(time.Now()),
-
 		Tm:        time.Now().UnixNano(),
 		ProductID: ProductID,
 		ParamAddr: ParamAddr,

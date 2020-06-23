@@ -14,19 +14,19 @@ import (
 func calcSections(party data.PartyValues, sections *devdata.CalcSections) error {
 	prodT, ok := prodTypes[party.ProductType]
 	if !ok {
-		return merry.Errorf("не правильное исполнение ИКД-С4: %s", party.ProductType)
+		return merry.Errorf("неправильное исполнение ИКД-С4: %s", party.ProductType)
 	}
 	for _, pt := range []section{
-		{key: "test_t_norm", name: "НКУ"},
-		{key: "test_t_low", name: "Т-", tNorm: ptrFloat(20)},
-		{key: "test_t_high", name: "Т+", tNorm: ptrFloat(20)},
-		{key: "test2", name: "возврат НКУ"},
-		{key: "tex1", name: "перед техпрогоном"},
-		{key: "tex1", name: "после техпрогона"},
+		{key: keyTestTempNorm, name: "НКУ"},
+		{key: keyTestTempLow, name: "Т-", tNorm: ptrFloat(20)},
+		{key: keyTestTempHigh, name: "Т+", tNorm: ptrFloat(20)},
+		{key: keyTest2, name: "возврат НКУ"},
+		{key: keyTex1, name: "перед техпрогоном"},
+		{key: keyTex2, name: "после техпрогона"},
 	} {
 		sect := devdata.AddSect(sections, "Расчёт погрешности: "+pt.name)
 		gases := []int{1, 3, 4}
-		if pt.key == "test_t_norm" {
+		if pt.key == keyTestTempNorm {
 			gases = []int{1, 2, 3, 4}
 		}
 		for _, gas := range gases {
@@ -63,7 +63,7 @@ func calcSections(party data.PartyValues, sections *devdata.CalcSections) error 
 					info["предел при 20⁰C"] = jsonNaN(absErrLimit20)
 					tNorm = *pt.tNorm
 
-					k := keyGasVar("test_t_norm", gas, 0)
+					k := keyGasVar(keyTestTempNorm, gas, 0)
 					nominal = V(k)
 					info["номинал"] = fmt.Sprintf("%s: %v", k, nominal)
 

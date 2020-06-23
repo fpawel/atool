@@ -1,4 +1,4 @@
-package mil82
+package ikds4
 
 import (
 	"fmt"
@@ -66,7 +66,6 @@ func dataSections() (result devdata.DataSections) {
 		{keyTestTempNorm, "проверка погрешности: НКУ"},
 		{keyTestTempLow, "проверка погрешности: Т-"},
 		{keyTestTempHigh, "проверка погрешности: Т+"},
-		{keyTestTemp80, "проверка погрешности: 80⁰C"},
 		{keyTest2, "проверка погрешности: возврат НКУ"},
 		{keyTex1, "перед техпрогоном"},
 		{keyTex2, "после техпрогона"},
