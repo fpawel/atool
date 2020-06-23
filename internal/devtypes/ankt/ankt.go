@@ -5,7 +5,7 @@ import (
 )
 
 type productType struct {
-	Index int
+	N     int
 	Chan  [2]chanT
 	Chan2 bool
 }
@@ -96,731 +96,103 @@ var (
 	CH4   gasT = "CH₄"
 
 	productTypes = []productType{
-		{
-			Index: 11,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 2,
-				},
-			},
-		},
-		{
-			Index: 12,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 5,
-				},
-			},
-		},
-		{
-			Index: 13,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 10,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 11,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 2,
-				},
-				{
-					gas:   "CO₂",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 11,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 5,
-				},
-				{
-					gas:   "CO₂",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 11,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 10,
-				},
-				{
-					gas:   "CO₂",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 15,
-			Chan: [2]chanT{
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 14,
-			Chan: [2]chanT{
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 16,
-			Chan: [2]chanT{
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 11,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 2,
-				},
-			},
-		},
-		{
-			Index: 12,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 5,
-				},
-			},
-		},
-		{
-			Index: 13,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 10,
-				},
-			},
-		},
-		{
-			Index: 16,
-			Chan: [2]chanT{
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 14,
-			Chan: [2]chanT{
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 15,
-			Chan: [2]chanT{
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 11,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 2,
-				},
-			},
-		},
-		{
-			Index: 12,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 5,
-				},
-			},
-		},
-		{
-			Index: 13,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 10,
-				},
-			},
-		},
-		{
-			Index: 16,
-			Chan: [2]chanT{
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 14,
-			Chan: [2]chanT{
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 15,
-			Chan: [2]chanT{
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 16,
-			Chan: [2]chanT{
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 14,
-			Chan: [2]chanT{
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 15,
-			Chan: [2]chanT{
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 16,
-			Chan: [2]chanT{
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 14,
-			Chan: [2]chanT{
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 15,
-			Chan: [2]chanT{
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 16,
-			Chan: [2]chanT{
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 14,
-			Chan: [2]chanT{
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 15,
-			Chan: [2]chanT{
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 16,
-			Chan: [2]chanT{
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 14,
-			Chan: [2]chanT{
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 15,
-			Chan: [2]chanT{
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 16,
-			Chan: [2]chanT{
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 14,
-			Chan: [2]chanT{
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 15,
-			Chan: [2]chanT{
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 16,
-			Chan: [2]chanT{
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 14,
-			Chan: [2]chanT{
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 15,
-			Chan: [2]chanT{
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 16,
-			Chan: [2]chanT{
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 14,
-			Chan: [2]chanT{
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 15,
-			Chan: [2]chanT{
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 33,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 2,
-				},
-				{
-					gas:   "CO₂",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 33,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 5,
-				},
-				{
-					gas:   "CO₂",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 33,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 10,
-				},
-				{
-					gas:   "CO₂",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 33,
-			Chan: [2]chanT{
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 33,
-			Chan: [2]chanT{
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 33,
-			Chan: [2]chanT{
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 34,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 2,
-				},
-				{
-					gas:   "CO₂",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 34,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 5,
-				},
-				{
-					gas:   "CO₂",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 34,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 10,
-				},
-				{
-					gas:   "CO₂",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 34,
-			Chan: [2]chanT{
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 34,
-			Chan: [2]chanT{
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 34,
-			Chan: [2]chanT{
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 35,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 2,
-				},
-				{
-					gas:   "CO₂",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 35,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 5,
-				},
-				{
-					gas:   "CO₂",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 35,
-			Chan: [2]chanT{
-				{
-					gas:   "CO₂",
-					scale: 10,
-				},
-				{
-					gas:   "CO₂",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 35,
-			Chan: [2]chanT{
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 35,
-			Chan: [2]chanT{
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Chan2: true,
-			Index: 35,
-			Chan: [2]chanT{
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 16,
-			Chan: [2]chanT{
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 14,
-			Chan: [2]chanT{
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 15,
-			Chan: [2]chanT{
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 16,
-			Chan: [2]chanT{
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 14,
-			Chan: [2]chanT{
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 15,
-			Chan: [2]chanT{
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 16,
-			Chan: [2]chanT{
-				{
-					gas:   "CH₄",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 14,
-			Chan: [2]chanT{
-				{
-					gas:   "C₃H₈",
-					scale: 100,
-				},
-			},
-		},
-		{
-			Index: 15,
-			Chan: [2]chanT{
-				{
-					gas:   "∑CH",
-					scale: 100,
-				},
+		prodT1(11, "CO₂", 2),
+		prodT1(12, "CO₂", 5),
+		prodT1(13, "CO₂", 10),
+		prodT2(11, "CO₂", 2, "CH₄", 100),
+		prodT2(12, "CO₂", 5, "CH₄", 100),
+		prodT2(13, "CO₂", 10, "CH₄", 100),
+		prodT1(15, "∑CH", 100),
+		prodT1(14, "C₃H₈", 100),
+		prodT1(16, "CH₄", 100),
+		prodT1(11, "CO₂", 2),
+		prodT1(12, "CO₂", 5),
+		prodT1(13, "CO₂", 10),
+		prodT1(16, "CH₄", 100),
+		prodT1(14, "C₃H₈", 100),
+		prodT1(15, "∑CH", 100),
+		prodT1(11, "CO₂", 2),
+		prodT1(12, "CO₂", 5),
+		prodT1(13, "CO₂", 10),
+		prodT1(16, "CH₄", 100),
+		prodT1(14, "C₃H₈", 100),
+		prodT1(15, "∑CH", 100),
+		prodT1(16, "CH₄", 100),
+		prodT1(14, "C₃H₈", 100),
+		prodT1(15, "∑CH", 100),
+		prodT1(16, "CH₄", 100),
+		prodT1(14, "C₃H₈", 100),
+		prodT1(15, "∑CH", 100),
+		prodT1(16, "CH₄", 100),
+		prodT1(14, "C₃H₈", 100),
+		prodT1(15, "∑CH", 100),
+		prodT1(16, "CH₄", 100),
+		prodT1(14, "C₃H₈", 100),
+		prodT1(15, "∑CH", 100),
+		prodT1(16, "CH₄", 100),
+		prodT1(14, "C₃H₈", 100),
+		prodT1(15, "∑CH", 100),
+		prodT1(16, "CH₄", 100),
+		prodT1(14, "C₃H₈", 100),
+		prodT1(15, "∑CH", 100),
+		prodT1(16, "CH₄", 100),
+		prodT1(14, "C₃H₈", 100),
+		prodT1(15, "∑CH", 100),
+		prodT2(11, "CO₂", 2, "CH₄", 100),
+		prodT2(12, "CO₂", 5, "CH₄", 100),
+		prodT2(13, "CO₂", 10, "CH₄", 100),
+		prodT2(16, "CH₄", 100, "CH₄", 100),
+		prodT2(14, "C₃H₈", 100, "CH₄", 100),
+		prodT2(15, "∑CH", 100, "CH₄", 100),
+		prodT2(11, "CO₂", 2, "CH₄", 100),
+		prodT2(12, "CO₂", 5, "CH₄", 100),
+		prodT2(13, "CO₂", 10, "CH₄", 100),
+		prodT2(16, "CH₄", 100, "CH₄", 100),
+		prodT2(14, "C₃H₈", 100, "CH₄", 100),
+		prodT2(15, "∑CH", 100, "CH₄", 100),
+		prodT2(11, "CO₂", 2, "CH₄", 100),
+		prodT2(12, "CO₂", 5, "CH₄", 100),
+		prodT2(13, "CO₂", 10, "CH₄", 100),
+		prodT2(16, "CH₄", 100, "CH₄", 100),
+		prodT2(14, "C₃H₈", 100, "CH₄", 100),
+		prodT2(15, "∑CH", 100, "CH₄", 100),
+		prodT1(16, "CH₄", 100),
+		prodT1(14, "C₃H₈", 100),
+		prodT1(15, "∑CH", 100),
+		prodT1(16, "CH₄", 100),
+		prodT1(14, "C₃H₈", 100),
+		prodT1(15, "∑CH", 100),
+		prodT1(16, "CH₄", 100),
+		prodT1(14, "C₃H₈", 100),
+		prodT1(15, "∑CH", 100),
+	}
+)
+
+func prodT1(n int, gas gasT, scale float64) productType {
+	return productType{
+		N: n,
+		Chan: [2]chanT{
+			{
+				gas:   gas,
+				scale: scale,
 			},
 		},
 	}
-)
+}
+
+func prodT2(n int, gas gasT, scale float64, gas2 gasT, scale2 float64) productType {
+	return productType{
+		Chan2: true,
+		N:     n,
+		Chan: [2]chanT{
+			{
+				gas:   gas,
+				scale: scale,
+			},
+			{
+				gas:   gas2,
+				scale: scale2,
+			},
+		},
+	}
+}

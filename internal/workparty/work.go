@@ -148,11 +148,17 @@ func SetNetAddr(productID int64, notifyComm func(comm.Info)) workgui.WorkFunc {
 					Port:    p.Comport,
 				})
 				pause(ctx.Done(), time.Second)
-				_, err := modbus.RequestRead3{
+				req := modbus.RequestRead3{
 					Addr:           p.Addr,
 					FirstRegister:  0,
 					RegistersCount: 2,
-				}.GetResponse(log, ctx, getCommProduct(p.Comport, device))
+				}
+				answer, err := req.GetResponse(log, ctx, getCommProduct(p.Comport, device))
+				if err == nil {
+					workgui.NotifyInfo(log, fmt.Sprintf("установка сетевого адреса: % 02X -> % 02X", req.Request().Bytes(), answer))
+				} else {
+					workgui.NotifyErr(log, fmt.Errorf("установка сетевого адреса: % 02X: %v", req.Request().Bytes(), err))
+				}
 				return err
 			},
 		}.Run(log, ctx)
