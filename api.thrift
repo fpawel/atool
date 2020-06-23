@@ -10,10 +10,7 @@ service RunWorkService {
     void switchGas(1:i8 valve)
     void searchProducts(1:string comportName)
     void runDeviceWork()
-}
-
-service ScriptService {
-    void runFile(1:string filename)
+    void runLuaScript(1:string filename)
 }
 
 service WorkDialogService {

@@ -153,8 +153,7 @@ func newApiProcessor() thrift.TProcessor {
 		api.NewTemperatureDeviceServiceProcessor(new(tempDeviceSvc)))
 	p.RegisterProcessor("CoefficientsService",
 		api.NewCoefficientsServiceProcessor(new(coefficientsSvc)))
-	p.RegisterProcessor("ScriptService",
-		api.NewScriptServiceProcessor(new(scriptSvc)))
+
 	p.RegisterProcessor("ProductParamService",
 		api.NewProductParamServiceProcessor(new(prodPrmSvc)))
 

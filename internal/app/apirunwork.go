@@ -9,13 +9,30 @@ import (
 	"github.com/fpawel/atool/internal/hardware"
 	"github.com/fpawel/atool/internal/thriftgen/api"
 	"github.com/fpawel/atool/internal/workgui"
+	"github.com/fpawel/atool/internal/worklua"
 	"github.com/fpawel/atool/internal/workparty"
+	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
+	lua "github.com/yuin/gopher-lua"
+	luar "layeh.com/gopher-luar"
+	"path/filepath"
 )
 
 type runWorkSvc struct{}
 
 var _ api.RunWorkService = new(runWorkSvc)
+
+func (h *runWorkSvc) RunLuaScript(_ context.Context, filename string) error {
+	luaState := lua.NewState()
+	imp := worklua.NewImport(log, luaState)
+	luaState.SetGlobal("go", luar.New(luaState, imp))
+	return runWorkFunc(filepath.Base(filename), func(log logger, ctx context.Context) error {
+		defer hardware.CloseHardware(log, appCtx)
+		defer luaState.Close()
+		luaState.SetContext(ctx)
+		return luaState.DoFile(filename)
+	})
+}
 
 func (h *runWorkSvc) RunDeviceWork(context.Context) error {
 	p, err := data.GetCurrentParty()
@@ -29,7 +46,14 @@ func (h *runWorkSvc) RunDeviceWork(context.Context) error {
 	if d.Work == nil {
 		return fmt.Errorf("тип прибора %s не поддерживает автоматическую настройку", p.DeviceType)
 	}
-	return runWorkFunc("Автоматическая настройка: "+p.DeviceType, d.Work)
+	return runWorkFunc(
+		"Автоматическая настройка: "+p.DeviceType,
+		func(log comm.Logger, ctx context.Context) error {
+			err := d.Work(log, ctx)
+			hardware.CloseHardware(log, appCtx)
+			return err
+		},
+	)
 }
 
 func (h *runWorkSvc) SearchProducts(ctx context.Context, comportName string) error {
