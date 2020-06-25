@@ -94,7 +94,7 @@ var (
 		},
 		Coefficients: []devicecfg.Coefficients{
 			{
-				Range:  [2]modbus.Coefficient{0, 50},
+				Range:  [2]devicecfg.Coefficient{0, 50},
 				Format: modbus.FloatBigEndian,
 			},
 		},
@@ -136,4 +136,4 @@ var (
 	ptsTemp = []string{keyTempLow, keyTempNorm, keyTempHigh}
 )
 
-type KefValueMap = map[modbus.Coefficient]float64
+type KefValueMap = map[devicecfg.Coefficient]float64

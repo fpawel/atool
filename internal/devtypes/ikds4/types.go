@@ -1,13 +1,15 @@
 package ikds4
 
-import "github.com/fpawel/comm/modbus"
+import (
+	"github.com/fpawel/atool/internal/config/devicecfg"
+)
 
 type productType struct {
 	Name  string
 	Gas   string
 	Scale float64
 	Index int
-	Kef   map[modbus.Coefficient]float64
+	Kef   map[devicecfg.Coefficient]float64
 	limD  float64
 }
 

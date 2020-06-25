@@ -123,7 +123,7 @@ var (
 		},
 		Coefficients: []devicecfg.Coefficients{
 			{
-				Range:  [2]modbus.Coefficient{0, 50},
+				Range:  [2]devicecfg.Coefficient{0, 50},
 				Format: modbus.BCD,
 			},
 		},

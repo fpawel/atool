@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/hardware"
 	"github.com/fpawel/atool/internal/workgui"
@@ -73,7 +74,7 @@ func setWorkMode(value float64) workgui.WorkFunc {
 }
 
 func correctTmcu(log comm.Logger, ctx context.Context) error {
-	const kefKdFt modbus.Coefficient = 48
+	const kefKdFt devicecfg.Coefficient = 48
 	return workgui.NewWorkFuncList(
 		workparty.WriteCfsValues(workparty.CfsValues{kefKdFt: 273}, floatBitsFormat),
 		hardwareWarn.HoldTemperature(20),
@@ -95,6 +96,6 @@ func correctTmcu(log comm.Logger, ctx context.Context) error {
 			return p.WriteKef(49, floatBitsFormat, k48+temp-tMcu)(log, ctx)
 		}),
 
-		workparty.ReadCfs([]modbus.Coefficient{kefKdFt}, floatBitsFormat),
+		workparty.ReadCfs([]devicecfg.Coefficient{kefKdFt}, floatBitsFormat),
 	).Do(log, ctx)
 }

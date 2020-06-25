@@ -131,7 +131,7 @@ func Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) wo
 		}))
 }
 
-type CfsValues = map[modbus.Coefficient]float64
+type CfsValues = map[devicecfg.Coefficient]float64
 
 func WriteCfsValues(cfsValues CfsValues, format modbus.FloatBitsFormat) workgui.WorkFunc {
 	return ProcessEachActiveProduct(nil, func(log comm.Logger, ctx context.Context, product Product) error {
@@ -191,7 +191,7 @@ func ReadCfs(ks CfsList, format modbus.FloatBitsFormat) workgui.WorkFunc {
 
 type ProductCoefficientValue struct {
 	ProductID   int64
-	Coefficient modbus.Coefficient
+	Coefficient devicecfg.Coefficient
 	Value       float64
 }
 
@@ -262,7 +262,7 @@ type ProductValues struct {
 	ProductIDKeyValues data.ProductIDKeyValues
 }
 
-func (x ProductValues) KefNaN(kef modbus.Coefficient) float64 {
+func (x ProductValues) KefNaN(kef devicecfg.Coefficient) float64 {
 	return x.GetNaN(data.KeyCoefficient(kef))
 }
 
@@ -293,8 +293,8 @@ type InterpolateCfsFunc func(pv ProductValues) ([]numeth.Coordinate, error)
 
 type InterpolateCfs struct {
 	Name               string
-	Coefficient        modbus.Coefficient
-	Count              modbus.Coefficient
+	Coefficient        devicecfg.Coefficient
+	Count              devicecfg.Coefficient
 	Format             modbus.FloatBitsFormat
 	InterpolateCfsFunc InterpolateCfsFunc
 }
@@ -335,7 +335,7 @@ func (x InterpolateCfs) performProduct(productsValues data.ProductIDKeyValues, p
 		workgui.NotifyInfo(log, fmt.Sprintf("📈 расчитано: %v", r))
 
 		for i, value := range r {
-			kef := x.Coefficient + modbus.Coefficient(i)
+			kef := x.Coefficient + devicecfg.Coefficient(i)
 			if err := product.SaveKefValue(kef, value); err != nil {
 				return err
 			}
@@ -357,7 +357,7 @@ func (x InterpolateCfs) Work() workgui.Work {
 	})
 }
 
-type CfsList []modbus.Coefficient
+type CfsList []devicecfg.Coefficient
 
 func (x CfsList) String() string {
 	var coefficients []int

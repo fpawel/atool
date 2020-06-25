@@ -19,7 +19,7 @@ type Device struct {
 	Params             []Params               `yaml:"params"`
 	Coefficients       []Coefficients         `yaml:"coefficients"`
 	ParamsNames        map[modbus.Var]string  `yaml:"params_names"`
-	KfsNames           map[Coefficient]string `yaml:"params_names"`
+	KfsNames           map[Coefficient]string `yaml:"cfs_names"`
 }
 
 type PartyParams = map[string]string

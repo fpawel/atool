@@ -1,7 +1,7 @@
 package mil82
 
 import (
-	"github.com/fpawel/comm/modbus"
+	"github.com/fpawel/atool/internal/config/devicecfg"
 )
 
 type productType struct {
@@ -9,7 +9,7 @@ type productType struct {
 	Gas     string
 	Scale0  float64
 	Scale   float64
-	Kef     map[modbus.Coefficient]float64
+	Kef     map[devicecfg.Coefficient]float64
 	TempMin float64
 	TempMax float64
 	Index   int

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config/appcfg"
+	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg/comports"
@@ -68,7 +69,7 @@ func NewWorkWriteAllCfs(in []*apitypes.ProductCoefficientValue) Work {
 		for _, p := range in {
 			xs = append(xs, ProductCoefficientValue{
 				ProductID:   p.ProductID,
-				Coefficient: modbus.Coefficient(p.Coefficient),
+				Coefficient: devicecfg.Coefficient(p.Coefficient),
 				Value:       p.Value,
 			})
 		}

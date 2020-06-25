@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/pkg/numeth"
 	"github.com/fpawel/atool/internal/workgui"
@@ -47,7 +48,7 @@ func (x *luaProduct) Perform(name string, Func func()) {
 	}))
 }
 
-func (x *luaProduct) ReadKef(k modbus.Coefficient, format modbus.FloatBitsFormat) lua.LNumber {
+func (x *luaProduct) ReadKef(k devicecfg.Coefficient, format modbus.FloatBitsFormat) lua.LNumber {
 	if err := format.Validate(); err != nil {
 		x.l.ArgError(2, err.Error())
 	}
@@ -60,11 +61,11 @@ func (x *luaProduct) ReadKef(k modbus.Coefficient, format modbus.FloatBitsFormat
 	return lua.LNumber(v)
 }
 
-func (x *luaProduct) SetKef(k modbus.Coefficient, LValue lua.LNumber) {
+func (x *luaProduct) SetKef(k devicecfg.Coefficient, LValue lua.LNumber) {
 	x.SetValue(data.KeyCoefficient(k), LValue)
 }
 
-func (x *luaProduct) WriteCoefficients(ks map[modbus.Coefficient]float64, format modbus.FloatBitsFormat) {
+func (x *luaProduct) WriteCoefficients(ks map[devicecfg.Coefficient]float64, format modbus.FloatBitsFormat) {
 	for k, value := range ks {
 		_ = x.p.WriteKef(k, format, value)(x.log, x.l.Context())
 	}
@@ -82,7 +83,7 @@ func (x *luaProduct) SetValue(key string, LValue lua.LNumber) {
 	x.info(fmt.Sprintf("💾 %s = %v", key, value))
 }
 
-func (x *luaProduct) Kef(k modbus.Coefficient) lua.LNumber {
+func (x *luaProduct) Kef(k devicecfg.Coefficient) lua.LNumber {
 	return x.Value(data.KeyCoefficient(k))
 }
 
@@ -143,7 +144,7 @@ func (x *luaProduct) Interpolation(name string, xy [][2]float64, k0, kCount int,
 		r = append(r, 0)
 	}
 	for i, value := range r {
-		_ = x.p.WriteKef(modbus.Coefficient(k0+i), format, value)(x.log, x.l.Context())
+		_ = x.p.WriteKef(devicecfg.Coefficient(k0+i), format, value)(x.log, x.l.Context())
 	}
 }
 
