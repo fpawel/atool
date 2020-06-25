@@ -2,13 +2,28 @@ package ankt
 
 import (
 	"fmt"
+	"github.com/fpawel/atool/internal/config/devicecfg"
+	"github.com/fpawel/comm/modbus"
+	"time"
 )
 
-type productType struct {
-	N     int
-	Chan  [2]chanT
-	Chan2 bool
-}
+var (
+	Device1 = productTypesList.filter(func(p productType) bool {
+		return !p.Chan2 && !p.Pressure
+	}).device()
+
+	Device1P = productTypesList.filter(func(p productType) bool {
+		return !p.Chan2 && p.Pressure
+	}).device()
+
+	Device2 = productTypesList.filter(func(p productType) bool {
+		return p.Chan2 && !p.Pressure
+	}).device()
+
+	Device2P = productTypesList.filter(func(p productType) bool {
+		return p.Chan2 && p.Pressure
+	}).device()
+)
 
 type chanT struct {
 	gas   gasT
@@ -86,113 +101,44 @@ func scaleCode(x float64) float64 {
 	panic(x)
 }
 
-var (
+const (
 	unitsVolume unitsT = "%об"
 	unitsLel    unitsT = "%НКПР"
+	CO2         gasT   = "CO₂"
+	C3H8        gasT   = "C₃H₈"
+	SumCH       gasT   = "∑CH"
+	CH4         gasT   = "CH₄"
+)
 
-	CO2   gasT = "CO₂"
-	C3H8  gasT = "C₃H₈"
-	SumCH gasT = "∑CH"
-	CH4   gasT = "CH₄"
-
-	productTypes = []productType{
-		prodT1(11, "CO₂", 2),
-		prodT1(12, "CO₂", 5),
-		prodT1(13, "CO₂", 10),
-		prodT2(11, "CO₂", 2, "CH₄", 100),
-		prodT2(12, "CO₂", 5, "CH₄", 100),
-		prodT2(13, "CO₂", 10, "CH₄", 100),
-		prodT1(15, "∑CH", 100),
-		prodT1(14, "C₃H₈", 100),
-		prodT1(16, "CH₄", 100),
-		prodT1(11, "CO₂", 2),
-		prodT1(12, "CO₂", 5),
-		prodT1(13, "CO₂", 10),
-		prodT1(16, "CH₄", 100),
-		prodT1(14, "C₃H₈", 100),
-		prodT1(15, "∑CH", 100),
-		prodT1(11, "CO₂", 2),
-		prodT1(12, "CO₂", 5),
-		prodT1(13, "CO₂", 10),
-		prodT1(16, "CH₄", 100),
-		prodT1(14, "C₃H₈", 100),
-		prodT1(15, "∑CH", 100),
-		prodT1(16, "CH₄", 100),
-		prodT1(14, "C₃H₈", 100),
-		prodT1(15, "∑CH", 100),
-		prodT1(16, "CH₄", 100),
-		prodT1(14, "C₃H₈", 100),
-		prodT1(15, "∑CH", 100),
-		prodT1(16, "CH₄", 100),
-		prodT1(14, "C₃H₈", 100),
-		prodT1(15, "∑CH", 100),
-		prodT1(16, "CH₄", 100),
-		prodT1(14, "C₃H₈", 100),
-		prodT1(15, "∑CH", 100),
-		prodT1(16, "CH₄", 100),
-		prodT1(14, "C₃H₈", 100),
-		prodT1(15, "∑CH", 100),
-		prodT1(16, "CH₄", 100),
-		prodT1(14, "C₃H₈", 100),
-		prodT1(15, "∑CH", 100),
-		prodT1(16, "CH₄", 100),
-		prodT1(14, "C₃H₈", 100),
-		prodT1(15, "∑CH", 100),
-		prodT2(11, "CO₂", 2, "CH₄", 100),
-		prodT2(12, "CO₂", 5, "CH₄", 100),
-		prodT2(13, "CO₂", 10, "CH₄", 100),
-		prodT2(16, "CH₄", 100, "CH₄", 100),
-		prodT2(14, "C₃H₈", 100, "CH₄", 100),
-		prodT2(15, "∑CH", 100, "CH₄", 100),
-		prodT2(11, "CO₂", 2, "CH₄", 100),
-		prodT2(12, "CO₂", 5, "CH₄", 100),
-		prodT2(13, "CO₂", 10, "CH₄", 100),
-		prodT2(16, "CH₄", 100, "CH₄", 100),
-		prodT2(14, "C₃H₈", 100, "CH₄", 100),
-		prodT2(15, "∑CH", 100, "CH₄", 100),
-		prodT2(11, "CO₂", 2, "CH₄", 100),
-		prodT2(12, "CO₂", 5, "CH₄", 100),
-		prodT2(13, "CO₂", 10, "CH₄", 100),
-		prodT2(16, "CH₄", 100, "CH₄", 100),
-		prodT2(14, "C₃H₈", 100, "CH₄", 100),
-		prodT2(15, "∑CH", 100, "CH₄", 100),
-		prodT1(16, "CH₄", 100),
-		prodT1(14, "C₃H₈", 100),
-		prodT1(15, "∑CH", 100),
-		prodT1(16, "CH₄", 100),
-		prodT1(14, "C₃H₈", 100),
-		prodT1(15, "∑CH", 100),
-		prodT1(16, "CH₄", 100),
-		prodT1(14, "C₃H₈", 100),
-		prodT1(15, "∑CH", 100),
+var (
+	deviceConfig0 = devicecfg.Device{
+		Baud:               9600,
+		TimeoutGetResponse: time.Second,
+		TimeoutEndResponse: 50 * time.Millisecond,
+		MaxAttemptsRead:    5,
+		Pause:              50 * time.Millisecond,
+		NetAddr: devicecfg.NetAddr{
+			Cmd:    7,
+			Format: modbus.BCD,
+		},
+		Coefficients: []devicecfg.Coefficients{
+			{
+				Range:  [2]modbus.Coefficient{0, 50},
+				Format: modbus.BCD,
+			},
+		},
+		ParamsNames: paramsNames,
 	}
 )
 
-func prodT1(n int, gas gasT, scale float64) productType {
-	return productType{
-		N: n,
-		Chan: [2]chanT{
-			{
-				gas:   gas,
-				scale: scale,
-			},
-		},
+func deviceConfig(vars []modbus.Var) devicecfg.Device {
+	x := deviceConfig0
+	for _, v := range vars {
+		x.Params = append(x.Params, devicecfg.Params{
+			Format:    modbus.BCD,
+			ParamAddr: v,
+			Count:     1,
+		})
 	}
-}
-
-func prodT2(n int, gas gasT, scale float64, gas2 gasT, scale2 float64) productType {
-	return productType{
-		Chan2: true,
-		N:     n,
-		Chan: [2]chanT{
-			{
-				gas:   gas,
-				scale: scale,
-			},
-			{
-				gas:   gas2,
-				scale: scale2,
-			},
-		},
-	}
+	return x
 }

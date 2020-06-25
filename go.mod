@@ -5,10 +5,10 @@ go 1.13
 require (
 	github.com/ansel1/merry v1.5.1
 	github.com/apache/thrift v0.13.0
-	github.com/fpawel/comm v0.0.0-20200527132820-f63adc971f1c
+	github.com/fpawel/comm v0.0.0-20200625131757-8fde23ca9e3e
 	github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8
 	github.com/fpawel/gotools v0.0.0-20191030125146-1d6c7465834c // indirect
-	github.com/fpawel/hardware v0.0.0-20200527132915-6358dec4a8fe
+	github.com/fpawel/hardware v0.0.0-20200625131916-dcf3da80eb19
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/hashicorp/go-multierror v1.1.0

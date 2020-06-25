@@ -46,7 +46,7 @@ func (x Product) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value
 	}
 }
 
-func (x Product) WriteKef(kef modbus.Coefficient, format modbus.FloatBitsFormat, value float64) workgui.WorkFunc {
+func (x Product) WriteKef(kef devicecfg.Coefficient, format modbus.FloatBitsFormat, value float64) workgui.WorkFunc {
 	return func(log comm.Logger, ctx context.Context) error {
 		what := fmt.Sprintf("%s 📥 запись K%d=%v %s", x, kef, value, format)
 		err := func() error {
@@ -85,7 +85,7 @@ func (x Product) WriteKef(kef modbus.Coefficient, format modbus.FloatBitsFormat,
 	}
 }
 
-func (x Product) ReadKef(log comm.Logger, ctx context.Context, k modbus.Coefficient, format modbus.FloatBitsFormat) (float64, error) {
+func (x Product) ReadKef(log comm.Logger, ctx context.Context, k devicecfg.Coefficient, format modbus.FloatBitsFormat) (float64, error) {
 	what := fmt.Sprintf("%s 📥 💾 %s K%d", x, format, k)
 	return workgui.WithNotifyValue(log, what, func() (float64, error) {
 		value, err := modbus.Read3Value(log, ctx, x.Comm(), x.Addr, 224+2*modbus.Var(k), format)
@@ -116,7 +116,7 @@ func (x Product) ReadKef(log comm.Logger, ctx context.Context, k modbus.Coeffici
 	})
 }
 
-func (x Product) SaveKefValue(k modbus.Coefficient, value float64) error {
+func (x Product) SaveKefValue(k devicecfg.Coefficient, value float64) error {
 	return data.SaveProductKefValue(x.ProductID, k, value)
 }
 

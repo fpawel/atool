@@ -92,14 +92,7 @@ var (
 				Format: modbus.BCD,
 			},
 		},
-		ParamsNames: map[modbus.Var]string{
-			varConcentration: "C",
-			varTemp:          "T",
-			4:                "Is",
-			12:               "Work",
-			14:               "Ref",
-			var16:            "Var16",
-		},
+		ParamsNames: paramsNames,
 	}
 
 	partyParams = []devdata.PartyParam{
@@ -140,6 +133,15 @@ var (
 			Key:  keyTestTemp80,
 			Name: "уставка высокой температуры 80⁰C",
 		},
+	}
+
+	paramsNames = map[modbus.Var]string{
+		varConcentration: "C",
+		varTemp:          "T",
+		4:                "Is",
+		12:               "Work",
+		14:               "Ref",
+		var16:            "Var16",
 	}
 )
 

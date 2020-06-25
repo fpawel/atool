@@ -2,12 +2,13 @@ package devicecfg
 
 import (
 	"github.com/ansel1/merry"
-	"github.com/fpawel/comm/modbus"
 )
 
+type Coefficient uint16
+
 type Coefficients struct {
-	Range  [2]modbus.Coefficient `yaml:"range,flow"`
-	Format FloatBitsFormat       `yaml:"format"`
+	Range  [2]Coefficient  `yaml:"range,flow"`
+	Format FloatBitsFormat `yaml:"format"`
 }
 
 func (c Coefficients) Validate() error {

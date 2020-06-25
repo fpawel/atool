@@ -8,6 +8,7 @@ import (
 	"github.com/fpawel/atool/internal"
 	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/devtypes/ankt"
 	"github.com/fpawel/atool/internal/devtypes/ikds4"
 	"github.com/fpawel/atool/internal/devtypes/mil82"
 	"github.com/fpawel/atool/internal/gui"
@@ -40,7 +41,7 @@ func Main() {
 	log.ErrIfFail(workgui.OpenJournal)
 
 	// инициализация конфигурации
-	appcfg.Init(mil82.Device, ikds4.Device)
+	appcfg.Init(mil82.Device, ikds4.Device, ankt.Device1, ankt.Device1P, ankt.Device2, ankt.Device2P)
 
 	// общий контекст приложения с прерыванием
 	var interrupt context.CancelFunc

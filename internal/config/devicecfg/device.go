@@ -10,15 +10,16 @@ import (
 )
 
 type Device struct {
-	Baud               int                   `yaml:"baud"`
-	TimeoutGetResponse time.Duration         `yaml:"timeout_get_response"` // таймаут получения ответа
-	TimeoutEndResponse time.Duration         `yaml:"timeout_end_response"` // таймаут окончания ответа
-	MaxAttemptsRead    int                   `yaml:"max_attempts_read"`    //число попыток получения ответа
-	Pause              time.Duration         `yaml:"pause"`                //пауза перед опросом
-	NetAddr            NetAddr               `yaml:"net_addr"`
-	Params             []Params              `yaml:"params"`
-	Coefficients       []Coefficients        `yaml:"coefficients"`
-	ParamsNames        map[modbus.Var]string `yaml:"params_names"`
+	Baud               int                    `yaml:"baud"`
+	TimeoutGetResponse time.Duration          `yaml:"timeout_get_response"` // таймаут получения ответа
+	TimeoutEndResponse time.Duration          `yaml:"timeout_end_response"` // таймаут окончания ответа
+	MaxAttemptsRead    int                    `yaml:"max_attempts_read"`    //число попыток получения ответа
+	Pause              time.Duration          `yaml:"pause"`                //пауза перед опросом
+	NetAddr            NetAddr                `yaml:"net_addr"`
+	Params             []Params               `yaml:"params"`
+	Coefficients       []Coefficients         `yaml:"coefficients"`
+	ParamsNames        map[modbus.Var]string  `yaml:"params_names"`
+	KfsNames           map[Coefficient]string `yaml:"params_names"`
 }
 
 type PartyParams = map[string]string
@@ -119,7 +120,7 @@ func (d Device) CommConfig() comm.Config {
 	}
 }
 
-func (d Device) GetCoefficientFormat(n modbus.Coefficient) (FloatBitsFormat, error) {
+func (d Device) GetCoefficientFormat(n Coefficient) (FloatBitsFormat, error) {
 	for _, c := range d.Coefficients {
 		if err := c.Validate(); err != nil {
 			return "", merry.Prependf(err, "коэффициент %d: %+v", n, c)
@@ -131,8 +132,8 @@ func (d Device) GetCoefficientFormat(n modbus.Coefficient) (FloatBitsFormat, err
 	return "", merry.Errorf("коэффициент %d не найден в настройках", n)
 }
 
-func (d Device) ListCoefficients() (xs []modbus.Coefficient) {
-	m := map[modbus.Coefficient]struct{}{}
+func (d Device) ListCoefficients() (xs []Coefficient) {
+	m := map[Coefficient]struct{}{}
 	for _, p := range d.Coefficients {
 		for i := p.Range[0]; i <= p.Range[1]; i++ {
 			m[i] = struct{}{}

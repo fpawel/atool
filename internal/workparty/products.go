@@ -131,6 +131,26 @@ func Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) wo
 		}))
 }
 
+type CfsValues = map[modbus.Coefficient]float64
+
+func WriteCfsValues(cfsValues CfsValues, format modbus.FloatBitsFormat) workgui.WorkFunc {
+	return ProcessEachActiveProduct(nil, func(log comm.Logger, ctx context.Context, product Product) error {
+		for kef, value := range cfsValues {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if err := product.WriteKef(kef, format, value)(log, ctx); err != nil {
+				return err
+			}
+			if err := product.SaveKefValue(kef, value); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+}
+
 func ReadProductsParams(ms *data.MeasurementCache, errorsOccurred ErrorsOccurred) workgui.WorkFunc {
 	return ProcessEachActiveProduct(errorsOccurred, func(log comm.Logger, ctx context.Context, product Product) error {
 		return product.readParams(log, ctx, ms)

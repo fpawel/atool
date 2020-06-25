@@ -3,6 +3,7 @@ package data
 import (
 	"fmt"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/comm/modbus"
 	"github.com/jmoiron/sqlx"
@@ -237,11 +238,11 @@ ORDER BY created_at, created_order`
 	return nil
 }
 
-func SaveProductKefValue(productID int64, kef modbus.Coefficient, value float64) error {
+func SaveProductKefValue(productID int64, kef devicecfg.Coefficient, value float64) error {
 	return SaveProductValue(productID, KeyCoefficient(kef), value)
 }
 
-func KeyCoefficient(k modbus.Coefficient) string {
+func KeyCoefficient(k devicecfg.Coefficient) string {
 	return fmt.Sprintf("K%02d", k)
 }
 
