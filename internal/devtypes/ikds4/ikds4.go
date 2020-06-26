@@ -3,6 +3,7 @@ package ikds4
 import (
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/devtypes/devdata"
+	"github.com/fpawel/atool/internal/devtypes/mil82"
 	"github.com/fpawel/comm/modbus"
 	"time"
 )
@@ -65,7 +66,7 @@ var (
 			Cmd:    12,
 			Format: modbus.FloatBigEndian,
 		},
-		Params: []devicecfg.Params{
+		ParamsRng: []devicecfg.ParamsRng{
 			{
 				Format:    modbus.FloatBigEndian,
 				ParamAddr: 0,
@@ -92,9 +93,9 @@ var (
 				Count:     1,
 			},
 		},
-		Coefficients: []devicecfg.Coefficients{
+		CfsRngList: []devicecfg.CfsRng{
 			{
-				Range:  [2]devicecfg.Coefficient{0, 50},
+				Range:  [2]devicecfg.Kef{0, 50},
 				Format: modbus.FloatBigEndian,
 			},
 		},
@@ -107,6 +108,7 @@ var (
 			16:  "Var16",
 			200: "Var200",
 		},
+		CfsNames: mil82.KfsNames,
 	}
 )
 
@@ -136,4 +138,4 @@ var (
 	ptsTemp = []string{keyTempLow, keyTempNorm, keyTempHigh}
 )
 
-type KefValueMap = map[devicecfg.Coefficient]float64
+type KefValueMap = map[devicecfg.Kef]float64

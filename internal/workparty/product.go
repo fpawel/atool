@@ -46,7 +46,7 @@ func (x Product) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value
 	}
 }
 
-func (x Product) WriteKef(kef devicecfg.Coefficient, format modbus.FloatBitsFormat, value float64) workgui.WorkFunc {
+func (x Product) WriteKef(kef devicecfg.Kef, format modbus.FloatBitsFormat, value float64) workgui.WorkFunc {
 	return func(log comm.Logger, ctx context.Context) error {
 		what := fmt.Sprintf("%s 📥 запись K%d=%v %s", x, kef, value, format)
 		err := func() error {
@@ -85,7 +85,7 @@ func (x Product) WriteKef(kef devicecfg.Coefficient, format modbus.FloatBitsForm
 	}
 }
 
-func (x Product) ReadKef(log comm.Logger, ctx context.Context, k devicecfg.Coefficient, format modbus.FloatBitsFormat) (float64, error) {
+func (x Product) ReadKef(log comm.Logger, ctx context.Context, k devicecfg.Kef, format modbus.FloatBitsFormat) (float64, error) {
 	what := fmt.Sprintf("%s 📥 💾 %s K%d", x, format, k)
 	return workgui.WithNotifyValue(log, what, func() (float64, error) {
 		value, err := modbus.Read3Value(log, ctx, x.Comm(), x.Addr, 224+2*modbus.Var(k), format)
@@ -116,7 +116,7 @@ func (x Product) ReadKef(log comm.Logger, ctx context.Context, k devicecfg.Coeff
 	})
 }
 
-func (x Product) SaveKefValue(k devicecfg.Coefficient, value float64) error {
+func (x Product) SaveKefValue(k devicecfg.Kef, value float64) error {
 	return data.SaveProductKefValue(x.ProductID, k, value)
 }
 
@@ -125,7 +125,7 @@ func (x Product) Comm() comm.T {
 }
 
 func (x Product) readAllCoefficients(log comm.Logger, ctx context.Context) error {
-	for _, Kr := range x.Device.Coefficients {
+	for _, Kr := range x.Device.CfsRngList {
 		log := pkg.LogPrependSuffixKeys(log,
 			"product", x.Product.String(),
 			"range", fmt.Sprintf("%d...%d", Kr.Range[0], Kr.Range[1]))
@@ -151,13 +151,13 @@ func (x Product) readAllCoefficients(log comm.Logger, ctx context.Context) error
 
 func (x Product) readParams(log comm.Logger, ctx context.Context, ms *data.MeasurementCache) error {
 	rdr := x.newParamsReader()
-	for _, prm := range x.Device.Params {
+	for _, prm := range x.Device.ParamsRng {
 		err := rdr.getResponse(log, ctx, prm)
 		if err != nil {
 			return err
 		}
 	}
-	for _, p := range x.Device.Params {
+	for _, p := range x.Device.ParamsRng {
 		for i := modbus.Var(0); i < p.Count; i++ {
 			rdr.processParamValueRead(p, i, ms)
 		}
@@ -183,7 +183,7 @@ type productParamsReader struct {
 	rd []bool
 }
 
-func (r productParamsReader) getResponse(log comm.Logger, ctx context.Context, prm devicecfg.Params) error {
+func (r productParamsReader) getResponse(log comm.Logger, ctx context.Context, prm devicecfg.ParamsRng) error {
 
 	regsCount := int(prm.Count) * 2
 	bytesCount := regsCount * 2
@@ -204,7 +204,7 @@ func (r productParamsReader) getResponse(log comm.Logger, ctx context.Context, p
 	return err
 }
 
-func (r productParamsReader) processParamValueRead(p devicecfg.Params, i modbus.Var, ms *data.MeasurementCache) {
+func (r productParamsReader) processParamValueRead(p devicecfg.ParamsRng, i modbus.Var, ms *data.MeasurementCache) {
 	paramAddr := p.ParamAddr + 2*i
 	offset := 2 * paramAddr
 	if !r.rd[offset] {

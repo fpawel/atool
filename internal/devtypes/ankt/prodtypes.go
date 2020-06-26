@@ -134,7 +134,7 @@ func (xs prodTypes) device() devdata.Device {
 
 	vars := xs[0].vars()
 	for _, v := range vars {
-		devCfg.Params = append(devCfg.Params, devicecfg.Params{
+		devCfg.ParamsRng = append(devCfg.ParamsRng, devicecfg.ParamsRng{
 			Format:    modbus.BCD,
 			ParamAddr: v,
 			Count:     1,

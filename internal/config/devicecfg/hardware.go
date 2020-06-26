@@ -18,7 +18,7 @@ func (xs Hardware) GetDevice(deviceType string) (Device, error) {
 
 func (xs Hardware) GetDeviceParamAddresses(deviceType string) (ps []modbus.Var) {
 	device, _ := xs[deviceType]
-	for _, p := range device.Params {
+	for _, p := range device.ParamsRng {
 		for n := modbus.Var(0); n < p.Count; n++ {
 			ps = append(ps, p.ParamAddr+2*n)
 		}

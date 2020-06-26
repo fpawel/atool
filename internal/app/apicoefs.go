@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
@@ -30,19 +31,29 @@ func (h *coefficientsSvc) ListCoefficients(_ context.Context) (r []*apitypes.Coe
 	d, _ := getCurrentPartyDeviceConfig()
 	for _, i := range d.ListCoefficients() {
 		_, inactive := appcfg.Cfg.InactiveCoefficients[i]
-		r = append(r, &apitypes.Coefficient{
+
+		kef := &apitypes.Coefficient{
 			N:      int32(i),
 			Active: !inactive,
-		})
+			Name:   fmt.Sprintf("%d", i),
+		}
+		if d.CfsNames != nil {
+			name, fName := d.CfsNames[i]
+			if fName {
+				kef.Name = fmt.Sprintf("%d %s", i, name)
+			}
+		}
+
+		r = append(r, kef)
 	}
 	return
 }
 
 func (h *coefficientsSvc) SetActive(_ context.Context, n int32, active bool) (err error) {
 	if active {
-		delete(appcfg.Cfg.InactiveCoefficients, devicecfg.Coefficient(n))
+		delete(appcfg.Cfg.InactiveCoefficients, devicecfg.Kef(n))
 	} else {
-		appcfg.Cfg.InactiveCoefficients[devicecfg.Coefficient(n)] = struct{}{}
+		appcfg.Cfg.InactiveCoefficients[devicecfg.Kef(n)] = struct{}{}
 	}
 	return nil
 }

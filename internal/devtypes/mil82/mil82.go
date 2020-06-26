@@ -8,22 +8,14 @@ import (
 )
 
 var Device = devdata.Device{
-
-	Name: "МИЛ-82",
-
-	Work: main,
-
-	Calc: calcSections,
-
+	Name:         "МИЛ-82",
+	Work:         main,
+	Calc:         calcSections,
 	ProductTypes: prodTypeNames,
-
 	DataSections: dataSections(),
-
-	InitParty: initParty,
-
-	Config: deviceConfig,
-
-	PartyParams: partyParams,
+	InitParty:    initParty,
+	Config:       deviceConfig,
+	PartyParams:  partyParams,
 }
 
 const (
@@ -64,7 +56,7 @@ var (
 			Cmd:    12,
 			Format: modbus.BCD,
 		},
-		Params: []devicecfg.Params{
+		ParamsRng: []devicecfg.ParamsRng{
 			{
 				Format:    modbus.BCD,
 				ParamAddr: 0,
@@ -86,13 +78,14 @@ var (
 				Count:     1,
 			},
 		},
-		Coefficients: []devicecfg.Coefficients{
+		CfsRngList: []devicecfg.CfsRng{
 			{
-				Range:  [2]devicecfg.Coefficient{0, 50},
+				Range:  [2]devicecfg.Kef{0, 50},
 				Format: modbus.BCD,
 			},
 		},
 		ParamsNames: paramsNames,
+		CfsNames:    KfsNames,
 	}
 
 	partyParams = []devdata.PartyParam{
@@ -145,4 +138,4 @@ var (
 	}
 )
 
-type KefValueMap = map[devicecfg.Coefficient]float64
+type KefValueMap = map[devicecfg.Kef]float64

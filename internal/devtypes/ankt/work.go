@@ -74,7 +74,7 @@ func setWorkMode(value float64) workgui.WorkFunc {
 }
 
 func correctTmcu(log comm.Logger, ctx context.Context) error {
-	const kefKdFt devicecfg.Coefficient = 48
+	const kefKdFt devicecfg.Kef = 48
 	return workgui.NewWorkFuncList(
 		workparty.WriteCfsValues(workparty.CfsValues{kefKdFt: 273}, floatBitsFormat),
 		hardwareWarn.HoldTemperature(20),
@@ -96,6 +96,6 @@ func correctTmcu(log comm.Logger, ctx context.Context) error {
 			return p.WriteKef(49, floatBitsFormat, k48+temp-tMcu)(log, ctx)
 		}),
 
-		workparty.ReadCfs([]devicecfg.Coefficient{kefKdFt}, floatBitsFormat),
+		workparty.ReadCfs([]devicecfg.Kef{kefKdFt}, floatBitsFormat),
 	).Do(log, ctx)
 }

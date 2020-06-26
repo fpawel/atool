@@ -10,16 +10,33 @@ import (
 )
 
 type Device struct {
-	Baud               int                    `yaml:"baud"`
-	TimeoutGetResponse time.Duration          `yaml:"timeout_get_response"` // таймаут получения ответа
-	TimeoutEndResponse time.Duration          `yaml:"timeout_end_response"` // таймаут окончания ответа
-	MaxAttemptsRead    int                    `yaml:"max_attempts_read"`    //число попыток получения ответа
-	Pause              time.Duration          `yaml:"pause"`                //пауза перед опросом
-	NetAddr            NetAddr                `yaml:"net_addr"`
-	Params             []Params               `yaml:"params"`
-	Coefficients       []Coefficients         `yaml:"coefficients"`
-	ParamsNames        map[modbus.Var]string  `yaml:"params_names"`
-	KfsNames           map[Coefficient]string `yaml:"cfs_names"`
+	Baud               int                   `yaml:"baud"`
+	TimeoutGetResponse time.Duration         `yaml:"timeout_get_response"` // таймаут получения ответа
+	TimeoutEndResponse time.Duration         `yaml:"timeout_end_response"` // таймаут окончания ответа
+	MaxAttemptsRead    int                   `yaml:"max_attempts_read"`    //число попыток получения ответа
+	Pause              time.Duration         `yaml:"pause"`                //пауза перед опросом
+	NetAddr            NetAddr               `yaml:"net_addr"`
+	ParamsRng          []ParamsRng           `yaml:"params_rng"`
+	CfsRngList         []CfsRng              `yaml:"cfs_rng_list"`
+	ParamsNames        map[modbus.Var]string `yaml:"params_names"`
+	CfsNames           map[Kef]string        `yaml:"cfs_names"`
+}
+
+type Kef uint16
+
+type CfsRng struct {
+	Range  [2]Kef          `yaml:"range,flow"`
+	Format FloatBitsFormat `yaml:"format"`
+}
+
+func (c CfsRng) Validate() error {
+	if c.Range[0] < 0 {
+		return merry.New("значение Range[0] должно быть не меньше нуля")
+	}
+	if c.Range[0] > c.Range[1] {
+		return merry.New("значение Range[1] должно быть меньше значения Range[0]")
+	}
+	return c.Format.Validate()
 }
 
 type PartyParams = map[string]string
@@ -29,8 +46,33 @@ type NetAddr struct {
 	Format modbus.FloatBitsFormat `yaml:"format"`
 }
 
+type FloatBitsFormat = modbus.FloatBitsFormat
+
+type ParamsRng struct {
+	Format    FloatBitsFormat `yaml:"format"`
+	ParamAddr modbus.Var      `yaml:"reg"`
+	Count     modbus.Var      `yaml:"count"`
+}
+
+func (p ParamsRng) Validate() error {
+	if err := p.Format.Validate(); err != nil {
+		return merry.Prependf(err, `не правильное знaчение format=%q`, p.Format)
+	}
+	if p.Count < 1 {
+		return merry.Errorf(`не правильное знaчение count=%d: должно быть боьше нуля`, p.Count)
+	}
+	if p.ParamAddr < 0 {
+		return merry.Errorf(`не правильное знaчение reg=%d: должно быть не меньше нуля`, p.ParamAddr)
+	}
+	if p.ParamAddr+p.Count > 0xFFFF {
+		return merry.Errorf(`не правильное знaчение сумы значений reg+count=%d: должно быть не больше 0xFFFF`,
+			p.ParamAddr+p.Count)
+	}
+	return nil
+}
+
 func (d Device) BufferSize() (r int) {
-	for _, p := range d.Params {
+	for _, p := range d.ParamsRng {
 		x := p.ParamAddr*2 + p.Count*4
 		if r < int(x) {
 			r = int(x)
@@ -40,7 +82,7 @@ func (d Device) BufferSize() (r int) {
 }
 
 func (d Device) ParamAddresses() (ps []modbus.Var) {
-	for _, p := range d.Params {
+	for _, p := range d.ParamsRng {
 		for i := 0; i < int(p.Count); i++ {
 			ps = append(ps, p.ParamAddr+modbus.Var(i)*2)
 		}
@@ -62,29 +104,29 @@ func (d Device) ParamName(paramAddr modbus.Var) string {
 
 func (d Device) Validate() error {
 
-	if len(d.Params) == 0 {
+	if len(d.ParamsRng) == 0 {
 		return merry.New("список групп параметров устройства не должен быть пустым")
 	}
 
 	if d.Pause < 0 {
-		return merry.Errorf(`не правильное значение pause=%v: должно не меньше нуля`, d.Pause)
+		return merry.Errorf(`не правильное значение pause=%v: должно быть не меньше нуля`, d.Pause)
 	}
 	if d.MaxAttemptsRead < 0 {
-		return merry.Errorf(`не правильное значение max_attempts_read=%v: должно не меньше нуля`, d.MaxAttemptsRead)
+		return merry.Errorf(`не правильное значение max_attempts_read=%v: должно быть не меньше нуля`, d.MaxAttemptsRead)
 	}
 	if d.TimeoutGetResponse < 0 {
-		return merry.Errorf(`не правильное значение timeout_get_response=%v: должно не меньше нуля`, d.TimeoutGetResponse)
+		return merry.Errorf(`не правильное значение timeout_get_response=%v: должно быть не меньше нуля`, d.TimeoutGetResponse)
 	}
 	if d.TimeoutEndResponse < 0 {
-		return merry.Errorf(`не правильное значение timeout_end_response=%v: должно не меньше нуля`, d.TimeoutEndResponse)
+		return merry.Errorf(`не правильное значение timeout_end_response=%v: должно быть не меньше нуля`, d.TimeoutEndResponse)
 	}
 	if d.MaxAttemptsRead < 0 {
-		return merry.Errorf(`не правильное значение max_attempts_read=%v: должно не меньше нуля`, d.MaxAttemptsRead)
+		return merry.Errorf(`не правильное значение max_attempts_read=%v: должно быть не меньше нуля`, d.MaxAttemptsRead)
 	}
 	if d.Baud < 0 {
-		return merry.Errorf(`не правильное знaчение baud=%v: должно не меньше нуля`, d.Baud)
+		return merry.Errorf(`не правильное знaчение baud=%v: должно быть не меньше нуля`, d.Baud)
 	}
-	for i, p := range d.Params {
+	for i, p := range d.ParamsRng {
 		if err := p.Validate(); err != nil {
 			return merry.Appendf(err, `группа параметров номер %d: %+v`, i, p)
 		}
@@ -102,7 +144,7 @@ func (d Device) Validate() error {
 		return merry.Append(err, "net_addr.format")
 	}
 
-	for i, c := range d.Coefficients {
+	for i, c := range d.CfsRngList {
 		if err := c.Validate(); err != nil {
 			return merry.Appendf(err, "диапазон к-тов номер %d", i)
 		}
@@ -120,8 +162,8 @@ func (d Device) CommConfig() comm.Config {
 	}
 }
 
-func (d Device) GetCoefficientFormat(n Coefficient) (FloatBitsFormat, error) {
-	for _, c := range d.Coefficients {
+func (d Device) GetCoefficientFormat(n Kef) (FloatBitsFormat, error) {
+	for _, c := range d.CfsRngList {
 		if err := c.Validate(); err != nil {
 			return "", merry.Prependf(err, "коэффициент %d: %+v", n, c)
 		}
@@ -132,9 +174,9 @@ func (d Device) GetCoefficientFormat(n Coefficient) (FloatBitsFormat, error) {
 	return "", merry.Errorf("коэффициент %d не найден в настройках", n)
 }
 
-func (d Device) ListCoefficients() (xs []Coefficient) {
-	m := map[Coefficient]struct{}{}
-	for _, p := range d.Coefficients {
+func (d Device) ListCoefficients() (xs []Kef) {
+	m := map[Kef]struct{}{}
+	for _, p := range d.CfsRngList {
 		for i := p.Range[0]; i <= p.Range[1]; i++ {
 			m[i] = struct{}{}
 		}

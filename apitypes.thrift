@@ -76,6 +76,7 @@ struct DeleteChartPointsRequest {
 struct Coefficient {
     1:i32 n
     2:bool active
+    3:string name
 }
 
 struct ProductCoefficientValue {

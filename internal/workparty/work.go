@@ -69,7 +69,7 @@ func NewWorkWriteAllCfs(in []*apitypes.ProductCoefficientValue) Work {
 		for _, p := range in {
 			xs = append(xs, ProductCoefficientValue{
 				ProductID:   p.ProductID,
-				Coefficient: devicecfg.Coefficient(p.Coefficient),
+				Coefficient: devicecfg.Kef(p.Coefficient),
 				Value:       p.Value,
 			})
 		}
@@ -177,7 +177,7 @@ func NewWorkScanModbus(comportName string) workgui.Work {
 			return err
 		}
 
-		if len(device.Params) == 0 {
+		if len(device.ParamsRng) == 0 {
 			return merry.Errorf("нет параметров устройства %q", party.DeviceType)
 		}
 
@@ -187,7 +187,7 @@ func NewWorkScanModbus(comportName string) workgui.Work {
 		})
 
 		ans, notAns := make(intrng.Bytes), make(intrng.Bytes)
-		param := device.Params[0]
+		param := device.ParamsRng[0]
 
 		go gui.NotifyProgressShow(127, "модбас: сканирование сети")
 		defer func() {

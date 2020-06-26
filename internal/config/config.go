@@ -10,7 +10,7 @@ import (
 	"os"
 )
 
-type Kef = devicecfg.Coefficient
+type Kef = devicecfg.Kef
 
 type Config struct {
 	LogComm              bool               `yaml:"log_comm"`

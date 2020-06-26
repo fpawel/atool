@@ -9,7 +9,7 @@ type productType struct {
 	Gas     string
 	Scale0  float64
 	Scale   float64
-	Kef     map[devicecfg.Coefficient]float64
+	Kef     map[devicecfg.Kef]float64
 	TempMin float64
 	TempMax float64
 	Index   int

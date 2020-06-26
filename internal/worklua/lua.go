@@ -90,7 +90,7 @@ func (x *Import) ForEachProduct(f func(*luaProduct)) {
 type GetProductValueFunc func(dbKey string) float64
 type InterpolateCfsFunc func(getProductValueFunc GetProductValueFunc) *lua.LTable
 
-func (x *Import) Interpolation(name string, kef, count devicecfg.Coefficient, format modbus.FloatBitsFormat, interpolateCfsFunc InterpolateCfsFunc) {
+func (x *Import) Interpolation(name string, kef, count devicecfg.Kef, format modbus.FloatBitsFormat, interpolateCfsFunc InterpolateCfsFunc) {
 	w := workparty.InterpolateCfs{
 		Name:        name,
 		Coefficient: kef,
@@ -217,11 +217,11 @@ func (x *Import) PerformEachSelectedProduct(name string, Func func(p *luaProduct
 	})
 }
 
-func (x *Import) WriteCoefficients(ks map[int]devicecfg.Coefficient, format modbus.FloatBitsFormat) {
+func (x *Import) WriteCoefficients(ks map[int]devicecfg.Kef, format modbus.FloatBitsFormat) {
 	x.do(workparty.WriteCfs(coefficientsList(ks), format))
 }
 
-func (x *Import) ReadCoefficients(ks map[int]devicecfg.Coefficient, format modbus.FloatBitsFormat) {
+func (x *Import) ReadCoefficients(ks map[int]devicecfg.Kef, format modbus.FloatBitsFormat) {
 	x.do(workparty.ReadCfs(coefficientsList(ks), format))
 }
 
@@ -291,7 +291,7 @@ func check(l *lua.LState, err error) {
 	}
 }
 
-func coefficientsList(xs map[int]devicecfg.Coefficient) (r workparty.CfsList) {
+func coefficientsList(xs map[int]devicecfg.Kef) (r workparty.CfsList) {
 	for _, k := range xs {
 		r = append(r, k)
 	}

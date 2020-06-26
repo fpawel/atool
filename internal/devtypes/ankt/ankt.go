@@ -121,20 +121,21 @@ var (
 			Cmd:    7,
 			Format: modbus.BCD,
 		},
-		Coefficients: []devicecfg.Coefficients{
+		CfsRngList: []devicecfg.CfsRng{
 			{
-				Range:  [2]devicecfg.Coefficient{0, 50},
+				Range:  [2]devicecfg.Kef{0, 50},
 				Format: modbus.BCD,
 			},
 		},
 		ParamsNames: paramsNames,
+		CfsNames:    KfsNames,
 	}
 )
 
 func deviceConfig(vars []modbus.Var) devicecfg.Device {
 	x := deviceConfig0
 	for _, v := range vars {
-		x.Params = append(x.Params, devicecfg.Params{
+		x.ParamsRng = append(x.ParamsRng, devicecfg.ParamsRng{
 			Format:    modbus.BCD,
 			ParamAddr: v,
 			Count:     1,

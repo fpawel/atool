@@ -238,11 +238,11 @@ ORDER BY created_at, created_order`
 	return nil
 }
 
-func SaveProductKefValue(productID int64, kef devicecfg.Coefficient, value float64) error {
+func SaveProductKefValue(productID int64, kef devicecfg.Kef, value float64) error {
 	return SaveProductValue(productID, KeyCoefficient(kef), value)
 }
 
-func KeyCoefficient(k devicecfg.Coefficient) string {
+func KeyCoefficient(k devicecfg.Kef) string {
 	return fmt.Sprintf("K%02d", k)
 }
 
