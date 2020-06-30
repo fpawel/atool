@@ -177,7 +177,8 @@ func NewWorkScanModbus(comportName string) workgui.Work {
 			return err
 		}
 
-		if len(device.ParamsRng) == 0 {
+		paramsRng := device.ParamsRng(party.ProductType)
+		if len(paramsRng) == 0 {
 			return merry.Errorf("нет параметров устройства %q", party.DeviceType)
 		}
 
@@ -187,7 +188,7 @@ func NewWorkScanModbus(comportName string) workgui.Work {
 		})
 
 		ans, notAns := make(intrng.Bytes), make(intrng.Bytes)
-		param := device.ParamsRng[0]
+		param := paramsRng[0]
 
 		go gui.NotifyProgressShow(127, "модбас: сканирование сети")
 		defer func() {

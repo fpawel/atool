@@ -56,7 +56,7 @@ var (
 			Cmd:    12,
 			Format: modbus.BCD,
 		},
-		ParamsRng: []devicecfg.ParamsRng{
+		ParamsList: []devicecfg.Params{
 			{
 				Format:    modbus.BCD,
 				ParamAddr: 0,
@@ -78,7 +78,7 @@ var (
 				Count:     1,
 			},
 		},
-		CfsRngList: []devicecfg.CfsRng{
+		CfsList: []devicecfg.Cfs{
 			{
 				Range:  [2]devicecfg.Kef{0, 50},
 				Format: modbus.BCD,

@@ -6,6 +6,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/devtypes/ankt/anktvar"
 	"github.com/fpawel/atool/internal/hardware"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/atool/internal/workparty"
@@ -87,7 +88,7 @@ func correctTmcu(log comm.Logger, ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			tMcu, err := modbus.Read3Value(log, ctx, p.Comm(), p.Addr, varTmcu, floatBitsFormat)
+			tMcu, err := modbus.Read3Value(log, ctx, p.Comm(), p.Addr, anktvar.Tmcu, floatBitsFormat)
 			if err != nil {
 				return err
 			}

@@ -76,7 +76,7 @@ func (h *currentFileSvc) ListDeviceParams(_ context.Context) ([]*apitypes.Device
 	device, _ := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
 
 	r := make([]*apitypes.DeviceParam, 0)
-	for _, x := range device.ParamAddresses() {
+	for _, x := range device.ParamAddresses(party.ProductType) {
 		r = append(r, &apitypes.DeviceParam{
 			ParamAddr: int32(x),
 			Name:      device.ParamName(x),
@@ -155,7 +155,7 @@ func processCurrentPartyChart() {
 
 	cfg := appcfg.Cfg.Hardware
 
-	paramsAddresses := cfg.GetDeviceParamAddresses(party.DeviceType)
+	paramsAddresses := cfg.GetDeviceParamAddresses(party.DeviceType, party.ProductType)
 
 	log := pkg.LogPrependSuffixKeys(log, "party",
 		party.PartyID, "params", fmt.Sprintf("%d", paramsAddresses))

@@ -1,13 +1,7 @@
 package ankt
 
-import (
-	"github.com/fpawel/atool/internal/config/devicecfg"
-	"github.com/fpawel/atool/internal/devtypes/devdata"
-	"github.com/fpawel/comm/modbus"
-)
-
 var (
-	productTypesList = prodTypes{
+	productTypesList = []productType{
 		prodT1(10, "CO₂", 2, true),
 		prodT1(10, "CO₂", 5, true),
 		prodT1(10, "CO₂", 10, true),
@@ -110,52 +104,5 @@ func prodT2(n int, gas gasT, scale float64, gas2 gasT, scale2 float64, pressure 
 				scale: scale2,
 			},
 		},
-	}
-}
-
-func (xs prodTypes) filter(f func(productType) bool) prodTypes {
-	var xs1 prodTypes
-	for _, t := range xs {
-		if f(t) {
-			xs1 = append(xs1, t)
-		}
-	}
-	return xs1
-}
-
-type prodTypes []productType
-
-func (xs prodTypes) vars() (vars []modbus.Var) {
-	return xs[0].vars()
-}
-
-func (xs prodTypes) device() devdata.Device {
-	devCfg := deviceConfig0
-
-	vars := xs[0].vars()
-	for _, v := range vars {
-		devCfg.ParamsRng = append(devCfg.ParamsRng, devicecfg.ParamsRng{
-			Format:    modbus.BCD,
-			ParamAddr: v,
-			Count:     1,
-		})
-	}
-
-	var names []string
-	for _, x := range xs {
-		names = append(names, x.String())
-	}
-
-	return devdata.Device{
-		Name:         xs[0].deviceName(),
-		ProductTypes: names,
-		Config:       devCfg,
-
-		DataSections: nil,
-
-		PartyParams: nil,
-		InitParty:   nil,
-		Calc:        nil,
-		Work:        nil,
 	}
 }

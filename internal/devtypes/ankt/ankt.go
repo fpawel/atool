@@ -3,26 +3,31 @@ package ankt
 import (
 	"fmt"
 	"github.com/fpawel/atool/internal/config/devicecfg"
+	"github.com/fpawel/atool/internal/devtypes/ankt/anktvar"
+	"github.com/fpawel/atool/internal/devtypes/devdata"
 	"github.com/fpawel/comm/modbus"
+	"sort"
 	"time"
 )
 
 var (
-	Device1 = productTypesList.filter(func(p productType) bool {
-		return !p.Chan2 && !p.Pressure
-	}).device()
+	Device = devdata.Device{
+		Name:   "Анкат-7664МИКРО",
+		Config: deviceConfig,
+		ProductTypes: func() (xs []string) {
+			for _, t := range productTypesList {
+				xs = append(xs, t.String())
+			}
+			sort.Strings(xs)
+			return
+		}(),
 
-	Device1P = productTypesList.filter(func(p productType) bool {
-		return !p.Chan2 && p.Pressure
-	}).device()
-
-	Device2 = productTypesList.filter(func(p productType) bool {
-		return p.Chan2 && !p.Pressure
-	}).device()
-
-	Device2P = productTypesList.filter(func(p productType) bool {
-		return p.Chan2 && p.Pressure
-	}).device()
+		DataSections: nil,
+		PartyParams:  nil,
+		InitParty:    nil,
+		Calc:         nil,
+		Work:         nil,
+	}
 )
 
 type chanT struct {
@@ -111,7 +116,7 @@ const (
 )
 
 var (
-	deviceConfig0 = devicecfg.Device{
+	deviceConfig = devicecfg.Device{
 		Baud:               9600,
 		TimeoutGetResponse: time.Second,
 		TimeoutEndResponse: 50 * time.Millisecond,
@@ -121,25 +126,45 @@ var (
 			Cmd:    7,
 			Format: modbus.BCD,
 		},
-		CfsRngList: []devicecfg.CfsRng{
+		CfsList: []devicecfg.Cfs{
 			{
 				Range:  [2]devicecfg.Kef{0, 50},
 				Format: modbus.BCD,
 			},
 		},
-		ParamsNames: paramsNames,
+		ParamsNames: anktvar.Names,
 		CfsNames:    KfsNames,
+		ParamsList:  varsParamRng(anktvar.Vars),
+		ProductTypesVars: func() []devicecfg.ProductTypeVars {
+			xsC2 := devicecfg.ProductTypeVars{
+				ParamsRngList: varsParamRng(anktvar.VarsChan2),
+			}
+			for _, t := range productTypesList {
+				if t.Chan2 {
+					xsC2.Names = append(xsC2.Names, t.String())
+				}
+			}
+
+			xsP := devicecfg.ProductTypeVars{
+				ParamsRngList: varsParamRng(anktvar.VarsP),
+			}
+			for _, t := range productTypesList {
+				if t.Pressure {
+					xsP.Names = append(xsP.Names, t.String())
+				}
+			}
+			return []devicecfg.ProductTypeVars{xsC2, xsP}
+		}(),
 	}
 )
 
-func deviceConfig(vars []modbus.Var) devicecfg.Device {
-	x := deviceConfig0
+func varsParamRng(vars []modbus.Var) (xs []devicecfg.Params) {
 	for _, v := range vars {
-		x.ParamsRng = append(x.ParamsRng, devicecfg.ParamsRng{
+		xs = append(xs, devicecfg.Params{
 			Format:    modbus.BCD,
 			ParamAddr: v,
 			Count:     1,
 		})
 	}
-	return x
+	return
 }

@@ -41,7 +41,7 @@ func Main() {
 	log.ErrIfFail(workgui.OpenJournal)
 
 	// инициализация конфигурации
-	appcfg.Init(mil82.Device, ikds4.Device, ankt.Device1, ankt.Device1P, ankt.Device2, ankt.Device2P)
+	appcfg.Init(mil82.Device, ikds4.Device, ankt.Device)
 
 	// общий контекст приложения с прерыванием
 	var interrupt context.CancelFunc

@@ -125,7 +125,7 @@ func (x Product) Comm() comm.T {
 }
 
 func (x Product) readAllCoefficients(log comm.Logger, ctx context.Context) error {
-	for _, Kr := range x.Device.CfsRngList {
+	for _, Kr := range x.Device.CfsList {
 		log := pkg.LogPrependSuffixKeys(log,
 			"product", x.Product.String(),
 			"range", fmt.Sprintf("%d...%d", Kr.Range[0], Kr.Range[1]))
@@ -151,13 +151,13 @@ func (x Product) readAllCoefficients(log comm.Logger, ctx context.Context) error
 
 func (x Product) readParams(log comm.Logger, ctx context.Context, ms *data.MeasurementCache) error {
 	rdr := x.newParamsReader()
-	for _, prm := range x.Device.ParamsRng {
+	for _, prm := range x.Device.ParamsRng(x.Party.ProductType) {
 		err := rdr.getResponse(log, ctx, prm)
 		if err != nil {
 			return err
 		}
 	}
-	for _, p := range x.Device.ParamsRng {
+	for _, p := range x.Device.ParamsRng(x.Party.ProductType) {
 		for i := modbus.Var(0); i < p.Count; i++ {
 			rdr.processParamValueRead(p, i, ms)
 		}
@@ -166,10 +166,11 @@ func (x Product) readParams(log comm.Logger, ctx context.Context, ms *data.Measu
 }
 
 func (x Product) newParamsReader() productParamsReader {
+	bufferSize := x.Device.BufferSize(x.Party.ProductType)
 	r := productParamsReader{
 		Product: x,
-		dt:      make([]byte, x.Device.BufferSize()),
-		rd:      make([]bool, x.Device.BufferSize()),
+		dt:      make([]byte, bufferSize),
+		rd:      make([]bool, bufferSize),
 	}
 	for i := range r.dt {
 		r.dt[i] = 0xFF
@@ -183,7 +184,7 @@ type productParamsReader struct {
 	rd []bool
 }
 
-func (r productParamsReader) getResponse(log comm.Logger, ctx context.Context, prm devicecfg.ParamsRng) error {
+func (r productParamsReader) getResponse(log comm.Logger, ctx context.Context, prm devicecfg.Params) error {
 
 	regsCount := int(prm.Count) * 2
 	bytesCount := regsCount * 2
@@ -204,7 +205,7 @@ func (r productParamsReader) getResponse(log comm.Logger, ctx context.Context, p
 	return err
 }
 
-func (r productParamsReader) processParamValueRead(p devicecfg.ParamsRng, i modbus.Var, ms *data.MeasurementCache) {
+func (r productParamsReader) processParamValueRead(p devicecfg.Params, i modbus.Var, ms *data.MeasurementCache) {
 	paramAddr := p.ParamAddr + 2*i
 	offset := 2 * paramAddr
 	if !r.rd[offset] {

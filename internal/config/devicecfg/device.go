@@ -16,20 +16,26 @@ type Device struct {
 	MaxAttemptsRead    int                   `yaml:"max_attempts_read"`    //число попыток получения ответа
 	Pause              time.Duration         `yaml:"pause"`                //пауза перед опросом
 	NetAddr            NetAddr               `yaml:"net_addr"`
-	ParamsRng          []ParamsRng           `yaml:"params_rng"`
-	CfsRngList         []CfsRng              `yaml:"cfs_rng_list"`
+	ParamsList         []Params              `yaml:"params_list"`
+	CfsList            []Cfs                 `yaml:"cfs_list"`
 	ParamsNames        map[modbus.Var]string `yaml:"params_names"`
 	CfsNames           map[Kef]string        `yaml:"cfs_names"`
+	ProductTypesVars   []ProductTypeVars     `yaml:"product_type_vars"`
+}
+
+type ProductTypeVars struct {
+	Names         []string `yaml:"names"`
+	ParamsRngList []Params `yaml:"list"`
 }
 
 type Kef uint16
 
-type CfsRng struct {
+type Cfs struct {
 	Range  [2]Kef          `yaml:"range,flow"`
 	Format FloatBitsFormat `yaml:"format"`
 }
 
-func (c CfsRng) Validate() error {
+func (c Cfs) Validate() error {
 	if c.Range[0] < 0 {
 		return merry.New("значение Range[0] должно быть не меньше нуля")
 	}
@@ -48,13 +54,13 @@ type NetAddr struct {
 
 type FloatBitsFormat = modbus.FloatBitsFormat
 
-type ParamsRng struct {
+type Params struct {
 	Format    FloatBitsFormat `yaml:"format"`
 	ParamAddr modbus.Var      `yaml:"reg"`
 	Count     modbus.Var      `yaml:"count"`
 }
 
-func (p ParamsRng) Validate() error {
+func (p Params) Validate() error {
 	if err := p.Format.Validate(); err != nil {
 		return merry.Prependf(err, `не правильное знaчение format=%q`, p.Format)
 	}
@@ -71,8 +77,20 @@ func (p ParamsRng) Validate() error {
 	return nil
 }
 
-func (d Device) BufferSize() (r int) {
-	for _, p := range d.ParamsRng {
+func (d Device) ParamsRng(prodType string) []Params {
+	xs := d.ParamsList
+	for _, y := range d.ProductTypesVars {
+		for _, s := range y.Names {
+			if s == prodType {
+				xs = append(xs, y.ParamsRngList...)
+			}
+		}
+	}
+	return xs
+}
+
+func (d Device) BufferSize(prodType string) (r int) {
+	for _, p := range d.ParamsRng(prodType) {
 		x := p.ParamAddr*2 + p.Count*4
 		if r < int(x) {
 			r = int(x)
@@ -81,8 +99,8 @@ func (d Device) BufferSize() (r int) {
 	return
 }
 
-func (d Device) ParamAddresses() (ps []modbus.Var) {
-	for _, p := range d.ParamsRng {
+func (d Device) ParamAddresses(prodType string) (ps []modbus.Var) {
+	for _, p := range d.ParamsRng(prodType) {
 		for i := 0; i < int(p.Count); i++ {
 			ps = append(ps, p.ParamAddr+modbus.Var(i)*2)
 		}
@@ -104,7 +122,7 @@ func (d Device) ParamName(paramAddr modbus.Var) string {
 
 func (d Device) Validate() error {
 
-	if len(d.ParamsRng) == 0 {
+	if len(d.ParamsList) == 0 {
 		return merry.New("список групп параметров устройства не должен быть пустым")
 	}
 
@@ -124,27 +142,45 @@ func (d Device) Validate() error {
 		return merry.Errorf(`не правильное значение max_attempts_read=%v: должно быть не меньше нуля`, d.MaxAttemptsRead)
 	}
 	if d.Baud < 0 {
-		return merry.Errorf(`не правильное знaчение baud=%v: должно быть не меньше нуля`, d.Baud)
-	}
-	for i, p := range d.ParamsRng {
-		if err := p.Validate(); err != nil {
-			return merry.Appendf(err, `группа параметров номер %d: %+v`, i, p)
-		}
+		return merry.Errorf(`не правильное значение baud=%v: должно быть не меньше нуля`, d.Baud)
 	}
 
+	for _, p := range d.ParamsRng("") {
+		if err := p.Validate(); err != nil {
+			return merry.Appendf(err, `группа параметров %+v`, p)
+		}
+	}
 	m := make(map[modbus.Var]struct{})
-	for _, x := range d.ParamAddresses() {
+	for _, x := range d.ParamAddresses("") {
 		if _, f := m[x]; f {
 			return merry.Errorf(`дублирование адреса параметра %d`, x)
 		}
 		m[x] = struct{}{}
 	}
 
+	for _, y := range d.ProductTypesVars {
+		for _, s := range y.Names {
+			for _, p := range d.ParamsRng(s) {
+				if err := p.Validate(); err != nil {
+					return merry.Appendf(err, `группа параметров %s: %+v`, s, p)
+				}
+			}
+
+			m := make(map[modbus.Var]struct{})
+			for _, x := range d.ParamAddresses(s) {
+				if _, f := m[x]; f {
+					return merry.Errorf(`дублирование адреса параметра %s: %d`, s, x)
+				}
+				m[x] = struct{}{}
+			}
+		}
+	}
+
 	if err := d.NetAddr.Format.Validate(); err != nil {
 		return merry.Append(err, "net_addr.format")
 	}
 
-	for i, c := range d.CfsRngList {
+	for i, c := range d.CfsList {
 		if err := c.Validate(); err != nil {
 			return merry.Appendf(err, "диапазон к-тов номер %d", i)
 		}
@@ -163,7 +199,7 @@ func (d Device) CommConfig() comm.Config {
 }
 
 func (d Device) GetCoefficientFormat(n Kef) (FloatBitsFormat, error) {
-	for _, c := range d.CfsRngList {
+	for _, c := range d.CfsList {
 		if err := c.Validate(); err != nil {
 			return "", merry.Prependf(err, "коэффициент %d: %+v", n, c)
 		}
@@ -176,7 +212,7 @@ func (d Device) GetCoefficientFormat(n Kef) (FloatBitsFormat, error) {
 
 func (d Device) ListCoefficients() (xs []Kef) {
 	m := map[Kef]struct{}{}
-	for _, p := range d.CfsRngList {
+	for _, p := range d.CfsList {
 		for i := p.Range[0]; i <= p.Range[1]; i++ {
 			m[i] = struct{}{}
 		}

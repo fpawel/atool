@@ -66,7 +66,7 @@ var (
 			Cmd:    12,
 			Format: modbus.FloatBigEndian,
 		},
-		ParamsRng: []devicecfg.ParamsRng{
+		ParamsList: []devicecfg.Params{
 			{
 				Format:    modbus.FloatBigEndian,
 				ParamAddr: 0,
@@ -93,7 +93,7 @@ var (
 				Count:     1,
 			},
 		},
-		CfsRngList: []devicecfg.CfsRng{
+		CfsList: []devicecfg.Cfs{
 			{
 				Range:  [2]devicecfg.Kef{0, 50},
 				Format: modbus.FloatBigEndian,
