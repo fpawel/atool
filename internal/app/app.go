@@ -94,6 +94,7 @@ func Main() {
 
 	log.Debug("сохранить конфигурацию")
 	log.ErrIfFail(appcfg.Cfg.Save)
+	log.ErrIfFail(appcfg.Sets.Save)
 
 	// записать в лог что всё хорошо
 	log.Debug("all canceled and closed")

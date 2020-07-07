@@ -39,9 +39,8 @@ func defaultConfig() Config {
 			Enable: false,
 			Addr:   99,
 		},
-		Ktx500:               ktx500.NewDefaultConfig(),
-		InactiveCoefficients: make(map[Kef]struct{}),
-		Hardware:             devicecfg.Hardware{},
+		Ktx500:   ktx500.NewDefaultConfig(),
+		Hardware: devicecfg.Hardware{},
 	}
 	return c
 }

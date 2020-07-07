@@ -133,7 +133,7 @@ func (x Product) readAllCoefficients(log comm.Logger, ctx context.Context) error
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			if _, f := appcfg.Cfg.InactiveCoefficients[kef]; f {
+			if _, f := appcfg.Sets.InactiveCoefficients[kef]; f {
 				continue
 			}
 

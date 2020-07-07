@@ -37,6 +37,15 @@ func (x WorkFunc) Work(name string) Work {
 	return New(name, x)
 }
 
+func (x WorkFunc) ApplyIf(f bool) WorkFunc {
+	if f {
+		return x
+	}
+	return func(comm.Logger, context.Context) error {
+		return nil
+	}
+}
+
 func (x WorkFunc) DoWarn(log comm.Logger, ctx context.Context) error {
 	err := x(log, ctx)
 	if err == nil || merry.Is(err, context.Canceled) {
@@ -136,7 +145,11 @@ func NewWorkFuncList(args ...WorkFunc) WorkFuncList {
 	return args
 }
 
-func (xs WorkFuncList) Do(log *structlog.Logger, ctx context.Context) error {
+func NewWorkFuncFromList(args ...WorkFunc) WorkFunc {
+	return NewWorkFuncList(args...).Do
+}
+
+func (xs WorkFuncList) Do(log comm.Logger, ctx context.Context) error {
 	for _, w := range xs {
 		w := w
 		if err := w(log, ctx); err != nil {

@@ -30,7 +30,7 @@ func (h *coefficientsSvc) ListCoefficients(_ context.Context) (r []*apitypes.Coe
 	r = []*apitypes.Coefficient{}
 	d, _ := getCurrentPartyDeviceConfig()
 	for _, i := range d.ListCoefficients() {
-		_, inactive := appcfg.Cfg.InactiveCoefficients[i]
+		_, inactive := appcfg.Sets.InactiveCoefficients[i]
 
 		kef := &apitypes.Coefficient{
 			N:      int32(i),
@@ -51,9 +51,9 @@ func (h *coefficientsSvc) ListCoefficients(_ context.Context) (r []*apitypes.Coe
 
 func (h *coefficientsSvc) SetActive(_ context.Context, n int32, active bool) (err error) {
 	if active {
-		delete(appcfg.Cfg.InactiveCoefficients, devicecfg.Kef(n))
+		delete(appcfg.Sets.InactiveCoefficients, devicecfg.Kef(n))
 	} else {
-		appcfg.Cfg.InactiveCoefficients[devicecfg.Kef(n)] = struct{}{}
+		appcfg.Sets.InactiveCoefficients[devicecfg.Kef(n)] = struct{}{}
 	}
 	return nil
 }

@@ -1,7 +1,6 @@
 package ankt
 
 import (
-	"fmt"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/devtypes/ankt/anktvar"
 	"github.com/fpawel/atool/internal/devtypes/devdata"
@@ -12,7 +11,7 @@ import (
 
 var (
 	Device = devdata.Device{
-		Name:   "Анкат-7664МИКРО",
+		Name:   deviceName,
 		Config: deviceConfig,
 		ProductTypes: func() (xs []string) {
 			for _, t := range productTypesList {
@@ -21,101 +20,51 @@ var (
 			sort.Strings(xs)
 			return
 		}(),
+		PartyParams: []devdata.PartyParam{
+			{
+				Key:  "c1",
+				Name: "Анкат: концентрация ПГС1: начало шк.",
+			},
+			{
+				Key:  "c2",
+				Name: "Анкат: концентрация ПГС2: середина шк.к.1",
+			},
+			{
+				Key:  "c3",
+				Name: "Анкат: концентрация ПГС3: доп.середина шк.к.1 CO₂",
+			},
+			{
+				Key:  "c4",
+				Name: "Анкат: концентрация ПГС4: конец шк.к.1",
+			},
+			{
+				Key:  "c5",
+				Name: "Анкат: концентрация ПГС5: середина шк.к.2",
+			},
+			{
+				Key:  "c6",
+				Name: "Анкат: концентрация ПГС6: конец шк.к.2",
+			},
+			{
+				Key:  keyTempNorm.String(),
+				Name: "уставка температуры НКУ,⁰C",
+			},
+			{
+				Key:  keyTempLow.String(),
+				Name: "уставка низкой температуры,⁰C",
+			},
+			{
+				Key:  keyTempHigh.String(),
+				Name: "уставка высокой температуры,⁰C",
+			},
+		},
+		InitParty: initParty,
+		Work:      main,
 
-		DataSections: nil,
-		PartyParams:  nil,
-		InitParty:    nil,
+		DataSections: dataSections,
 		Calc:         nil,
-		Work:         nil,
 	}
-)
 
-type chanT struct {
-	gas   gasT
-	scale float64
-}
-
-func (x chanT) String() string {
-	if x.gas.isCH() {
-		return string(x.gas)
-	}
-	return fmt.Sprintf("%s%v", x.gas, x.scale)
-}
-
-func (x chanT) code() float64 {
-	switch x.gas {
-	case CH4:
-		return 16
-	case SumCH:
-		return 15
-	case C3H8:
-		return 14
-	case CO2:
-		switch x.scale {
-		case 2:
-			return 11
-		case 5:
-			return 12
-		case 10:
-			return 13
-		}
-	}
-	panic(fmt.Sprintf("%+v", x))
-}
-
-type gasT string
-
-func (x gasT) units() unitsT {
-	if x.isCH() {
-		return unitsLel
-	}
-	return unitsLel
-}
-
-func (x gasT) isCH() bool {
-	switch x {
-	case CH4, C3H8, SumCH:
-		return true
-	}
-	return false
-}
-
-type unitsT string
-
-func (x unitsT) code() float64 {
-	switch x {
-	case unitsVolume:
-		return 3
-	case unitsLel:
-		return 4
-	}
-	panic(x)
-}
-
-func scaleCode(x float64) float64 {
-	switch x {
-	case 2:
-		return 2
-	case 5:
-		return 6
-	case 10:
-		return 7
-	case 100:
-		return 21
-	}
-	panic(x)
-}
-
-const (
-	unitsVolume unitsT = "%об"
-	unitsLel    unitsT = "%НКПР"
-	CO2         gasT   = "CO₂"
-	C3H8        gasT   = "C₃H₈"
-	SumCH       gasT   = "∑CH"
-	CH4         gasT   = "CH₄"
-)
-
-var (
 	deviceConfig = devicecfg.Device{
 		Baud:               9600,
 		TimeoutGetResponse: time.Second,
@@ -156,6 +105,10 @@ var (
 			return []devicecfg.ProductTypeVars{xsC2, xsP}
 		}(),
 	}
+)
+
+const (
+	deviceName = "Анкат-7664МИКРО"
 )
 
 func varsParamRng(vars []modbus.Var) (xs []devicecfg.Params) {

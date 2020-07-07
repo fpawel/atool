@@ -2,6 +2,7 @@ package appcfg
 
 import (
 	"github.com/fpawel/atool/internal/config"
+	"github.com/fpawel/atool/internal/config/appsets"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/devtypes/devdata"
 )
@@ -9,6 +10,7 @@ import (
 var (
 	DeviceTypes map[string]devdata.Device
 	Cfg         config.Config
+	Sets        = new(appsets.Settings)
 )
 
 func Init(devices ...devdata.Device) {
@@ -19,6 +21,9 @@ func Init(devices ...devdata.Device) {
 	var err error
 	Cfg, err = config.LoadOrDefault(hardware())
 	if err != nil {
+		panic(err)
+	}
+	if err := Sets.Open(); err != nil {
 		panic(err)
 	}
 }

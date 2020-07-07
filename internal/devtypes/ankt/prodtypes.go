@@ -73,6 +73,14 @@ var (
 		prodT2(35, "C₃H₈", 100, "CH₄", 100, false),
 		prodT2(35, "∑CH", 100, "CH₄", 100, false),
 	}
+
+	productTypes = func() (xs map[string]productType) {
+		xs = make(map[string]productType)
+		for _, x := range productTypesList {
+			xs[x.String()] = x
+		}
+		return
+	}()
 )
 
 func prodT1(n int, gas gasT, scale float64, pressure bool) productType {

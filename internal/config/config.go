@@ -13,14 +13,13 @@ import (
 type Kef = devicecfg.Kef
 
 type Config struct {
-	LogComm              bool               `yaml:"log_comm"`
-	FloatPrecision       int                `yaml:"float_precision"`
-	Hardware             devicecfg.Hardware `yaml:"hardware"`
-	Gas                  Gas                `yaml:"gas"`
-	Temperature          Temperature        `yaml:"temperature"`
-	WarmSheets           Mil82WarmSheets    `yaml:"warm_sheets"`
-	Ktx500               ktx500.Config      `yaml:"ktx500"`
-	InactiveCoefficients map[Kef]struct{}   `yaml:"inactive_coefficients"`
+	LogComm        bool               `yaml:"log_comm"`
+	FloatPrecision int                `yaml:"float_precision"`
+	Hardware       devicecfg.Hardware `yaml:"hardware"`
+	Gas            Gas                `yaml:"gas"`
+	Temperature    Temperature        `yaml:"temperature"`
+	WarmSheets     Mil82WarmSheets    `yaml:"warm_sheets"`
+	Ktx500         ktx500.Config      `yaml:"ktx500"`
 }
 
 type Mil82WarmSheets struct {
