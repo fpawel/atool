@@ -354,7 +354,7 @@ func (x *wrk) readSaveSectionGases(dbKeySection string, gases ...byte) workgui.W
 			x.warn.BlowGas(gas),
 		}
 		for _, Var := range vars {
-			worksGas = append(worksGas, workparty.ReadAndSaveProductParam(Var, floatBitsFormat, dbKeySectionGasVar(dbKeySection, gas, Var)))
+			worksGas = append(worksGas, workparty.ReadAndSaveProductVar(Var, floatBitsFormat, dbKeySectionGasVar(dbKeySection, gas, Var)))
 		}
 
 		works = append(works, workgui.New(fmt.Sprintf("снятие %s газ %d", dbKeySection, gas), worksGas.Do))
@@ -399,7 +399,7 @@ func (x *wrk) linRead() workgui.WorkFunc {
 	for _, gas := range x.linGases() {
 		lin = append(lin,
 			x.warn.BlowGas(gas),
-			workparty.ReadAndSaveProductParam(0, floatBitsFormat, dbKeyLin(gas)))
+			workparty.ReadAndSaveProductVar(0, floatBitsFormat, dbKeyLin(gas)))
 	}
 	return lin.Do
 }

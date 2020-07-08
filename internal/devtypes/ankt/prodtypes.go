@@ -83,33 +83,33 @@ var (
 	}()
 )
 
-func prodT1(n int, gas gasT, scale float64, pressure bool) productType {
+func prodT1(n int, gas gasName, scale float64, pressure bool) productType {
 	return productType{
-		N:        n,
-		Pressure: pressure,
-		Chan2:    false,
-		Chan: [2]chanT{
+		N:     n,
+		Press: pressure,
+		Chan2: false,
+		Chan: [2]chanNfo{
 			{
-				gas:   gas,
-				scale: scale,
+				gasName: gas,
+				scale:   scale,
 			},
 		},
 	}
 }
 
-func prodT2(n int, gas gasT, scale float64, gas2 gasT, scale2 float64, pressure bool) productType {
+func prodT2(n int, gas gasName, scale float64, gas2 gasName, scale2 float64, pressure bool) productType {
 	return productType{
-		N:        n,
-		Pressure: pressure,
-		Chan2:    true,
-		Chan: [2]chanT{
+		N:     n,
+		Press: pressure,
+		Chan2: true,
+		Chan: [2]chanNfo{
 			{
-				gas:   gas,
-				scale: scale,
+				gasName: gas,
+				scale:   scale,
 			},
 			{
-				gas:   gas2,
-				scale: scale2,
+				gasName: gas2,
+				scale:   scale2,
 			},
 		},
 	}

@@ -3,10 +3,12 @@ package workgui
 import (
 	"context"
 	"fmt"
+	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/comm"
 	"github.com/powerman/structlog"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -31,6 +33,12 @@ func InterruptDelay(log *structlog.Logger) {
 	muInterruptDelay.Unlock()
 	NotifyWarn(log, name+" - задержка прервана")
 }
+func SetWorkLogRecordCompleted(log comm.Logger, workLogRecordID int64) {
+	_, err := data.DB.Exec(`UPDATE work_log SET complete_at = ? WHERE record_id = ?`, time.Now(), workLogRecordID)
+	if err != nil {
+		NotifyWarnError(log, err)
+	}
+}
 
 func Delay(duration time.Duration, name string, backgroundWork WorkFunc) WorkFunc {
 	return func(log comm.Logger, ctx context.Context) error {
@@ -40,6 +48,13 @@ func Delay(duration time.Duration, name string, backgroundWork WorkFunc) WorkFun
 		}
 		startTime := time.Now()
 		log = pkg.LogPrependSuffixKeys(log, "delay_start", startTime.Format("15:04:05"))
+
+		works := append(GetCurrentWorksStack(), what)
+		workName := strings.Join(works, ":")
+		workLogRecordID, err := data.AddNewWorkLogRecord(workName)
+		if err != nil {
+			return err
+		}
 
 		// сохранить ссылку на изначальный контекст
 		ctxParent := ctx
@@ -56,8 +71,8 @@ func Delay(duration time.Duration, name string, backgroundWork WorkFunc) WorkFun
 			muInterruptDelay.Lock()
 			interruptDelay()
 			muInterruptDelay.Unlock()
-
 			log.Info("delay: end", "delay_elapsed", time.Since(startTime))
+			SetWorkLogRecordCompleted(log, workLogRecordID)
 			go gui.NotifyEndDelay()
 		}()
 
@@ -84,6 +99,12 @@ func Delay(duration time.Duration, name string, backgroundWork WorkFunc) WorkFun
 
 func IgnoreError() {
 	ignoreError()
+}
+
+func GetCurrentWorksStack() []string {
+	muNamedWorksStack.Lock()
+	defer muNamedWorksStack.Unlock()
+	return append([]string{}, namedWorksStack...)
 }
 
 func currentWorkLevel() int {

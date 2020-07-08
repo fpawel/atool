@@ -10,6 +10,28 @@ CREATE TABLE IF NOT EXISTS party
     product_type TEXT                NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS work_log
+(
+    record_id   INTEGER PRIMARY KEY NOT NULL,
+    party_id    INTEGER             NOT NULL,
+    started_at  TIMESTAMP           NOT NULL,
+    complete_at TIMESTAMP DEFAULT NULL,
+    work_name   TEXT                NOT NULL,
+    CONSTRAINT product_party_id_foreign_key
+        FOREIGN KEY (party_id) REFERENCES party (party_id)
+            ON DELETE CASCADE
+);
+
+CREATE TRIGGER IF NOT EXISTS trigger_work_log_init_new_record
+    AFTER INSERT
+    ON work_log
+BEGIN
+    UPDATE work_log
+    SET started_at = datetime('now'),
+        party_id   = (SELECT app_config.party_id FROM app_config)
+    WHERE record_id = new.record_id;
+END;
+
 CREATE TABLE IF NOT EXISTS product
 (
     product_id    INTEGER PRIMARY KEY NOT NULL,
@@ -36,7 +58,8 @@ CREATE TABLE IF NOT EXISTS product
 DROP VIEW IF EXISTS product_enumerated;
 CREATE VIEW IF NOT EXISTS product_enumerated AS
 SELECT *,
-       (SELECT count() FROM product p
+       (SELECT count()
+        FROM product p
         WHERE p.party_id = a.party_id
           AND (p.created_at, p.created_order) < (a.created_at, a.created_order)) AS place
 FROM product a;

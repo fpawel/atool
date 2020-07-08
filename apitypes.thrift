@@ -115,3 +115,10 @@ struct JournalEntry {
     6:string  text
     7:string stack
 }
+
+struct BuildInfo {
+    1:string commit
+    2:string uuid
+    3:string date
+    4:string time
+}

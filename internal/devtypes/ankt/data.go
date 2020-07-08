@@ -25,22 +25,13 @@ var dataSections = func() (result devdata.DataSections) {
 		}(),
 	})
 
-	x := ds{Name: "линеаризация: канал 1"}
-	for i := 1; i <= 4; i++ {
-		x.Params = append(x.Params, devdata.DataParam{
-			Key:  fmt.Sprintf("lin%d_chan1", i),
-			Name: fmt.Sprintf("канал 1 газ %d", i),
-		})
+	x := ds{Name: "линеаризация"}
+	for gas := gas1; gas <= gas4; gas++ {
+		x.Params = append(x.Params, chan1.dataParamLin(gas))
 	}
-	x.Params = append(x.Params, devdata.DataParam{
-		Key:  fmt.Sprintf("lin%d_chan2", 1),
-		Name: fmt.Sprintf("канал 2 газ %d", 1),
-	})
-	for i := 5; i <= 6; i++ {
-		x.Params = append(x.Params, devdata.DataParam{
-			Key:  fmt.Sprintf("lin%d_chan2", i),
-			Name: fmt.Sprintf("канал 2 газ %d", i),
-		})
+	x.Params = append(x.Params, chan2.dataParamLin(gas1))
+	for gas := gas5; gas <= gas6; gas++ {
+		x.Params = append(x.Params, chan2.dataParamLin(gas))
 	}
 	addDs(x)
 

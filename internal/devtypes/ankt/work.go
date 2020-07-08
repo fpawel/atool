@@ -8,6 +8,7 @@ import (
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/devtypes/ankt/anktvar"
 	"github.com/fpawel/atool/internal/hardware"
+	"github.com/fpawel/atool/internal/pkg/numeth"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/atool/internal/workparty"
 	"github.com/fpawel/comm"
@@ -72,7 +73,7 @@ func (w wrk) main(log comm.Logger, ctx context.Context) error {
 		var ok bool
 		w.C[i], ok = pv[fmt.Sprintf("c%d", i+1)]
 		if !ok {
-			if i == 2 && !w.t.Chan[1].gas.isCO2() || i > 4 && !w.t.Chan2 {
+			if i == 2 && !w.t.Chan[1].gasName.isCO2() || i > 4 && !w.t.Chan2 {
 				continue
 			}
 			return merry.Errorf("нет значения ПГС%d", i)
@@ -90,35 +91,43 @@ func (w wrk) mainWorks() workgui.Works {
 
 	newWork := workgui.New
 
-	isCO2 := w.t.Chan[0].gas.isCO2()
+	isCO2 := w.t.Chan[0].gasName.isCO2()
 	isChan2 := w.t.Chan2
+	isPress := w.t.Press
 
 	readSaveLin := func(gas gas, Chan cChan) workgui.WorkFunc {
 		return workgui.NewWorkFuncFromList(
 			blowGas(gas),
-			readAndSaveParam(Chan.Cout(), Chan.dbKeyLin(gas)),
+			readAndSaveVar(Chan.keyLin(gas), Chan.Nfo().Cout),
 		)
 	}
 
 	readSaveTempGas := func(Chan cChan, keyTemp keyTemp, gas gas) workgui.WorkFunc {
+		t := Chan.Nfo()
 		return workgui.NewWorkFuncFromList(
 			blowGas(gas),
-			w.readAndSaveParams(dbKeyTemp(Chan, keyTemp, gas)),
+			readAndSaveVar(keyTemp.keyGasVar(gas, t.Tpp), t.Tpp),
+			readAndSaveVar(keyTemp.keyGasVar(gas, t.Var2), t.Var2),
 		)
 	}
 
 	readSaveTemp := func(keyTemp keyTemp) workgui.WorkFunc {
 		return newFuncLst(
 			w.holdTemp(keyTemp),
+
 			readSaveTempGas(chan1, keyTemp, gas1),
-			w.readAndSaveParams(dbKeyTemp(2, keyTempNorm, gas1)).ApplyIf(isChan2),
-			readSaveTempGas(chan1, keyTempNorm, gas4),
-			readSaveTempGas(chan2, keyTempNorm, gas6).ApplyIf(isChan2),
+
+			readAndSaveVar(keyTemp.keyGasVar(gas1, chan2nfo.Tpp), chan2nfo.Tpp).ApplyIf(isChan2),
+			readAndSaveVar(keyTemp.keyGasVar(gas1, chan2nfo.Var2), chan2nfo.Var2).ApplyIf(isChan2),
+			readAndSaveVar(keyTemp.keyPT(), anktvar.VdatP).ApplyIf(isPress),
+
+			readSaveTempGas(chan1, keyTemp, gas4),
+			readSaveTempGas(chan2, keyTemp, gas6).ApplyIf(isChan2),
 			blowGas(gas1),
 		)
 	}
 
-	return workgui.NewWorks(
+	works := workgui.NewWorks(
 		newWork("корректировка температуры mcu", correctTmcu),
 		newWork("установка режима работы 2", setWorkMode(2)),
 		newWork("установка коэфффициентов", w.writeInitCfs),
@@ -141,38 +150,111 @@ func (w wrk) mainWorks() workgui.Works {
 			).ApplyIf(isChan2),
 		)),
 
-		newWork("линеаризация", newFuncLst(
+		newWork("снятие линеаризации", newFuncLst(
 			readSaveLin(gas1, chan1),
-			readAndSaveParam(chan2.Cout(), chan2.dbKeyLin(gas1)).ApplyIf(isChan2),
+			readAndSaveVar(chan2.keyLin(gas1), chan2nfo.Cout).ApplyIf(isChan2),
 			readSaveLin(gas2, chan1),
 			readSaveLin(gas3, chan1).ApplyIf(isCO2),
 			readSaveLin(gas4, chan1),
 			readSaveLin(gas5, chan2).ApplyIf(isChan2),
 			readSaveLin(gas6, chan2).ApplyIf(isChan2),
 		)),
-
-		newWork("термокомпенсация", newFuncLst(
+		w.calcLin1().Work(),
+	)
+	if isChan2 {
+		works = append(works, w.calcLin2().Work())
+	}
+	works = append(works,
+		newWork("снятие термокомпенсации", newFuncLst(
 			readSaveTemp(keyTempNorm),
 			readSaveTemp(keyTempLow),
 			readSaveTemp(keyTempHigh),
 		)),
 	)
+
+	return works
+}
+
+type xy = [2]float64
+
+func (w wrk) calcT0Ch1() workparty.InterpolateCfs {
+	return workparty.InterpolateCfs{
+		Name:        "расчёт и запись термокомпенсации нуля канала 1",
+		Coefficient: kefCh1T0v0,
+		Count:       3,
+		Format:      floatBitsFormat,
+		InterpolateCfsFunc: func(pv workparty.ProductValues) ([]numeth.Coordinate, error) {
+			f := func(temp keyTemp, Var modbus.Var) float64 {
+				return pv.GetNaN(temp.keyGasVar(gas1, Var))
+			}
+			t0 := f(keyTempLow, chan1nfo.Tpp)
+			t1 := f(keyTempNorm, chan1nfo.Tpp)
+			t2 := f(keyTempHigh, chan1nfo.Tpp)
+			v0 := f(keyTempLow, chan1nfo.Var2)
+			v1 := f(keyTempNorm, chan1nfo.Var2)
+			v2 := f(keyTempHigh, chan1nfo.Var2)
+			return []xy{
+				{t0, -v0},
+				{t1, -v1},
+				{t2, -v2},
+			}, nil
+		},
+	}
+}
+
+func (w wrk) calcLin1() workparty.InterpolateCfs {
+	return workparty.InterpolateCfs{
+		Name:        "расчёт и запись линеаризации канала 1",
+		Coefficient: kefCh1Lin0,
+		Count:       4,
+		Format:      floatBitsFormat,
+		InterpolateCfsFunc: func(pv workparty.ProductValues) ([]numeth.Coordinate, error) {
+			isCO := w.t.Chan[0].gasName.isCO2()
+			gases := []gas{gas1, gas3, gas4}
+			if isCO {
+				gases = []gas{gas1, gas2, gas3, gas4}
+			}
+			var dt []xy
+			for _, gas := range gases {
+				key := chan1.keyLin(gas)
+				y, ok := pv.Get(key)
+				if !ok {
+					return nil, merry.Errorf("нет значения %s", key)
+				}
+				dt = append(dt, xy{w.C[gas-1], y})
+			}
+			return dt, nil
+		},
+	}
+}
+
+func (w wrk) calcLin2() workparty.InterpolateCfs {
+	return workparty.InterpolateCfs{
+		Name:        "расчёт и запись линеаризации канала 2",
+		Coefficient: kefCh2Lin0,
+		Count:       4,
+		Format:      floatBitsFormat,
+		InterpolateCfsFunc: func(pv workparty.ProductValues) ([]numeth.Coordinate, error) {
+			var dt []xy
+			for _, gas := range []gas{gas1, gas5, gas5} {
+				key := chan1.keyLin(gas)
+				y, ok := pv.Get(key)
+				if !ok {
+					return nil, merry.Errorf("нет значения %s", key)
+				}
+				dt = append(dt, xy{w.C[gas-1], y})
+			}
+			return dt, nil
+		},
+	}
 }
 
 func write32(cmd modbus.DevCmd, value float64) workgui.WorkFunc {
 	return workparty.Write32(cmd, floatBitsFormat, value)
 }
 
-func readAndSaveParam(param modbus.Var, dbKey string) workgui.WorkFunc {
-	return workparty.ReadAndSaveProductParam(param, floatBitsFormat, dbKey)
-}
-
-func (w wrk) readAndSaveParams(dbKey string) workgui.WorkFunc {
-	var xs workgui.WorkFuncList
-	for _, Var := range deviceConfig.ParamAddresses(w.t.String()) {
-		xs = append(xs, workparty.ReadAndSaveProductParam(Var, floatBitsFormat, dbKey))
-	}
-	return xs.Do
+func readAndSaveVar(dbKey string, Var modbus.Var) workgui.WorkFunc {
+	return workparty.ReadAndSaveProductVar(Var, floatBitsFormat, dbKey)
 }
 
 func (w wrk) writeInitCfs(log comm.Logger, ctx context.Context) error {

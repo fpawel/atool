@@ -107,3 +107,7 @@ service JournalService {
     apitypes.JournalEntry getEntryByID(1:i64 entryID)
     void deleteDays(1:list<string> days)
 }
+
+service AppInfoService {
+    apitypes.BuildInfo buildInfo()
+}

@@ -28,7 +28,16 @@ import (
 	"time"
 )
 
-func Main() {
+type BuildInfo struct {
+	Commit string
+	UUID   string
+	Date   string
+	Time   string
+}
+
+func Main(buildInfoIn BuildInfo) {
+
+	buildInfo = buildInfoIn
 
 	cleanTmpDir()
 	err := os.MkdirAll(tmpDir, os.ModePerm)
@@ -165,6 +174,9 @@ func newApiProcessor() thrift.TProcessor {
 	p.RegisterProcessor("JournalService",
 		api.NewJournalServiceProcessor(new(journalSvc)))
 
+	p.RegisterProcessor("AppInfoService",
+		api.NewAppInfoServiceProcessor(new(appInfoSvc)))
+
 	return p
 }
 
@@ -251,6 +263,7 @@ func runWithNotifyArchiveChanged(name string, w workgui.WorkFunc) error {
 }
 
 var (
+	buildInfo      BuildInfo
 	log            = structlog.New()
 	tmpDir         = filepath.Join(filepath.Dir(os.Args[0]), "tmp")
 	appCtx         context.Context

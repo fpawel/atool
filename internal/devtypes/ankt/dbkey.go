@@ -3,31 +3,49 @@ package ankt
 import (
 	"fmt"
 	"github.com/fpawel/atool/internal/devtypes/ankt/anktvar"
+	"github.com/fpawel/atool/internal/devtypes/devdata"
 	"github.com/fpawel/comm/modbus"
 )
 
-func dbKeyTemp(Chan cChan, keyTemp keyTemp, gas gas) string {
-	Chan.mustCheck()
-	keyTemp.mustCheck()
-	gas.mustCheck()
-	return fmt.Sprintf("%s_gas%d_chan%d", keyTemp, gas, Chan)
-}
-
 type cChan int
 
-func (x cChan) dbKeyLin(gas gas) string {
+func (x cChan) keyLin(gas gas) string {
 	x.mustCheck()
 	gas.mustCheck()
 	return fmt.Sprintf("lin%d_chan%d", gas, x)
 }
 
-func (x cChan) Cout() modbus.Var {
+type cChanNfo struct {
+	Cout, Var2, Tpp modbus.Var
+	KefT0, KefTK    kef
+}
+
+func (x cChan) dataParamLin(gas gas) devdata.DataParam {
+	return devdata.DataParam{
+		Key:  x.keyLin(gas),
+		Name: fmt.Sprintf("канал %d газ %d", x, gas),
+	}
+}
+
+func (x cChan) Nfo() cChanNfo {
 	x.mustCheck()
 	switch x {
 	case chan1:
-		return anktvar.CoutCh0
+		return cChanNfo{
+			Cout:  anktvar.CoutCh0,
+			Var2:  anktvar.Var2Ch0,
+			Tpp:   anktvar.TppCh0,
+			KefT0: kefCh1T0v0,
+			KefTK: kefCh1TKv0,
+		}
 	case chan2:
-		return anktvar.CoutCh1
+		return cChanNfo{
+			Cout:  anktvar.CoutCh1,
+			Var2:  anktvar.Var2Ch1,
+			Tpp:   anktvar.TppCh1,
+			KefT0: kefCh2T0v0,
+			KefTK: kefCh2TKv0,
+		}
 	default:
 		panic("unexpected")
 	}
@@ -48,6 +66,16 @@ func (x keyTemp) String() string {
 	return string(x)
 }
 
+func (x keyTemp) keyGasVar(gas gas, Var modbus.Var) string {
+	x.mustCheck()
+	gas.mustCheck()
+	return fmt.Sprintf("%s_gas%d_var%d", x, gas, Var)
+}
+
+func (x keyTemp) keyPT() string {
+	return fmt.Sprintf("pt_%s", x)
+}
+
 func (x keyTemp) mustCheck() {
 	switch x {
 	case keyTempNorm, keyTempLow, keyTempHigh:
@@ -64,7 +92,7 @@ func (x gas) mustCheck() {
 	case gas1, gas2, gas3, gas4, gas5, gas6:
 		return
 	default:
-		panic(fmt.Sprintf("invalid gas: %d", x))
+		panic(fmt.Sprintf("invalid gasName: %d", x))
 	}
 }
 
@@ -82,4 +110,9 @@ const (
 	keyTempNorm keyTemp = "t_norm"
 	keyTempLow  keyTemp = "t_low"
 	keyTempHigh keyTemp = "t_high"
+)
+
+var (
+	chan2nfo = chan2.Nfo()
+	chan1nfo = chan1.Nfo()
 )

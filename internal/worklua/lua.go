@@ -132,7 +132,7 @@ func (x *Import) ReadAndSaveProductParam(reg modbus.Var, format modbus.FloatBits
 		x.l.ArgError(2, err.Error())
 	}
 	x.perform(fmt.Sprintf("📤 считать регистр %d 💾 сохранить %s %v", reg, dbKey, format),
-		workparty.ReadAndSaveProductParam(reg, format, dbKey))
+		workparty.ReadAndSaveProductVar(reg, format, dbKey))
 }
 
 func (x *Import) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) {
@@ -226,7 +226,7 @@ func (x *Import) ReadCoefficients(ks map[int]devicecfg.Kef, format modbus.FloatB
 }
 
 func (x *Import) ReadAndSaveParam(param modbus.Var, format modbus.FloatBitsFormat, dbKey string) {
-	x.do(workparty.ReadAndSaveProductParam(param, format, dbKey))
+	x.do(workparty.ReadAndSaveProductVar(param, format, dbKey))
 }
 
 func (x *Import) Perform(name string, Func func()) {

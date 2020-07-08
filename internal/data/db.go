@@ -448,10 +448,23 @@ LIMIT 1`
 	return nil
 }
 
-func DeleteProductKey(productID int64, key string) error {
-	const q1 = `DELETE FROM product_value WHERE product_id = ? AND key = ?`
-	_, err := DB.Exec(q1, productID, key)
-	return merry.Appendf(err, "%s, %s", q1, key)
+func AddNewWorkLogRecord(workName string) (int64, error) {
+	partyID, err := GetCurrentPartyID()
+	if err != nil {
+		return 0, err
+	}
+	r, err := DB.Exec(`INSERT INTO work_log(work_name,party_id, started_at) VALUES (?,?,?)`, workName, partyID, time.Now())
+	if err != nil {
+		return 0, err
+	}
+	n, err := r.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	if n != 1 {
+		return 0, merry.Errorf("expected 1 rows affected, got %d", n)
+	}
+	return pkg.SqlGetNewInsertedID(r)
 }
 
 func setAppConfigPartyID(partyID int64) error {

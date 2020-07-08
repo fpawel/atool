@@ -5,10 +5,10 @@ import (
 )
 
 type productType struct {
-	N        int
-	Chan2    bool
-	Pressure bool
-	Chan     [2]chanT
+	N     int
+	Chan2 bool
+	Press bool
+	Chan  [2]chanNfo
 }
 
 func (x productType) String() string {

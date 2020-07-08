@@ -91,7 +91,7 @@ func ProcessEachActiveProduct(errs ErrorsOccurred, work WorkProduct) workgui.Wor
 	}
 }
 
-func ReadAndSaveProductParam(param modbus.Var, format modbus.FloatBitsFormat, dbKey string) workgui.WorkFunc {
+func ReadAndSaveProductVar(param modbus.Var, format modbus.FloatBitsFormat, dbKey string) workgui.WorkFunc {
 	return workgui.NewFunc(fmt.Sprintf("📥 считывание регистр %d %v 💾 %s", param, format, dbKey),
 		ProcessEachActiveProduct(nil, func(log comm.Logger, ctx context.Context, product Product) error {
 			value, err := modbus.Read3Value(log, ctx, product.Comm(), product.Addr, param, format)

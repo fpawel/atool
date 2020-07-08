@@ -98,7 +98,7 @@ var (
 				ParamsRngList: varsParamRng(anktvar.VarsP),
 			}
 			for _, t := range productTypesList {
-				if t.Pressure {
+				if t.Press {
 					xsP.Names = append(xsP.Names, t.String())
 				}
 			}
