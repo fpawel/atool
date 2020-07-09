@@ -122,3 +122,9 @@ struct BuildInfo {
     3:string date
     4:string time
 }
+
+struct WorkLogRecord {
+    1:string workName
+    2:string strtedAt
+    3:string completedAt
+}

@@ -87,11 +87,11 @@ func (h *runWorkSvc) Command(_ context.Context, cmd int16, s string) error {
 	if err != nil {
 		return merry.New("ожидалась последовательность байтов HEX")
 	}
-	return runWork(workparty.NewWorkRawCmd(modbus.ProtoCmd(cmd), b))
+	runSingleTask(workparty.NewWorkRawCmd(modbus.ProtoCmd(cmd), b).Func)
+	return nil
 }
 
 func (h *runWorkSvc) SwitchGas(_ context.Context, valve int8) error {
-	return runWorkFunc(
-		fmt.Sprintf("переключение пневмоблока %d", valve),
-		hardware.SwitchGas(byte(valve)))
+	runSingleTask(hardware.SwitchGas(byte(valve)))
+	return nil
 }

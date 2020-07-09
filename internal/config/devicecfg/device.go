@@ -21,11 +21,17 @@ type Device struct {
 	ParamsNames        map[modbus.Var]string `yaml:"params_names"`
 	CfsNames           map[Kef]string        `yaml:"cfs_names"`
 	ProductTypesVars   []ProductTypeVars     `yaml:"product_type_vars"`
+	Commands           []Cmd                 `yaml:"commands"`
 }
 
 type ProductTypeVars struct {
 	Names         []string `yaml:"names"`
 	ParamsRngList []Params `yaml:"list"`
+}
+
+type Cmd struct {
+	Code modbus.DevCmd `yaml:"code"`
+	Name string        `yaml:"name"`
 }
 
 type Kef uint16

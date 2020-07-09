@@ -108,6 +108,12 @@ func (x Work) Perform(log *structlog.Logger, ctx context.Context) error {
 	return nil
 }
 
+func (x WorkFunc) RunSingleTask(log *structlog.Logger, ctx context.Context) {
+	if err := x(log, ctx); err != nil {
+		NotifyErr(log, err)
+	}
+}
+
 func (x Work) Run(log *structlog.Logger, ctx context.Context) error {
 	if IsConnected() {
 		return merry.New("already connected")

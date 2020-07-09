@@ -30,6 +30,12 @@ func Delay(duration time.Duration, name string) workgui.WorkFunc {
 
 func NewWorkInterrogate() Work {
 	return workgui.New("📤 опрос приборов", func(log comm.Logger, ctx context.Context) error {
+		workLogRecordID, err := workgui.AddNewWorkLogRecord("")
+		if err != nil {
+			return err
+		}
+		defer workgui.SetWorkLogRecordCompleted(log, workLogRecordID)
+
 		ms := new(data.MeasurementCache)
 		defer ms.Save()
 		errorsOccurred := make(ErrorsOccurred)

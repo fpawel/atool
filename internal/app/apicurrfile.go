@@ -141,6 +141,31 @@ func (h *currentFileSvc) OpenFile(_ context.Context, filename string) error {
 	return err
 }
 
+func (*currentFileSvc) ListWorkLogRecords(context.Context) ([]*apitypes.WorkLogRecord, error) {
+	var xs []struct {
+		StartedAt   time.Time `db:"started_at"`
+		CompletedAt time.Time `db:"complete_at"`
+		WorkName    string    `db:"work_name"`
+	}
+	const q = `
+SELECT started_at, complete_at, work_name 
+FROM work_log 
+WHERE party_id = (SELECT app_config.party_id FROM app_config) AND (complete_at IS NOT NULL) 
+ORDER BY started_at`
+	if err := data.DB.Select(&xs, q); err != nil {
+		return nil, err
+	}
+	r := make([]*apitypes.WorkLogRecord, 0)
+	for _, x := range xs {
+		r = append(r, &apitypes.WorkLogRecord{
+			WorkName:    x.WorkName,
+			StrtedAt:    x.StartedAt.Format(time.RFC3339),
+			CompletedAt: x.CompletedAt.Format(time.RFC3339),
+		})
+	}
+	return r, nil
+}
+
 func processCurrentPartyChart() {
 
 	t := time.Now()

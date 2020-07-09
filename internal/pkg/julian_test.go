@@ -12,6 +12,10 @@ import (
 	"time"
 )
 
+func Test1(t *testing.T) {
+	fmt.Println(time.Now().Format(time.RFC3339))
+}
+
 func TestJulian(t *testing.T) {
 
 	for i := 0; i < 1_000; i++ {

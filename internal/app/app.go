@@ -233,6 +233,10 @@ func cleanTmpDir() {
 	}
 }
 
+func runSingleTask(w workgui.WorkFunc) {
+	go w.RunSingleTask(log, appCtx)
+}
+
 func runWork(w workgui.Work) error {
 	return w.Run(log, appCtx)
 }

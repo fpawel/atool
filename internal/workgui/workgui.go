@@ -36,7 +36,7 @@ func InterruptDelay(log *structlog.Logger) {
 func SetWorkLogRecordCompleted(log comm.Logger, workLogRecordID int64) {
 	_, err := data.DB.Exec(`UPDATE work_log SET complete_at = ? WHERE record_id = ?`, time.Now(), workLogRecordID)
 	if err != nil {
-		NotifyWarnError(log, err)
+		NotifyWarn(log, err.Error())
 	}
 }
 
@@ -49,9 +49,7 @@ func Delay(duration time.Duration, name string, backgroundWork WorkFunc) WorkFun
 		startTime := time.Now()
 		log = pkg.LogPrependSuffixKeys(log, "delay_start", startTime.Format("15:04:05"))
 
-		works := append(GetCurrentWorksStack(), what)
-		workName := strings.Join(works, ":")
-		workLogRecordID, err := data.AddNewWorkLogRecord(workName)
+		workLogRecordID, err := AddNewWorkLogRecord(what)
 		if err != nil {
 			return err
 		}
@@ -101,10 +99,15 @@ func IgnoreError() {
 	ignoreError()
 }
 
-func GetCurrentWorksStack() []string {
+func AddNewWorkLogRecord(workName string) (int64, error) {
 	muNamedWorksStack.Lock()
-	defer muNamedWorksStack.Unlock()
-	return append([]string{}, namedWorksStack...)
+	works := append([]string{}, namedWorksStack...)
+	muNamedWorksStack.Unlock()
+	if len(workName) > 0 {
+		works = append(works, workName)
+	}
+	s := strings.Join(works, ":")
+	return data.AddNewWorkLogRecord(s)
 }
 
 func currentWorkLevel() int {

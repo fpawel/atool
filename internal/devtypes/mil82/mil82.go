@@ -86,6 +86,11 @@ var (
 		},
 		ParamsNames: paramsNames,
 		CfsNames:    KfsNames,
+		Commands: []devicecfg.Cmd{
+			{Code: 1, Name: "Корректировка нуля"},
+			{Code: 2, Name: "Корректировка чувствительности"},
+			{Code: 8, Name: "Нормировка"},
+		},
 	}
 
 	partyParams = []devdata.PartyParam{
