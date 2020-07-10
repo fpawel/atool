@@ -3,11 +3,11 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/hardware"
 	"github.com/fpawel/atool/internal/thriftgen/api"
+	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/atool/internal/worklua"
 	"github.com/fpawel/atool/internal/workparty"
@@ -16,6 +16,8 @@ import (
 	lua "github.com/yuin/gopher-lua"
 	luar "layeh.com/gopher-luar"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 type runWorkSvc struct{}
@@ -82,13 +84,57 @@ func (h *runWorkSvc) Connected(_ context.Context) (bool, error) {
 	return workgui.IsConnected(), nil
 }
 
-func (h *runWorkSvc) Command(_ context.Context, cmd int16, s string) error {
-	b, err := parseHexBytes(s)
-	if err != nil {
-		return merry.New("ожидалась последовательность байтов HEX")
+func (h *runWorkSvc) SendDeviceCommand(_ context.Context, req *apitypes.RequestDeviceCommand) error {
+	devCmd, ok := parseDevCmdCode(req.CmdDevice)
+	if !ok {
+		return fmt.Errorf("invalid device command %q", req.CmdDevice)
 	}
-	runSingleTask(workparty.NewWorkRawCmd(modbus.ProtoCmd(cmd), b).Func)
+	errInvalidArg := func(err error) error {
+		return fmt.Errorf("invalid argument %s %q: %w", req.Format, req.Argument, err)
+	}
+	strFormat := strings.ToLower(req.Format)
+	if strFormat == "hex" {
+		dtBytes, err := parseHexBytes(req.Argument)
+		if err != nil {
+			return errInvalidArg(err)
+		}
+		if len(dtBytes) != 4 {
+			return errInvalidArg(fmt.Errorf("ожидалось 4 байта данных, получено %d", len(dtBytes)))
+		}
+		runSingleTask(workparty.NewWorkWrite32Bytes(modbus.ProtoCmd(req.CmdModbus), devCmd, dtBytes).Func)
+		return nil
+	}
+	fFmt := modbus.FloatBitsFormat(strFormat)
+	if err := fFmt.Validate(); err != nil {
+		return errInvalidArg(err)
+	}
+	v, err := strconv.ParseFloat(req.Argument, 64)
+	if err != nil {
+		return errInvalidArg(err)
+	}
+	runSingleTask(workparty.Write32(devCmd, fFmt, v))
 	return nil
+}
+
+func parseDevCmdCode(name string) (modbus.DevCmd, bool) {
+	n, err := strconv.ParseUint(name, 10, 16)
+	if err == nil {
+		return modbus.DevCmd(n), true
+	}
+	party, err := data.GetCurrentParty()
+	if err != nil {
+		return 0, false
+	}
+	device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
+	if err != nil {
+		return 0, false
+	}
+	for _, c := range device.Commands {
+		if c.Name == name {
+			return c.Code, true
+		}
+	}
+	return 0, false
 }
 
 func (h *runWorkSvc) SwitchGas(_ context.Context, valve int8) error {

@@ -79,6 +79,13 @@ struct Coefficient {
     3:string name
 }
 
+struct DeviceInfo {
+    1:list<string> productTypes
+    2:list<string> commands
+    3:list<Coefficient> coefficients
+}
+
+
 struct ProductCoefficientValue {
     1:i64 productID
     2:i32 coefficient
@@ -127,4 +134,13 @@ struct WorkLogRecord {
     1:string workName
     2:string strtedAt
     3:string completedAt
+}
+
+typedef i16 CmdModbus
+
+struct RequestDeviceCommand {
+    1:i16 cmdModbus
+    2:string cmdDevice
+    3:string format
+    4:string argument
 }

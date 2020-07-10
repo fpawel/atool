@@ -1,9 +1,6 @@
 
 include "apitypes.thrift"
 
-typedef i16 CmdModbus
-typedef i16 CmdDevice
-
 service RunWorkService {
     bool connected()
     void connect()
@@ -13,7 +10,7 @@ service RunWorkService {
     void searchProducts(1:string comportName)
     void runDeviceWork()
     void runLuaScript(1:string filename)
-    void sendCommand(1:CmdModbus cmdModbusCode; 2:CmdDevice cmdDeviceCode)
+    void sendDeviceCommand(1:apitypes.RequestDeviceCommand reqCmd)
 }
 
 service WorkDialogService {
@@ -75,7 +72,7 @@ service NotifyGuiService {
 service AppConfigService {
     void editConfig()
     list<string> listDevices()
-    list<string> listProductTypes()
+    apitypes.DeviceInfo currentDeviceInfo()
 
     list<apitypes.ConfigParamValue> getParamValues()
     void setParamValue(1:string key, 2:string value)
@@ -101,7 +98,6 @@ service TemperatureDeviceService {
 service CoefficientsService {
     void writeAll(1:list<apitypes.ProductCoefficientValue> xs)
     void readAll()
-    list<apitypes.Coefficient> listCoefficients()
     void setActive(1:i32 n, 2:bool active)
     list<apitypes.ProductCoefficientValue> getCurrentPartyCoefficients()
 }

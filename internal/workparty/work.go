@@ -90,20 +90,36 @@ func NewWorkWriteAllCfs(in []*apitypes.ProductCoefficientValue) Work {
 	})
 }
 
-func NewWorkRawCmd(c modbus.ProtoCmd, b []byte) Work {
-	what := fmt.Sprintf("📥 отправка команды %X(% X)", c, b)
+func NewWorkWrite32Bytes(cmdProto modbus.ProtoCmd, cmdDevice modbus.DevCmd, dataBytes []byte) Work {
+	what := fmt.Sprintf("📥 отправка команды %X %X(% 02X)", cmdProto, cmdDevice, dataBytes)
+	party, _ := data.GetCurrentParty()
+	device, _ := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
+	for _, c := range device.Commands {
+		if c.Code == cmdDevice {
+			what += ": " + c.Name
+		}
+	}
 	return Work{
 		Name: what,
 		Func: ProcessEachActiveProduct(nil, func(log comm.Logger, ctx context.Context, p Product) error {
 			_, err := modbus.Request{
 				Addr:     p.Addr,
-				ProtoCmd: c,
-				Data:     b,
+				ProtoCmd: cmdProto,
+				Data: []byte{
+					0, 32, 0, 3, 6,
+					byte(cmdDevice >> 8),
+					byte(cmdDevice),
+					dataBytes[0],
+					dataBytes[1],
+					dataBytes[2],
+					dataBytes[3],
+				},
 			}.GetResponse(log, ctx, p.Comm())
+
 			if err != nil {
 				return merry.Prepend(err, what)
 			}
-			workgui.NotifyInfo(log, fmt.Sprintf("%s %s - успешно", p, what))
+			workgui.NotifyInfo(log, fmt.Sprintf("%s: %s: успешно", p, what))
 			return nil
 		}),
 	}
@@ -137,9 +153,6 @@ func SetNetAddr(productID int64, notifyComm func(comm.Info)) workgui.WorkFunc {
 			Name: fmt.Sprintf("%s: запись сетевого адреса %d", workProduct, p.Addr),
 			Func: func(log comm.Logger, ctx context.Context) error {
 				comPort := comports.GetComport(p.Comport, device.Baud)
-				if err := comPort.Open(); err != nil {
-					return err
-				}
 				r := modbus.RequestWrite32{
 					Addr:      0,
 					ProtoCmd:  0x10,

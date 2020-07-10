@@ -9,7 +9,6 @@ import (
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg"
-	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
@@ -121,7 +120,8 @@ func (x Product) SaveKefValue(k devicecfg.Kef, value float64) error {
 }
 
 func (x Product) Comm() comm.T {
-	return comm.New(comports.GetComport(x.Comport, x.Device.Baud), x.Device.CommConfig())
+	//return comm.New(comports.GetComport(x.Comport, x.Device.Baud), x.Device.CommConfig()).WithLockPort(x.Comport)
+	return getCommProduct(x.Comport, x.Device)
 }
 
 func (x Product) readAllCoefficients(log comm.Logger, ctx context.Context) error {

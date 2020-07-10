@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/fpawel/atool/internal/config"
 	"github.com/fpawel/atool/internal/config/appcfg"
@@ -25,13 +26,38 @@ func (h *appConfigSvc) ListDevices(_ context.Context) ([]string, error) {
 	return appcfg.Cfg.Hardware.DeviceNames(), nil
 }
 
-func (h *appConfigSvc) ListProductTypes(_ context.Context) ([]string, error) {
+func (*appConfigSvc) CurrentDeviceInfo(context.Context) (*apitypes.DeviceInfo, error) {
 	party, err := data.GetCurrentParty()
 	if err != nil {
 		return nil, err
 	}
 	device, _ := appcfg.DeviceTypes[party.DeviceType]
-	return device.ProductTypes, nil
+	r := &apitypes.DeviceInfo{
+		ProductTypes: device.ProductTypes,
+		Commands:     []string{},
+		Coefficients: []*apitypes.Coefficient{},
+	}
+	for _, i := range device.Config.ListCoefficients() {
+		_, inactive := appcfg.Sets.InactiveCoefficients[i]
+
+		kef := &apitypes.Coefficient{
+			N:      int32(i),
+			Active: !inactive,
+			Name:   fmt.Sprintf("%d", i),
+		}
+		if device.Config.CfsNames != nil {
+			name, fName := device.Config.CfsNames[i]
+			if fName {
+				kef.Name = fmt.Sprintf("%d %s", i, name)
+			}
+		}
+		r.Coefficients = append(r.Coefficients, kef)
+	}
+
+	for _, c := range device.Config.Commands {
+		r.Commands = append(r.Commands, c.Name)
+	}
+	return r, nil
 }
 
 func (h *appConfigSvc) EditConfig(_ context.Context) error {

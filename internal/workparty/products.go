@@ -69,11 +69,6 @@ func ProcessEachActiveProduct(errs ErrorsOccurred, work WorkProduct) workgui.Wor
 				})
 			}
 
-			if err := comports.GetComport(p.Comport, device.Baud).Open(); err != nil {
-				processErr(err)
-				notifyConnection(false)
-				continue
-			}
 			go gui.Popupf("опрашивается %s %s адрес %d %s", party.DeviceType, p.Comport, p.Addr, workProduct)
 
 			err := work(log, ctx, Product{
@@ -368,5 +363,5 @@ func (x CfsList) String() string {
 }
 
 func getCommProduct(comportName string, device devicecfg.Device) comm.T {
-	return comm.New(comports.GetComport(comportName, device.Baud), device.CommConfig())
+	return comm.New(comports.GetComport(comportName, device.Baud), device.CommConfig()).WithLockPort(comportName)
 }

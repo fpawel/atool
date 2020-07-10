@@ -126,7 +126,7 @@ func SwitchGas(valve byte) workgui.WorkFunc {
 			TimeoutEndResponse: c.TimeoutEndResponse,
 			MaxAttemptsRead:    c.MaxAttemptsRead,
 		}
-		err := gas.Switch(log, ctx, c.Type, comm.New(port, commCfg), c.Addr, valve)
+		err := gas.Switch(log, ctx, c.Type, comm.New(port, commCfg).WithLockPort(c.Comport), c.Addr, valve)
 		if err != nil {
 			return err
 		}
@@ -208,7 +208,7 @@ func getTemperatureComportReader() comm.T {
 			TimeoutEndResponse: c.TimeoutEndResponse,
 			MaxAttemptsRead:    c.MaxAttemptsRead,
 			Pause:              0,
-		})
+		}).WithLockPort(c.Comport)
 }
 
 var (

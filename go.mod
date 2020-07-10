@@ -5,10 +5,10 @@ go 1.13
 require (
 	github.com/ansel1/merry v1.5.1
 	github.com/apache/thrift v0.13.0
-	github.com/fpawel/comm v0.0.0-20200625131757-8fde23ca9e3e
+	github.com/fpawel/comm v0.0.0-20200710133946-abaf4b078976
 	github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8
 	github.com/fpawel/gotools v0.0.0-20191030125146-1d6c7465834c // indirect
-	github.com/fpawel/hardware v0.0.0-20200625131916-dcf3da80eb19
+	github.com/fpawel/hardware v0.0.0-20200710134054-a089e8c1c3fe
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/hashicorp/go-multierror v1.1.0
@@ -19,7 +19,6 @@ require (
 	github.com/mitchellh/mapstructure v1.2.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/powerman/structlog v0.7.1
-	github.com/schollz/progressbar/v3 v3.3.3
 	github.com/stretchr/testify v1.5.1
 	github.com/yuin/gluamapper v0.0.0-20150323120927-d836955830e7
 	github.com/yuin/gopher-lua v0.0.0-20191220021717-ab39c6098bdb

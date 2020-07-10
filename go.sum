@@ -46,6 +46,12 @@ github.com/fpawel/comm v0.0.0-20200527132820-f63adc971f1c h1:2sThoT+G1vRk2+Kq8Mi
 github.com/fpawel/comm v0.0.0-20200527132820-f63adc971f1c/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
 github.com/fpawel/comm v0.0.0-20200625131757-8fde23ca9e3e h1:puxTkwwYMh7Ver08yYi0mvkA/GRoWqMTpXrLvvYh1SA=
 github.com/fpawel/comm v0.0.0-20200625131757-8fde23ca9e3e/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
+github.com/fpawel/comm v0.0.0-20200710084952-9119fbfa16eb h1:xf1jPgQ4S+adQENCa2foM/h2P45ZvA5jD5RL9E0E8qY=
+github.com/fpawel/comm v0.0.0-20200710084952-9119fbfa16eb/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
+github.com/fpawel/comm v0.0.0-20200710131601-606736b64bb7 h1:Lu4CssNpsDY6FHUNX/V3iaNvsQlh0+Ba8TT1RQDDJgI=
+github.com/fpawel/comm v0.0.0-20200710131601-606736b64bb7/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
+github.com/fpawel/comm v0.0.0-20200710133946-abaf4b078976 h1:cbpTVZGbBgIHWpOaOvCdkv+Du3uaFTpCWVtnlaTqjeg=
+github.com/fpawel/comm v0.0.0-20200710133946-abaf4b078976/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
 github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8 h1:UM9aOtxe5LVZwoCTQltVvjEjcTtLqfWJ8cAkDmQsyhg=
 github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8/go.mod h1:mSSHEEI65myX9PxSQLbDzWS1jkYk1hAPh+qxq6CyBD4=
 github.com/fpawel/gotools v0.0.0-20191030125146-1d6c7465834c h1:F+7sEloAAWx4vFTvvs025jJbbiAiHE5GwuaGR7f2Htk=
@@ -84,6 +90,12 @@ github.com/fpawel/hardware v0.0.0-20200527132915-6358dec4a8fe h1:j6kJGPJOBCJKCAe
 github.com/fpawel/hardware v0.0.0-20200527132915-6358dec4a8fe/go.mod h1:yRhucOi5agUFsL9NqvD9l2OGoYiuIvpXTXu8k8EfIds=
 github.com/fpawel/hardware v0.0.0-20200625131916-dcf3da80eb19 h1:BiaRA4Dhj+KObRVppKxDS0aE62E4k1ghsexi0UZKdeE=
 github.com/fpawel/hardware v0.0.0-20200625131916-dcf3da80eb19/go.mod h1:mDja4nLcvx/MnrctKVs52VZGxQQN1PD4ANH9gnDtCF8=
+github.com/fpawel/hardware v0.0.0-20200710085104-78a4c249081f h1:0dBIjRi6mabwNcpfRkP2n4uZUEN7R7rGLjKuHYO7C9k=
+github.com/fpawel/hardware v0.0.0-20200710085104-78a4c249081f/go.mod h1:bwE4+qqplqGUBBNkAgHImhLlhHIfacsBEQlfAIbv27o=
+github.com/fpawel/hardware v0.0.0-20200710131716-7ed4462b1685 h1:6VoWVYRKOk+ErsLy55wV9KWmDti2SDscsLxZbLOvEFk=
+github.com/fpawel/hardware v0.0.0-20200710131716-7ed4462b1685/go.mod h1:d458aePXBparsbCwbBktnQRuoY+vaWubSuMDDoC/UZc=
+github.com/fpawel/hardware v0.0.0-20200710134054-a089e8c1c3fe h1:hYQPre2NH/TSOAeb5w7JGAwSb+MeLCyxhY/1QHLBYQo=
+github.com/fpawel/hardware v0.0.0-20200710134054-a089e8c1c3fe/go.mod h1:gHYFVnu0GgiN3eyvhIpXoVMEPkxHSIt6WhV2mdbXlgI=
 github.com/go-sql-driver/mysql v1.4.0/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
 github.com/go-sql-driver/mysql v1.4.1/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
 github.com/go-sql-driver/mysql v1.5.0 h1:ozyZYNQW3x3HtqT1jira07DN2PArx2v7/mN66gGcHOs=
