@@ -30,10 +30,11 @@ func ProcessEachActiveProduct(errs ErrorsOccurred, work WorkProduct) workgui.Wor
 		if err != nil {
 			return err
 		}
-		device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
+		device, err := appcfg.GetDeviceByName(party.DeviceType)
 		if err != nil {
 			return err
 		}
+
 		products, err := data.GetActiveProducts()
 		if err != nil {
 			return err
@@ -199,7 +200,7 @@ func WriteProdsCfs(productCoefficientValues []ProductCoefficientValue, handleErr
 			return err
 		}
 
-		device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
+		device, err := appcfg.GetDeviceByName(party.DeviceType)
 		if err != nil {
 			return err
 		}
@@ -215,11 +216,6 @@ func WriteProdsCfs(productCoefficientValues []ProductCoefficientValue, handleErr
 				return ctx.Err()
 			}
 
-			valFmt, err := device.GetCoefficientFormat(x.Coefficient)
-			if err != nil {
-				return err
-			}
-
 			product, productFound := party.GetProduct(x.ProductID)
 			if !productFound {
 				return merry.Errorf("product_id not found: %+v", x)
@@ -231,7 +227,7 @@ func WriteProdsCfs(productCoefficientValues []ProductCoefficientValue, handleErr
 				Product: product,
 				Device:  device,
 			}
-			if err := p.WriteKef(x.Coefficient, valFmt, x.Value)(log, ctx); err != nil {
+			if err := p.WriteKef(x.Coefficient, device.Config.FloatFormat, x.Value)(log, ctx); err != nil {
 				if merry.Is(err, context.DeadlineExceeded) {
 					noAnswer[x.ProductID] = struct{}{}
 				}

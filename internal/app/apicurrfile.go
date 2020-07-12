@@ -72,14 +72,15 @@ func (h *currentFileSvc) ListDeviceParams(_ context.Context) ([]*apitypes.Device
 	if err != nil {
 		return nil, err
 	}
-
-	device, _ := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
-
+	device, err := appcfg.GetDeviceByName(party.DeviceType)
+	if err != nil {
+		return nil, err
+	}
 	r := make([]*apitypes.DeviceParam, 0)
-	for _, x := range device.ParamAddresses(party.ProductType) {
+	for _, x := range device.Vars(party.ProductType) {
 		r = append(r, &apitypes.DeviceParam{
 			ParamAddr: int32(x),
-			Name:      device.ParamName(x),
+			Name:      device.VarName(x),
 		})
 	}
 	return r, nil
@@ -178,9 +179,13 @@ func processCurrentPartyChart() {
 		return
 	}
 
-	cfg := appcfg.Cfg.Hardware
+	device, err := appcfg.GetDeviceByName(party.DeviceType)
+	if err != nil {
+		workgui.NotifyErr(log, err)
+		return
+	}
 
-	paramsAddresses := cfg.GetDeviceParamAddresses(party.DeviceType, party.ProductType)
+	paramsAddresses := device.Vars(party.ProductType)
 
 	log := pkg.LogPrependSuffixKeys(log, "party",
 		party.PartyID, "params", fmt.Sprintf("%d", paramsAddresses))

@@ -28,8 +28,15 @@ func (*coefficientsSvc) ReadAll(context.Context) error {
 
 func (h *coefficientsSvc) ListCoefficients(_ context.Context) (r []*apitypes.Coefficient, err error) {
 	r = []*apitypes.Coefficient{}
-	d, _ := getCurrentPartyDeviceConfig()
-	for _, i := range d.ListCoefficients() {
+	party, err := data.GetCurrentParty()
+	if err != nil {
+		return nil, err
+	}
+	device, err := appcfg.GetDeviceByName(party.DeviceType)
+	if err != nil {
+		return nil, err
+	}
+	for _, i := range device.Config.ListCoefficients() {
 		_, inactive := appcfg.Sets.InactiveCoefficients[i]
 
 		kef := &apitypes.Coefficient{
@@ -37,8 +44,8 @@ func (h *coefficientsSvc) ListCoefficients(_ context.Context) (r []*apitypes.Coe
 			Active: !inactive,
 			Name:   fmt.Sprintf("%d", i),
 		}
-		if d.CfsNames != nil {
-			name, fName := d.CfsNames[i]
+		if device.CfsNames != nil {
+			name, fName := device.CfsNames[i]
 			if fName {
 				kef.Name = fmt.Sprintf("%d %s", i, name)
 			}

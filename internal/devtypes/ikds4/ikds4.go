@@ -18,6 +18,18 @@ var (
 		Config:       deviceConfig,
 		PartyParams:  partyParams,
 		InitParty:    initParty,
+		VarsNames:    paramsNames,
+		CfsNames:     mil82.KfsNames,
+	}
+
+	paramsNames = map[modbus.Var]string{
+		0:   "C",
+		2:   "I",
+		4:   "Is",
+		12:  "Work",
+		14:  "Ref",
+		16:  "Var16",
+		200: "Var200",
 	}
 
 	partyParams = []devdata.PartyParam{
@@ -62,53 +74,18 @@ var (
 		TimeoutEndResponse: 50 * time.Millisecond,
 		MaxAttemptsRead:    5,
 		Pause:              50 * time.Millisecond,
-		NetAddr: devicecfg.NetAddr{
-			Cmd:    12,
-			Format: modbus.FloatBigEndian,
-		},
-		ParamsList: []devicecfg.Params{
-			{
-				Format:    modbus.FloatBigEndian,
-				ParamAddr: 0,
-				Count:     2,
-			},
-			{
-				Format:    modbus.FloatBigEndian,
-				ParamAddr: 4,
-				Count:     1,
-			},
-			{
-				Format:    modbus.FloatBigEndian,
-				ParamAddr: 12,
-				Count:     2,
-			},
-			{
-				Format:    modbus.FloatBigEndian,
-				ParamAddr: 16,
-				Count:     1,
-			},
-			{
-				Format:    modbus.FloatBigEndian,
-				ParamAddr: 200,
-				Count:     1,
-			},
+		NetAddr:            12,
+		FloatFormat:        modbus.FloatBigEndian,
+		Vars: []devicecfg.Vars{
+			{0, 2},
+			{4, 1},
+			{12, 2},
+			{16, 1},
+			{200, 1},
 		},
 		CfsList: []devicecfg.Cfs{
-			{
-				Range:  [2]devicecfg.Kef{0, 50},
-				Format: modbus.FloatBigEndian,
-			},
+			{0, 50},
 		},
-		ParamsNames: map[modbus.Var]string{
-			0:   "C",
-			2:   "I",
-			4:   "Is",
-			12:  "Work",
-			14:  "Ref",
-			16:  "Var16",
-			200: "Var200",
-		},
-		CfsNames: mil82.KfsNames,
 	}
 )
 

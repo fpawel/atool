@@ -20,6 +20,8 @@ var (
 			sort.Strings(xs)
 			return
 		}(),
+		VarsNames: anktvar.Names,
+		CfsNames:  KfsNames,
 		PartyParams: []devdata.PartyParam{
 			{
 				Key:  "c1",
@@ -62,30 +64,9 @@ var (
 		Work:      main,
 
 		DataSections: dataSections,
-		Calc:         nil,
-	}
 
-	deviceConfig = devicecfg.Device{
-		Baud:               9600,
-		TimeoutGetResponse: time.Second,
-		TimeoutEndResponse: 50 * time.Millisecond,
-		MaxAttemptsRead:    5,
-		Pause:              50 * time.Millisecond,
-		NetAddr: devicecfg.NetAddr{
-			Cmd:    7,
-			Format: modbus.BCD,
-		},
-		CfsList: []devicecfg.Cfs{
-			{
-				Range:  [2]devicecfg.Kef{0, 50},
-				Format: modbus.BCD,
-			},
-		},
-		ParamsNames: anktvar.Names,
-		CfsNames:    KfsNames,
-		ParamsList:  varsParamRng(anktvar.Vars),
-		ProductTypesVars: func() []devicecfg.ProductTypeVars {
-			xsC2 := devicecfg.ProductTypeVars{
+		ProductTypesVars: func() []devdata.ProductTypeVars {
+			xsC2 := devdata.ProductTypeVars{
 				ParamsRngList: varsParamRng(anktvar.VarsChan2),
 			}
 			for _, t := range productTypesList {
@@ -94,7 +75,7 @@ var (
 				}
 			}
 
-			xsP := devicecfg.ProductTypeVars{
+			xsP := devdata.ProductTypeVars{
 				ParamsRngList: varsParamRng(anktvar.VarsP),
 			}
 			for _, t := range productTypesList {
@@ -102,8 +83,25 @@ var (
 					xsP.Names = append(xsP.Names, t.String())
 				}
 			}
-			return []devicecfg.ProductTypeVars{xsC2, xsP}
+			return []devdata.ProductTypeVars{xsC2, xsP}
 		}(),
+
+		Calc: nil,
+	}
+
+	deviceConfig = devicecfg.Device{
+		Baud:               9600,
+		TimeoutGetResponse: time.Second,
+		TimeoutEndResponse: 50 * time.Millisecond,
+		MaxAttemptsRead:    5,
+		Pause:              50 * time.Millisecond,
+		NetAddr:            7,
+		FloatFormat:        modbus.BCD,
+		CfsList: []devicecfg.Cfs{
+			{0, 50},
+		},
+
+		Vars: varsParamRng(anktvar.Vars),
 	}
 )
 
@@ -111,13 +109,9 @@ const (
 	deviceName = "Анкат-7664МИКРО"
 )
 
-func varsParamRng(vars []modbus.Var) (xs []devicecfg.Params) {
+func varsParamRng(vars []modbus.Var) (xs []devicecfg.Vars) {
 	for _, v := range vars {
-		xs = append(xs, devicecfg.Params{
-			Format:    modbus.BCD,
-			ParamAddr: v,
-			Count:     1,
-		})
+		xs = append(xs, devicecfg.Vars{v, 1})
 	}
 	return
 }

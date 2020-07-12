@@ -16,6 +16,13 @@ var Device = devdata.Device{
 	InitParty:    initParty,
 	Config:       deviceConfig,
 	PartyParams:  partyParams,
+	VarsNames:    paramsNames,
+	CfsNames:     KfsNames,
+	Commands: []devdata.Cmd{
+		{Code: 1, Name: "Корректировка нуля"},
+		{Code: 2, Name: "Корректировка чувствительности"},
+		{Code: 8, Name: "Нормировка"},
+	},
 }
 
 const (
@@ -52,44 +59,16 @@ var (
 		TimeoutEndResponse: 50 * time.Millisecond,
 		MaxAttemptsRead:    5,
 		Pause:              50 * time.Millisecond,
-		NetAddr: devicecfg.NetAddr{
-			Cmd:    12,
-			Format: modbus.BCD,
-		},
-		ParamsList: []devicecfg.Params{
-			{
-				Format:    modbus.BCD,
-				ParamAddr: 0,
-				Count:     2,
-			},
-			{
-				Format:    modbus.BCD,
-				ParamAddr: 4,
-				Count:     1,
-			},
-			{
-				Format:    modbus.BCD,
-				ParamAddr: 12,
-				Count:     2,
-			},
-			{
-				Format:    modbus.BCD,
-				ParamAddr: 16,
-				Count:     1,
-			},
+		NetAddr:            12,
+		FloatFormat:        modbus.BCD,
+		Vars: []devicecfg.Vars{
+			{0, 2},
+			{4, 1},
+			{12, 2},
+			{16, 1},
 		},
 		CfsList: []devicecfg.Cfs{
-			{
-				Range:  [2]devicecfg.Kef{0, 50},
-				Format: modbus.BCD,
-			},
-		},
-		ParamsNames: paramsNames,
-		CfsNames:    KfsNames,
-		Commands: []devicecfg.Cmd{
-			{Code: 1, Name: "Корректировка нуля"},
-			{Code: 2, Name: "Корректировка чувствительности"},
-			{Code: 8, Name: "Нормировка"},
+			{0, 50},
 		},
 	}
 

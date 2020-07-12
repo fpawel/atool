@@ -3,9 +3,6 @@ package app
 import (
 	"fmt"
 	"github.com/ansel1/merry"
-	"github.com/fpawel/atool/internal/config/appcfg"
-	"github.com/fpawel/atool/internal/config/devicecfg"
-	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm/modbus"
 	"github.com/powerman/structlog"
@@ -15,14 +12,6 @@ import (
 )
 
 type logger = *structlog.Logger
-
-func getCurrentPartyDeviceConfig() (devicecfg.Device, error) {
-	party, err := data.GetCurrentParty()
-	if err != nil {
-		return devicecfg.Device{}, err
-	}
-	return appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
-}
 
 func formatBytes(xs []byte) string {
 	return fmt.Sprintf("% X", xs)

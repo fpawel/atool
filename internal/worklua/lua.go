@@ -265,7 +265,7 @@ func (x *Import) getProducts(selectedOnly bool) (Products []*luaProduct) {
 	party, err := data.GetCurrentParty()
 	x.check(err)
 
-	device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
+	device, err := appcfg.GetDeviceByName(party.DeviceType)
 	x.check(err)
 
 	for _, p := range party.Products {

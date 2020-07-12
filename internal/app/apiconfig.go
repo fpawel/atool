@@ -31,7 +31,10 @@ func (*appConfigSvc) CurrentDeviceInfo(context.Context) (*apitypes.DeviceInfo, e
 	if err != nil {
 		return nil, err
 	}
-	device, _ := appcfg.DeviceTypes[party.DeviceType]
+	device, err := appcfg.GetDeviceByName(party.DeviceType)
+	if err != nil {
+		return nil, err
+	}
 	r := &apitypes.DeviceInfo{
 		ProductTypes: device.ProductTypes,
 		Commands:     []string{},
@@ -45,8 +48,8 @@ func (*appConfigSvc) CurrentDeviceInfo(context.Context) (*apitypes.DeviceInfo, e
 			Active: !inactive,
 			Name:   fmt.Sprintf("%d", i),
 		}
-		if device.Config.CfsNames != nil {
-			name, fName := device.Config.CfsNames[i]
+		if device.CfsNames != nil {
+			name, fName := device.CfsNames[i]
 			if fName {
 				kef.Name = fmt.Sprintf("%d %s", i, name)
 			}
@@ -54,7 +57,7 @@ func (*appConfigSvc) CurrentDeviceInfo(context.Context) (*apitypes.DeviceInfo, e
 		r.Coefficients = append(r.Coefficients, kef)
 	}
 
-	for _, c := range device.Config.Commands {
+	for _, c := range device.Commands {
 		r.Commands = append(r.Commands, c.Name)
 	}
 	return r, nil

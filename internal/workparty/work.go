@@ -93,7 +93,8 @@ func NewWorkWriteAllCfs(in []*apitypes.ProductCoefficientValue) Work {
 func NewWorkWrite32Bytes(cmdProto modbus.ProtoCmd, cmdDevice modbus.DevCmd, dataBytes []byte) Work {
 	what := fmt.Sprintf("📥 отправка команды %X %X(% 02X)", cmdProto, cmdDevice, dataBytes)
 	party, _ := data.GetCurrentParty()
-	device, _ := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
+	device, _ := appcfg.GetDeviceByName(party.DeviceType)
+
 	for _, c := range device.Commands {
 		if c.Code == cmdDevice {
 			what += ": " + c.Name
@@ -138,7 +139,7 @@ func SetNetAddr(productID int64, notifyComm func(comm.Info)) workgui.WorkFunc {
 			return err
 		}
 
-		device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
+		device, err := appcfg.GetDeviceByName(party.DeviceType)
 		if err != nil {
 			return err
 		}
@@ -152,12 +153,12 @@ func SetNetAddr(productID int64, notifyComm func(comm.Info)) workgui.WorkFunc {
 		return Work{
 			Name: fmt.Sprintf("%s: запись сетевого адреса %d", workProduct, p.Addr),
 			Func: func(log comm.Logger, ctx context.Context) error {
-				comPort := comports.GetComport(p.Comport, device.Baud)
+				comPort := comports.GetComport(p.Comport, device.Config.Baud)
 				r := modbus.RequestWrite32{
 					Addr:      0,
 					ProtoCmd:  0x10,
-					DeviceCmd: device.NetAddr.Cmd,
-					Format:    device.NetAddr.Format,
+					DeviceCmd: device.Config.NetAddr,
+					Format:    device.Config.FloatFormat,
 					Value:     float64(p.Addr),
 				}
 				if _, err := comPort.Write(r.Request().Bytes()); err != nil {
@@ -173,7 +174,7 @@ func SetNetAddr(productID int64, notifyComm func(comm.Info)) workgui.WorkFunc {
 					FirstRegister:  0,
 					RegistersCount: 2,
 				}
-				answer, err := req.GetResponse(log, ctx, getCommProduct(p.Comport, device))
+				answer, err := req.GetResponse(log, ctx, getCommProduct(p.Comport, device.Config))
 				if err == nil {
 					workgui.NotifyInfo(log, fmt.Sprintf("установка сетевого адреса: % 02X -> % 02X", req.Request().Bytes(), answer))
 				} else {
@@ -191,17 +192,17 @@ func NewWorkScanModbus(comportName string) workgui.Work {
 		if err != nil {
 			return err
 		}
-		device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
+		device, err := appcfg.GetDeviceByName(party.DeviceType)
 		if err != nil {
 			return err
 		}
 
-		paramsRng := device.ParamsRng(party.ProductType)
+		paramsRng := device.VarsRng(party.ProductType)
 		if len(paramsRng) == 0 {
 			return merry.Errorf("нет параметров устройства %q", party.DeviceType)
 		}
 
-		cm := comm.New(comports.GetComport(comportName, device.Baud), comm.Config{
+		cm := comm.New(comports.GetComport(comportName, device.Config.Baud), comm.Config{
 			TimeoutGetResponse: 500 * time.Millisecond,
 			TimeoutEndResponse: 50 * time.Millisecond,
 		})
@@ -217,7 +218,7 @@ func NewWorkScanModbus(comportName string) workgui.Work {
 		for addr := modbus.Addr(1); addr <= 127; addr++ {
 			go gui.NotifyProgress(int(addr), fmt.Sprintf("MODBUS: сканирование сети: %d, ответили [%s], не ответили [%s]",
 				addr, ans.Format(), notAns.Format()))
-			_, err := modbus.Read3Value(log, ctx, cm, addr, modbus.Var(param.ParamAddr), param.Format)
+			_, err := modbus.Read3Value(log, ctx, cm, addr, param.Var(), device.Config.VarFormat(param.Var()))
 			if merry.Is(err, context.DeadlineExceeded) || merry.Is(err, modbus.Err) {
 				notAns.Push(byte(addr))
 				continue

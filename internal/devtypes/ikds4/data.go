@@ -49,7 +49,7 @@ func dataSections() (result devdata.DataSections) {
 	}
 
 	fmtVar := func(n modbus.Var) string {
-		if s, f := deviceConfig.ParamsNames[n]; f {
+		if s, f := paramsNames[n]; f {
 			return s
 		}
 		return fmt.Sprintf("%d", n)

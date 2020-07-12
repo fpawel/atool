@@ -125,10 +125,11 @@ func parseDevCmdCode(name string) (modbus.DevCmd, bool) {
 	if err != nil {
 		return 0, false
 	}
-	device, err := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
+	device, err := appcfg.GetDeviceByName(party.DeviceType)
 	if err != nil {
 		return 0, false
 	}
+
 	for _, c := range device.Commands {
 		if c.Name == name {
 			return c.Code, true
