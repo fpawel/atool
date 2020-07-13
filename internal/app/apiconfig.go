@@ -31,10 +31,8 @@ func (*appConfigSvc) CurrentDeviceInfo(context.Context) (*apitypes.DeviceInfo, e
 	if err != nil {
 		return nil, err
 	}
-	device, err := appcfg.GetDeviceByName(party.DeviceType)
-	if err != nil {
-		return nil, err
-	}
+	device := appcfg.GetDeviceByNameOrDefault(party.DeviceType)
+
 	r := &apitypes.DeviceInfo{
 		ProductTypes: device.ProductTypes,
 		Commands:     []string{},

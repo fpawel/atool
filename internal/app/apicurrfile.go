@@ -72,10 +72,8 @@ func (h *currentFileSvc) ListDeviceParams(_ context.Context) ([]*apitypes.Device
 	if err != nil {
 		return nil, err
 	}
-	device, err := appcfg.GetDeviceByName(party.DeviceType)
-	if err != nil {
-		return nil, err
-	}
+	device := appcfg.GetDeviceByNameOrDefault(party.DeviceType)
+
 	r := make([]*apitypes.DeviceParam, 0)
 	for _, x := range device.Vars(party.ProductType) {
 		r = append(r, &apitypes.DeviceParam{
@@ -179,11 +177,7 @@ func processCurrentPartyChart() {
 		return
 	}
 
-	device, err := appcfg.GetDeviceByName(party.DeviceType)
-	if err != nil {
-		workgui.NotifyErr(log, err)
-		return
-	}
+	device := appcfg.GetDeviceByNameOrDefault(party.DeviceType)
 
 	paramsAddresses := device.Vars(party.ProductType)
 

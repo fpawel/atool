@@ -14,6 +14,16 @@ var (
 	Sets        = new(appsets.Settings)
 )
 
+func GetDeviceByNameOrDefault(deviceName string) devdata.Device {
+	device, err := GetDeviceByName(deviceName)
+	if err != nil {
+		return devdata.Device{
+			Name: deviceName,
+		}
+	}
+	return device
+}
+
 func GetDeviceByName(deviceName string) (devdata.Device, error) {
 	devCfg, fDevCfg := Cfg.Hardware[deviceName]
 	device, fDevice := DeviceTypes[deviceName]
