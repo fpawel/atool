@@ -1,6 +1,8 @@
 package comports
 
 import (
+	"github.com/fpawel/atool/internal/config/devicecfg"
+	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/comport"
 	"github.com/powerman/structlog"
 	"sync"
@@ -14,7 +16,11 @@ import (
 //	return p
 //}
 
-func GetComport(name string, baud int) *comport.Port {
+func Comm(comportName string, device devicecfg.Device) comm.T {
+	return comm.New(Comport(comportName, device.Baud), device.CommConfig()).WithLockPort(comportName)
+}
+
+func Comport(name string, baud int) *comport.Port {
 	mu.Lock()
 	defer mu.Unlock()
 	c := comport.Config{

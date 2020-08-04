@@ -21,6 +21,7 @@ func (c Gas) Validate() error {
 	if _, f := map[gas.DevType]struct{}{
 		gas.Mil82:   {},
 		gas.Lab73CO: {},
+		gas.Ankat:   {},
 	}[c.Type]; !f {
 		return merry.Errorf("не правильный тип газового блока: %q", c.Type)
 	}

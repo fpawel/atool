@@ -8,9 +8,9 @@ import (
 	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/devtypes/devdata"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg"
-	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/pkg/intrng"
 	"github.com/fpawel/atool/internal/pkg/numeth"
 	"github.com/fpawel/atool/internal/workgui"
@@ -47,9 +47,11 @@ func ProcessEachActiveProduct(errs ErrorsOccurred, work WorkProduct) workgui.Wor
 		for _, p := range products {
 			p := p
 			workProduct := Product{
-				Product: p,
-				Device:  device,
-				Party:   party,
+				Product: devdata.Product{
+					Product: p,
+					Party:   party,
+				},
+				Device: device,
 			}
 
 			processErr := func(err error) {
@@ -70,12 +72,14 @@ func ProcessEachActiveProduct(errs ErrorsOccurred, work WorkProduct) workgui.Wor
 				})
 			}
 
-			go gui.Popupf("опрашивается %s %s адрес %d %s", party.DeviceType, p.Comport, p.Addr, workProduct)
+			go gui.Popupf("опрашивается %s", p)
 
 			err := work(log, ctx, Product{
-				Product: p,
-				Device:  device,
-				Party:   party,
+				Device: device,
+				Product: devdata.Product{
+					Product: p,
+					Party:   party,
+				},
 			})
 			if merry.Is(err, context.Canceled) {
 				return err
@@ -224,8 +228,11 @@ func WriteProdsCfs(productCoefficientValues []ProductCoefficientValue, handleErr
 				"product", fmt.Sprintf("%+v", product))
 
 			p := Product{
-				Product: product,
-				Device:  device,
+				Product: devdata.Product{
+					Product: product,
+					Party:   party,
+				},
+				Device: device,
 			}
 			if err := p.WriteKef(x.Coefficient, device.Config.FloatFormat, x.Value)(log, ctx); err != nil {
 				if merry.Is(err, context.DeadlineExceeded) {
@@ -291,7 +298,7 @@ type InterpolateCfs struct {
 }
 
 func (x InterpolateCfs) String() string {
-	return fmt.Sprintf("📈 расчёт %s 📥 💾 запись K%d...K%d", x.Name, x.Coefficient, x.Coefficient+x.Count)
+	return fmt.Sprintf("📈 %s 📥 💾 K%d...K%d", x.Name, x.Coefficient, x.Coefficient+x.Count-1)
 }
 
 func (x InterpolateCfs) performProduct(productsValues data.ProductIDKeyValues, product Product) workgui.WorkFunc {
@@ -356,8 +363,4 @@ func (x CfsList) String() string {
 		coefficients = append(coefficients, int(k))
 	}
 	return fmt.Sprintf("%v", intrng.IntRanges(coefficients))
-}
-
-func getCommProduct(comportName string, device devicecfg.Device) comm.T {
-	return comm.New(comports.GetComport(comportName, device.Baud), device.CommConfig()).WithLockPort(comportName)
 }

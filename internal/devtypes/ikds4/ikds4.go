@@ -18,8 +18,6 @@ var (
 		Config:       deviceConfig,
 		PartyParams:  partyParams,
 		InitParty:    initParty,
-		VarsNames:    paramsNames,
-		CfsNames:     mil82.KfsNames,
 	}
 
 	paramsNames = map[modbus.Var]string{
@@ -86,6 +84,8 @@ var (
 		CfsList: []devicecfg.Cfs{
 			{0, 50},
 		},
+		VarsNames: paramsNames,
+		CfsNames:  mil82.KfsNames,
 	}
 )
 

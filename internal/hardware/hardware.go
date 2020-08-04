@@ -120,7 +120,7 @@ func SwitchGas(valve byte) workgui.WorkFunc {
 	return func(log comm.Logger, ctx context.Context) error {
 		workgui.NotifyInfo(log, fmt.Sprintf("⛏ переключение газового блока %d", valve))
 		c := appcfg.Cfg.Gas
-		port := comports.GetComport(c.Comport, 9600)
+		port := comports.Comport(c.Comport, 9600)
 		commCfg := comm.Config{
 			TimeoutGetResponse: c.TimeoutGetResponse,
 			TimeoutEndResponse: c.TimeoutEndResponse,
@@ -202,7 +202,7 @@ func GetTemperatureDevice() (temp.TemperatureDevice, error) {
 func getTemperatureComportReader() comm.T {
 	c := appcfg.Cfg.Temperature
 	return comm.New(
-		comports.GetComport(c.Comport, 9600),
+		comports.Comport(c.Comport, 9600),
 		comm.Config{
 			TimeoutGetResponse: c.TimeoutGetResponse,
 			TimeoutEndResponse: c.TimeoutEndResponse,

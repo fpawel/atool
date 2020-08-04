@@ -41,7 +41,7 @@ type Product struct {
 }
 
 func (p Product) String() string {
-	return fmt.Sprintf("%s,адр=%d,сер№=%d,id=%d", p.Comport, p.Addr, p.Serial, p.ProductID)
+	return fmt.Sprintf("🔌%s,адр=%d,сер№=%d,🔑%d", p.Comport, p.Addr, p.Serial, p.ProductID)
 }
 
 type ProductParam struct {

@@ -66,13 +66,26 @@ func (x keyTemp) String() string {
 	return string(x)
 }
 
-func (x keyTemp) keyGasVar(gas gas, Var modbus.Var) string {
+func (x keyTemp) What() string {
+	switch x {
+	case keyTempNorm:
+		return "нормальная температура"
+	case keyTempLow:
+		return "низкая температура"
+	case keyTempHigh:
+		return "высокая температура"
+	default:
+		return string(x)
+	}
+}
+
+func keyGasVar(x keyTemp, gas gas, Var modbus.Var) string {
 	x.mustCheck()
 	gas.mustCheck()
 	return fmt.Sprintf("%s_gas%d_var%d", x, gas, Var)
 }
 
-func (x keyTemp) keyPT() string {
+func keyPT(x keyTemp) string {
 	return fmt.Sprintf("pt_%s", x)
 }
 
@@ -112,7 +125,15 @@ const (
 	keyTempHigh keyTemp = "t_high"
 )
 
+func mapTemps(f func(temp keyTemp) string) (xs []string) {
+	for _, k := range keysTemp {
+		xs = append(xs, f(k))
+	}
+	return
+}
+
 var (
+	keysTemp = []keyTemp{keyTempLow, keyTempNorm, keyTempHigh}
 	chan2nfo = chan2.Nfo()
 	chan1nfo = chan1.Nfo()
 )

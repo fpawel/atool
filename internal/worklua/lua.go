@@ -7,6 +7,7 @@ import (
 	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/devtypes/devdata"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/hardware"
 	"github.com/fpawel/atool/internal/pkg/numeth"
@@ -274,9 +275,11 @@ func (x *Import) getProducts(selectedOnly bool) (Products []*luaProduct) {
 			continue
 		}
 		Products = append(Products, newLuaProduct(workparty.Product{
-			Product: p,
-			Device:  device,
-			Party:   party,
+			Device: device,
+			Product: devdata.Product{
+				Product: p,
+				Party:   party,
+			},
 		}, x))
 	}
 	return

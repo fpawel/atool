@@ -1,9 +1,11 @@
 package ankt
 
 import (
+	"context"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/devtypes/ankt/anktvar"
 	"github.com/fpawel/atool/internal/devtypes/devdata"
+	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
 	"sort"
 	"time"
@@ -20,8 +22,6 @@ var (
 			sort.Strings(xs)
 			return
 		}(),
-		VarsNames: anktvar.Names,
-		CfsNames:  KfsNames,
 		PartyParams: []devdata.PartyParam{
 			{
 				Key:  "c1",
@@ -86,6 +86,10 @@ var (
 			return []devdata.ProductTypeVars{xsC2, xsP}
 		}(),
 
+		OnReadProduct: func(log comm.Logger, ctx context.Context, product devdata.Product) error {
+			return setProductWorkMode(log, ctx, product, 2)
+		},
+
 		Calc: nil,
 	}
 
@@ -100,8 +104,9 @@ var (
 		CfsList: []devicecfg.Cfs{
 			{0, 50},
 		},
-
-		Vars: varsParamRng(anktvar.Vars),
+		VarsNames: anktvar.Names,
+		CfsNames:  KfsNames,
+		Vars:      varsParamRng(anktvar.Vars),
 	}
 )
 

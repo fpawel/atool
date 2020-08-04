@@ -8,7 +8,7 @@ require (
 	github.com/fpawel/comm v0.0.0-20200710133946-abaf4b078976
 	github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8
 	github.com/fpawel/gotools v0.0.0-20191030125146-1d6c7465834c // indirect
-	github.com/fpawel/hardware v0.0.0-20200710134054-a089e8c1c3fe
+	github.com/fpawel/hardware v0.0.0-20200803130822-6fc913d94083
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/hashicorp/go-multierror v1.1.0

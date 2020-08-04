@@ -46,8 +46,8 @@ func (*appConfigSvc) CurrentDeviceInfo(context.Context) (*apitypes.DeviceInfo, e
 			Active: !inactive,
 			Name:   fmt.Sprintf("%d", i),
 		}
-		if device.CfsNames != nil {
-			name, fName := device.CfsNames[i]
+		if device.Config.CfsNames != nil {
+			name, fName := device.Config.CfsNames[i]
 			if fName {
 				kef.Name = fmt.Sprintf("%d %s", i, name)
 			}

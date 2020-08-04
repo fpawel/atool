@@ -18,13 +18,17 @@ type Device struct {
 	ProductTypes     []string
 	Config           Config
 	PartyParams      []PartyParam
-	VarsNames        map[modbus.Var]string
-	CfsNames         map[devicecfg.Kef]string
 	Commands         []Cmd
 	ProductTypesVars []ProductTypeVars
 	InitParty        func() error
 	Calc             func(data.PartyValues, *CalcSections) error
 	Work             func(comm.Logger, context.Context) error
+	OnReadProduct    func(comm.Logger, context.Context, Product) error
+}
+
+type Product struct {
+	data.Product
+	Party data.Party
 }
 
 type Config = devicecfg.Device
@@ -56,7 +60,7 @@ type DataParam struct {
 }
 
 func (d Device) VarName(paramAddr modbus.Var) string {
-	for n, s := range d.VarsNames {
+	for n, s := range d.Config.VarsNames {
 		if n == paramAddr {
 			return fmt.Sprintf("%d: %s", paramAddr, s)
 		}

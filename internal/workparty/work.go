@@ -8,6 +8,7 @@ import (
 	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
+	"github.com/fpawel/atool/internal/devtypes/devdata"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/pkg/intrng"
@@ -145,15 +146,16 @@ func SetNetAddr(productID int64, notifyComm func(comm.Info)) workgui.WorkFunc {
 		}
 
 		workProduct := Product{
-			Product: p,
-			Device:  device,
-			Party:   party,
+			Device: device,
+			Product: devdata.Product{
+				Product: p,
+				Party:   party,
+			},
 		}
-
 		return Work{
 			Name: fmt.Sprintf("%s: запись сетевого адреса %d", workProduct, p.Addr),
 			Func: func(log comm.Logger, ctx context.Context) error {
-				comPort := comports.GetComport(p.Comport, device.Config.Baud)
+				comPort := comports.Comport(p.Comport, device.Config.Baud)
 				r := modbus.RequestWrite32{
 					Addr:      0,
 					ProtoCmd:  0x10,
@@ -174,7 +176,7 @@ func SetNetAddr(productID int64, notifyComm func(comm.Info)) workgui.WorkFunc {
 					FirstRegister:  0,
 					RegistersCount: 2,
 				}
-				answer, err := req.GetResponse(log, ctx, getCommProduct(p.Comport, device.Config))
+				answer, err := req.GetResponse(log, ctx, comports.Comm(p.Comport, device.Config))
 				if err == nil {
 					workgui.NotifyInfo(log, fmt.Sprintf("установка сетевого адреса: % 02X -> % 02X", req.Request().Bytes(), answer))
 				} else {
@@ -202,7 +204,7 @@ func NewWorkScanModbus(comportName string) workgui.Work {
 			return merry.Errorf("нет параметров устройства %q", party.DeviceType)
 		}
 
-		cm := comm.New(comports.GetComport(comportName, device.Config.Baud), comm.Config{
+		cm := comm.New(comports.Comport(comportName, device.Config.Baud), comm.Config{
 			TimeoutGetResponse: 500 * time.Millisecond,
 			TimeoutEndResponse: 50 * time.Millisecond,
 		})

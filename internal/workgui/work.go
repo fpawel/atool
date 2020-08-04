@@ -29,8 +29,20 @@ func NewFunc(name string, work WorkFunc) WorkFunc {
 	return Work{name, work}.Perform
 }
 
-func NewWorks(works ...Work) Works {
-	return works
+func NewWorks(works ...Work) (xs Works) {
+	for _, w := range works {
+		if w.Func != nil {
+			xs = append(xs, w)
+		}
+	}
+	return
+}
+
+func (x Work) ApplyIf(f bool) Work {
+	if f {
+		return x
+	}
+	return Work{}
 }
 
 func (x WorkFunc) Work(name string) Work {
@@ -71,6 +83,11 @@ func (x Work) WithWarn() Work {
 }
 
 func (x Work) Perform(log *structlog.Logger, ctx context.Context) error {
+
+	if x.Func == nil {
+		return nil
+	}
+
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/fpawel/atool/internal/devtypes/devdata"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg"
+	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
@@ -17,13 +18,12 @@ import (
 )
 
 type Product struct {
-	data.Product
-	Party  data.Party
-	Device devdata.Device
+	devdata.Product
+	devdata.Device
 }
 
 func (x Product) String() string {
-	return fmt.Sprintf("🔌%d🔑%d", x.Serial, x.ProductID)
+	return fmt.Sprintf("%s: %s", x.Device.Name, x.Product)
 }
 
 func (x Product) Write32(cmd modbus.DevCmd, format modbus.FloatBitsFormat, value float64) workgui.WorkFunc {
@@ -122,7 +122,7 @@ func (x Product) SaveKefValue(k devicecfg.Kef, value float64) error {
 
 func (x Product) Comm() comm.T {
 	//return comm.New(comports.GetComport(x.Comport, x.Device.Baud), x.Device.CommConfig()).WithLockPort(x.Comport)
-	return getCommProduct(x.Comport, x.Device.Config)
+	return comports.Comm(x.Comport, x.Device.Config)
 }
 
 func (x Product) readAllCoefficients(log comm.Logger, ctx context.Context) error {
@@ -153,14 +153,18 @@ func (x Product) readAllCoefficients(log comm.Logger, ctx context.Context) error
 func (x Product) readParams(log comm.Logger, ctx context.Context, ms *data.MeasurementCache) error {
 	rdr := x.newParamsReader()
 	for _, prm := range x.Device.VarsRng(x.Party.ProductType) {
-		err := rdr.getResponse(log, ctx, prm)
-		if err != nil {
+		if err := rdr.getResponse(log, ctx, prm); err != nil {
 			return err
 		}
 	}
 	for _, p := range x.Device.VarsRng(x.Party.ProductType) {
 		for i := modbus.Var(0); i < p[1]; i++ {
 			rdr.processParamValueRead(p, i, ms)
+		}
+	}
+	if x.Device.OnReadProduct != nil {
+		if err := x.Device.OnReadProduct(log, ctx, x.Product); err != nil {
+			return err
 		}
 	}
 	return nil

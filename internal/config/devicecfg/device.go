@@ -19,6 +19,8 @@ type Device struct {
 	Vars               []Vars                         `yaml:"vars,flow"`
 	CfsList            []Cfs                          `yaml:"cfs_list,flow"`
 	VarsFormat         map[modbus.Var]FloatBitsFormat `yaml:"vars_format"`
+	VarsNames          map[modbus.Var]string          `yaml:"vars_names"`
+	CfsNames           map[Kef]string                 `yaml:"cfs_names"`
 }
 
 type Kef uint16

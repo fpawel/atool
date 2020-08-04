@@ -128,7 +128,7 @@ func notifyComm(x comm.Info) {
 	}
 	go gui.NotifyNewCommTransaction(ct)
 
-	_, err := fmt.Fprintf(comportLogfile, "%s %s % X -> % X", time.Now().Format("15:04:05.000"), x.Port, x.Request, x.Response)
+	_, err := fmt.Fprintf(comportLogfile, "%s %s % X -> % X %s", time.Now().Format("15:04:05.000"), x.Port, x.Request, x.Response, x.Duration)
 	must.PanicIf(err)
 	if x.Err != nil {
 		_, err := fmt.Fprintf(comportLogfile, " %s", x.Err)

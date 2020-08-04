@@ -188,14 +188,19 @@ var (
 		"gas_type": {
 			Name: "Газовый блок: тип",
 			List: func() []string {
-				return []string{string(gas.Mil82), string(gas.Lab73CO)}
+				return gasTypes
 			},
 			Get: func() string {
 				return string(Cfg.Gas.Type)
 			},
 			Set: func(s string) error {
-				Cfg.Gas.Type = gas.DevType(s)
-				return nil
+				for _, v := range gasTypes {
+					if v == s {
+						Cfg.Gas.Type = gas.DevType(s)
+						return nil
+					}
+				}
+				return fmt.Errorf("invalid gas type: %q", s)
 			},
 		},
 
@@ -310,3 +315,5 @@ func init() {
 			})
 	}
 }
+
+var gasTypes = []string{string(gas.Mil82), string(gas.Lab73CO), string(gas.Ankat)}

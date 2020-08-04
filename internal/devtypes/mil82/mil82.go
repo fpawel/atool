@@ -16,8 +16,6 @@ var Device = devdata.Device{
 	InitParty:    initParty,
 	Config:       deviceConfig,
 	PartyParams:  partyParams,
-	VarsNames:    paramsNames,
-	CfsNames:     KfsNames,
 	Commands: []devdata.Cmd{
 		{Code: 1, Name: "Корректировка нуля"},
 		{Code: 2, Name: "Корректировка чувствительности"},
@@ -70,6 +68,8 @@ var (
 		CfsList: []devicecfg.Cfs{
 			{0, 50},
 		},
+		VarsNames: paramsNames,
+		CfsNames:  KfsNames,
 	}
 
 	partyParams = []devdata.PartyParam{

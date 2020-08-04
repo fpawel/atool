@@ -4,6 +4,7 @@ import (
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/cfgfile"
+	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
 	"github.com/fpawel/hardware/temp/ktx500"
 	"gopkg.in/yaml.v3"
@@ -80,6 +81,7 @@ func Load(hardware devicecfg.Hardware) (Config, error) {
 		x.Hardware = devicecfg.Hardware{}
 	}
 	x.addHardware(hardware)
+	comm.SetEnableLog(x.LogComm)
 	return x, nil
 }
 
