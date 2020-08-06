@@ -35,6 +35,24 @@ func initParty() error {
 		}
 	}
 
+	for _, key := range []string{
+		"d_chan1_sc_beg_t_norm",
+		"d_chan1_sc_mid_t_norm",
+		"d_chan1_sc_end_t_norm",
+		"d_chan1_sc_beg_t_low",
+		"d_chan1_sc_mid_t_low",
+		"d_chan1_sc_end_t_low",
+		"d_chan1_sc_beg_t_high",
+		"d_chan1_sc_mid_t_high",
+		"d_chan1_sc_end_t_high",
+	} {
+		if _, f := pv[key]; !f {
+			if err := data.SetCurrentPartyValue(key, 1); err != nil {
+				return err
+			}
+		}
+	}
+
 	if err := data.SetCurrentPartyValue(keyTempNorm.String(), 20); err != nil {
 		return err
 	}
