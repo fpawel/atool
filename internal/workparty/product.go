@@ -22,6 +22,17 @@ type Product struct {
 	devdata.Device
 }
 
+func NewProduct(product data.Product, party data.Party, partyValues data.Values, device devdata.Device) Product {
+	return Product{
+		Device: device,
+		Product: devdata.Product{
+			Product:     product,
+			Party:       party,
+			PartyValues: partyValues,
+		},
+	}
+}
+
 func (x Product) String() string {
 	return fmt.Sprintf("%s: %s", x.Device.Name, x.Product)
 }

@@ -1,11 +1,9 @@
 package ankt
 
 import (
-	"context"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/devtypes/ankt/anktvar"
 	"github.com/fpawel/atool/internal/devtypes/devdata"
-	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
 	"sort"
 	"time"
@@ -99,6 +97,10 @@ var (
 				Key:  keyTempHigh.String(),
 				Name: "уставка высокой температуры,⁰C",
 			},
+			{
+				Key:  keySendCmdSetWorkModeIntervalSec,
+				Name: "интервал отправки команды установки режима работы АНКАТ",
+			},
 		},
 		InitParty: initParty,
 		Work:      main,
@@ -126,9 +128,7 @@ var (
 			return []devdata.ProductTypeVars{xsC2, xsP}
 		}(),
 
-		OnReadProduct: func(log comm.Logger, ctx context.Context, product devdata.Product) error {
-			return setProductWorkMode(log, ctx, product, 2)
-		},
+		OnReadProduct: onReadProduct,
 
 		Calc: nil,
 	}

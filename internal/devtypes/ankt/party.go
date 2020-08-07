@@ -63,5 +63,11 @@ func initParty() error {
 		return err
 	}
 
+	if _, f := pv[keySendCmdSetWorkModeIntervalSec]; !f {
+		if err := data.SetCurrentPartyValue(keySendCmdSetWorkModeIntervalSec, 10); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

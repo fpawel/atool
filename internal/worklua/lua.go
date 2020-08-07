@@ -7,7 +7,6 @@ import (
 	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
-	"github.com/fpawel/atool/internal/devtypes/devdata"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/hardware"
 	"github.com/fpawel/atool/internal/pkg/numeth"
@@ -266,6 +265,9 @@ func (x *Import) getProducts(selectedOnly bool) (Products []*luaProduct) {
 	party, err := data.GetCurrentParty()
 	x.check(err)
 
+	partyValues, err := data.GetPartyValues1(party.PartyID)
+	x.check(err)
+
 	device, err := appcfg.GetDeviceByName(party.DeviceType)
 	x.check(err)
 
@@ -274,13 +276,7 @@ func (x *Import) getProducts(selectedOnly bool) (Products []*luaProduct) {
 		if selectedOnly && !p.Active {
 			continue
 		}
-		Products = append(Products, newLuaProduct(workparty.Product{
-			Device: device,
-			Product: devdata.Product{
-				Product: p,
-				Party:   party,
-			},
-		}, x))
+		Products = append(Products, newLuaProduct(workparty.NewProduct(p, party, partyValues, device), x))
 	}
 	return
 }

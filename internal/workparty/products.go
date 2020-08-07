@@ -8,7 +8,6 @@ import (
 	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
-	"github.com/fpawel/atool/internal/devtypes/devdata"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg"
 	"github.com/fpawel/atool/internal/pkg/intrng"
@@ -40,52 +39,40 @@ func ProcessEachActiveProduct(errs ErrorsOccurred, work WorkProduct) workgui.Wor
 			return err
 		}
 
+		partyValues, err := data.GetPartyValues1(party.PartyID)
+		if err != nil {
+			return err
+		}
+
 		if errs == nil {
 			errs = ErrorsOccurred{}
 		}
 
 		for _, p := range products {
 			p := p
-			workProduct := Product{
-				Product: devdata.Product{
-					Product: p,
-					Party:   party,
-				},
-				Device: device,
-			}
-
-			processErr := func(err error) {
-				if err == nil || merry.Is(err, context.Canceled) {
-					return
-				}
-				if _, f := errs[err.Error()]; f {
-					return
-				}
-				errs[err.Error()] = struct{}{}
-				workgui.NotifyErr(log, merry.Prependf(err, "%s", workProduct))
-			}
-
-			notifyConnection := func(ok bool) {
-				go gui.NotifyProductConnection(gui.ProductConnection{
-					ProductID: p.ProductID,
-					Ok:        ok,
-				})
-			}
 
 			go gui.Popupf("опрашивается %s", p)
 
-			err := work(log, ctx, Product{
-				Device: device,
-				Product: devdata.Product{
-					Product: p,
-					Party:   party,
-				},
-			})
+			err := work(log, ctx, NewProduct(p, party, partyValues, device))
 			if merry.Is(err, context.Canceled) {
 				return err
 			}
-			notifyConnection(err == nil)
-			processErr(err)
+			notifyConnection := func(errStr string) {
+				go gui.NotifyProductConnection(gui.ProductConnection{
+					ProductID: p.ProductID,
+					Error:     errStr,
+				})
+			}
+			if err != nil {
+				notifyConnection(err.Error())
+				if _, f := errs[err.Error()]; !f {
+					errs[err.Error()] = struct{}{}
+					workgui.NotifyErr(log, merry.Prependf(err, "%s", p))
+				}
+
+			} else {
+				notifyConnection("")
+			}
 		}
 		return nil
 	}
@@ -227,13 +214,7 @@ func WriteProdsCfs(productCoefficientValues []ProductCoefficientValue, handleErr
 			log := pkg.LogPrependSuffixKeys(log, "write_coefficient", x.Coefficient, "value", x.Value,
 				"product", fmt.Sprintf("%+v", product))
 
-			p := Product{
-				Product: devdata.Product{
-					Product: product,
-					Party:   party,
-				},
-				Device: device,
-			}
+			p := NewProduct(product, party, nil, device)
 			if err := p.WriteKef(x.Coefficient, device.Config.FloatFormat, x.Value)(log, ctx); err != nil {
 				if merry.Is(err, context.DeadlineExceeded) {
 					noAnswer[x.ProductID] = struct{}{}

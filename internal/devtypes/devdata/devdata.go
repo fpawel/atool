@@ -28,7 +28,8 @@ type Device struct {
 
 type Product struct {
 	data.Product
-	Party data.Party
+	Party       data.Party
+	PartyValues data.Values
 }
 
 type Config = devicecfg.Device

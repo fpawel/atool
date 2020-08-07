@@ -13,7 +13,7 @@ type CommTransaction struct {
 
 type ProductConnection struct {
 	ProductID int64
-	Ok        bool
+	Error     string
 }
 
 type ProductParamValue struct {

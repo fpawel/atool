@@ -123,6 +123,8 @@ const (
 	keyTempNorm keyTemp = "t_norm"
 	keyTempLow  keyTemp = "t_low"
 	keyTempHigh keyTemp = "t_high"
+
+	keySendCmdSetWorkModeIntervalSec = "send_cmd_set_work_mode_interval_sec"
 )
 
 func mapTemps(f func(temp keyTemp) string) (xs []string) {

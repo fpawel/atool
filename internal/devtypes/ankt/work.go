@@ -7,9 +7,7 @@ import (
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/devtypes/ankt/anktvar"
-	"github.com/fpawel/atool/internal/devtypes/devdata"
 	"github.com/fpawel/atool/internal/hardware"
-	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/pkg/numeth"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/atool/internal/workparty"
@@ -447,15 +445,6 @@ func (w wrk) holdTemp(temp keyTemp) workgui.WorkFunc {
 func blowGas(gas gas) workgui.WorkFunc {
 	gas.mustCheck()
 	return hardwareWarn.BlowGas(byte(gas))
-}
-
-func setProductWorkMode(log comm.Logger, ctx context.Context, product devdata.Product, mode float64) error {
-	_, err := modbus.Request{
-		Addr:     product.Addr,
-		ProtoCmd: 0x16,
-		Data:     append([]byte{0xA0, 0, 0, 2, 4}, modbus.BCD6(mode)...),
-	}.GetResponse(log, ctx, comports.Comm(product.Comport, deviceConfig))
-	return err
 }
 
 var (

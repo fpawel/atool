@@ -8,7 +8,6 @@ import (
 	"github.com/fpawel/atool/internal/config/appcfg"
 	"github.com/fpawel/atool/internal/config/devicecfg"
 	"github.com/fpawel/atool/internal/data"
-	"github.com/fpawel/atool/internal/devtypes/devdata"
 	"github.com/fpawel/atool/internal/gui"
 	"github.com/fpawel/atool/internal/pkg/comports"
 	"github.com/fpawel/atool/internal/pkg/intrng"
@@ -145,13 +144,7 @@ func SetNetAddr(productID int64, notifyComm func(comm.Info)) workgui.WorkFunc {
 			return err
 		}
 
-		workProduct := Product{
-			Device: device,
-			Product: devdata.Product{
-				Product: p,
-				Party:   party,
-			},
-		}
+		workProduct := NewProduct(p, party, nil, device)
 		return Work{
 			Name: fmt.Sprintf("%s: запись сетевого адреса %d", workProduct, p.Addr),
 			Func: func(log comm.Logger, ctx context.Context) error {
