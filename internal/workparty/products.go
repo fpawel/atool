@@ -16,7 +16,6 @@ import (
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
 	"math"
-	"sort"
 )
 
 type ErrorsOccurred map[string]struct{}
@@ -293,10 +292,13 @@ func (x InterpolateCfs) performProduct(productsValues data.ProductIDKeyValues, p
 			workgui.NotifyErr(log, merry.Prepend(err, "нет данных для расчёта"))
 			return nil
 		}
-		sort.Slice(dt, func(i, j int) bool {
-			return dt[i][0] < dt[i][1]
-		})
-		workgui.NotifyInfo(log, fmt.Sprintf("📝 таблица интерполяции: %v", dt))
+		var xs, ys []float64
+		for _, d := range dt {
+			xs = append(xs, d[0])
+			ys = append(ys, d[1])
+		}
+
+		workgui.NotifyInfo(log, fmt.Sprintf("📝 таблица интерполяции: x=%v y=%v", xs, ys))
 
 		r, ok := numeth.InterpolationCoefficients(dt)
 		if !ok {

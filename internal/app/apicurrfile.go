@@ -14,8 +14,10 @@ import (
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/atool/internal/workgui"
 	"github.com/fpawel/comm"
+	"github.com/fpawel/comm/modbus"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime/debug"
@@ -25,6 +27,87 @@ import (
 type currentFileSvc struct{}
 
 var _ api.CurrentFileService = new(currentFileSvc)
+
+type unixMillis = apitypes.TimeUnixMillis
+
+func (h *currentFileSvc) SaveChartAsText(_ context.Context, utmFrom unixMillis, utmTo unixMillis, chart string) error {
+	qProducts, qParams, err := selectProductParamsChart(chart)
+	if err != nil {
+		return err
+	}
+
+	timeFrom := unixMillisToTime(utmFrom)
+	timeTo := unixMillisToTime(utmTo)
+
+	sQ := fmt.Sprintf(`
+SELECT tm, product_id, addr, serial, param_addr, value FROM measurement 
+INNER JOIN product USING (product_id)
+WHERE product_id IN (%s) 
+  AND param_addr IN (%s) 
+  AND tm >= %d
+  AND tm <= %d
+ORDER BY product.created_at, product.created_order, param_addr, tm`,
+		qProducts, qParams, timeFrom.UnixNano(), timeTo.UnixNano())
+
+	var xsData []struct {
+		Tm        int64       `db:"tm"`
+		ProductID int64       `db:"product_id"`
+		Addr      modbus.Addr `db:"addr"`
+		Serial    int         `db:"serial"`
+		ParamAddr modbus.Var  `db:"param_addr"`
+		Value     float64     `db:"value"`
+	}
+
+	if err := data.DB.Select(&xsData, sQ); err != nil {
+		return err
+	}
+
+	filename := "chart.csv"
+
+	f, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("%s: %w", filename, err)
+	}
+
+	if _, err := f.WriteString("Дата,Время,ID,Адресс,Сер.№,Регистр,Параметр,Значение\n"); err != nil {
+		return err
+	}
+
+	party, err := data.GetCurrentParty()
+	if err != nil {
+		return err
+	}
+
+	d, _ := appcfg.Cfg.Hardware.GetDevice(party.DeviceType)
+
+	for _, x := range xsData {
+		t := time.Unix(0, x.Tm)
+
+		varName, _ := d.VarsNames[x.ParamAddr]
+
+		_, err := fmt.Fprintf(f, "%s,%d,%d,%d,%d,%d,%s,%v\n",
+			t.Format("2006-01-02-15:04:05.000"),
+			x.Tm,
+			x.ProductID,
+			x.Addr,
+			x.Serial, x.ParamAddr, varName, x.Value)
+		if err != nil {
+			return err
+		}
+	}
+	log.ErrIfFail(func() error {
+		return f.Close()
+	})
+
+	s1 := fmt.Sprintf("/select,%s", filename)
+	fmt.Println("explorer.exe", s1)
+	cmd := exec.Command("explorer.exe", s1)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func (h *currentFileSvc) RequestChart(_ context.Context) error {
 	go func() {

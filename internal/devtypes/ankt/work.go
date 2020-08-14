@@ -296,11 +296,11 @@ func (w wrk) calcLin1() work {
 			var dt []xy
 			for _, gas := range gases {
 				key := chan1.keyLin(gas)
-				y, ok := pv.Get(key)
+				x, ok := pv.Get(key)
 				if !ok {
 					return nil, merry.Errorf("нет значения %s", key)
 				}
-				dt = append(dt, xy{w.C[gas-1], y})
+				dt = append(dt, xy{x, w.C[gas-1]})
 			}
 			return dt, nil
 		},

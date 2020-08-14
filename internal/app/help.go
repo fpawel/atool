@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"github.com/ansel1/merry"
+	"github.com/fpawel/atool/internal/data"
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/comm/modbus"
 	"github.com/powerman/structlog"
@@ -12,6 +13,35 @@ import (
 )
 
 type logger = *structlog.Logger
+
+func selectProductParamsChart(chart string) (string, string, error) {
+	var xs []struct {
+		ProductID int64      `db:"product_id"`
+		ParamAddr modbus.Var `db:"param_addr"`
+	}
+	if err := data.DB.Select(&xs,
+		`SELECT DISTINCT product_id,param_addr
+FROM product_param
+WHERE chart = ?
+  AND series_active = TRUE
+  AND product_id IN (SELECT product_id FROM product WHERE party_id = (SELECT party_id FROM app_config))`, chart); err != nil {
+		return "", "", err
+	}
+	var qProductsXs, qParamsXs []string
+	mProducts := map[int64]struct{}{}
+	mParams := map[modbus.Var]struct{}{}
+	for _, p := range xs {
+		if _, f := mProducts[p.ProductID]; !f {
+			mProducts[p.ProductID] = struct{}{}
+			qProductsXs = append(qProductsXs, fmt.Sprintf("%d", p.ProductID))
+		}
+		if _, f := mParams[p.ParamAddr]; !f {
+			mParams[p.ParamAddr] = struct{}{}
+			qParamsXs = append(qParamsXs, fmt.Sprintf("%d", p.ParamAddr))
+		}
+	}
+	return strings.Join(qProductsXs, ","), strings.Join(qParamsXs, ","), nil
+}
 
 func formatBytes(xs []byte) string {
 	return fmt.Sprintf("% X", xs)

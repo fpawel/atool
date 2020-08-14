@@ -9,7 +9,6 @@ import (
 	"github.com/fpawel/atool/internal/thriftgen/apitypes"
 	"github.com/fpawel/atool/internal/workparty"
 	"github.com/fpawel/comm/modbus"
-	"strings"
 )
 
 type productSvc struct{}
@@ -69,21 +68,10 @@ func (h *productSvc) GetProductParamSeries(_ context.Context, productID int64, p
 }
 
 func (h *productSvc) DeleteChartPoints(_ context.Context, r *apitypes.DeleteChartPointsRequest) error {
-	var xs []data.ProductParam
-	if err := data.DB.Select(&xs, `SELECT * FROM product_param WHERE chart=? AND series_active=TRUE`, r.Chart); err != nil {
+	qProducts, qParams, err := selectProductParamsChart(r.Chart)
+	if err != nil {
 		return err
 	}
-	var qProductsXs, qParamsXs []string
-	mProducts := map[int64]struct{}{}
-	for _, p := range xs {
-		if _, f := mProducts[p.ProductID]; !f {
-			mProducts[p.ProductID] = struct{}{}
-			qProductsXs = append(qProductsXs, fmt.Sprintf("%d", p.ProductID))
-		}
-		qParamsXs = append(qParamsXs, fmt.Sprintf("%d", p.ParamAddr))
-	}
-	qProducts := strings.Join(qProductsXs, ",")
-	qParams := strings.Join(qParamsXs, ",")
 
 	timeFrom := unixMillisToTime(r.TimeFrom)
 	timeTo := unixMillisToTime(r.TimeTo)

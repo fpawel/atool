@@ -30,6 +30,8 @@ service CurrentFileService {
     void runEdit()
     void openFile(1:string filename)
     list<apitypes.WorkLogRecord> listWorkLogRecords()
+
+    void saveChartAsText(1:apitypes.TimeUnixMillis timeFrom, 2:apitypes.TimeUnixMillis timeTo, 3:string chart)
 }
 
 service ProductParamService {
@@ -113,3 +115,4 @@ service JournalService {
 service AppInfoService {
     apitypes.BuildInfo buildInfo()
 }
+
