@@ -31,7 +31,7 @@ service CurrentFileService {
     void openFile(1:string filename)
     list<apitypes.WorkLogRecord> listWorkLogRecords()
 
-    void saveChartAsText(1:apitypes.TimeUnixMillis timeFrom, 2:apitypes.TimeUnixMillis timeTo, 3:string chart)
+    void exportChart(1:string filename, 2:apitypes.TimeUnixMillis timeFrom, 3:apitypes.TimeUnixMillis timeTo, 4:string chart)
 }
 
 service ProductParamService {

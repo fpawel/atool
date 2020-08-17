@@ -9,7 +9,9 @@ require (
 	github.com/fpawel/gofins v0.0.0-20190517135525-2c568bd32bf8
 	github.com/fpawel/gotools v0.0.0-20191030125146-1d6c7465834c // indirect
 	github.com/fpawel/hardware v0.0.0-20200803130822-6fc913d94083
+	github.com/frankban/quicktest v1.10.1 // indirect
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
+	github.com/google/go-cmp v0.5.1 // indirect
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/jmoiron/sqlx v1.2.0
@@ -20,9 +22,12 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/powerman/structlog v0.7.1
 	github.com/stretchr/testify v1.5.1
+	github.com/tealeg/xlsx/v3 v3.2.0
 	github.com/yuin/gluamapper v0.0.0-20150323120927-d836955830e7
 	github.com/yuin/gopher-lua v0.0.0-20191220021717-ab39c6098bdb
 	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd // indirect
+	golang.org/x/text v0.3.3 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/yaml.v2 v2.2.8
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 	layeh.com/gopher-luar v1.0.7
