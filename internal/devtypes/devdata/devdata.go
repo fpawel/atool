@@ -18,7 +18,6 @@ type Device struct {
 	ProductTypes     []string
 	Config           Config
 	PartyParams      []PartyParam
-	Commands         []Cmd
 	ProductTypesVars []ProductTypeVars
 	InitParty        func() error
 	Calc             func(data.PartyValues, *CalcSections) error
@@ -37,11 +36,6 @@ type Config = devicecfg.Device
 type ProductTypeVars struct {
 	Names         []string
 	ParamsRngList []devicecfg.Vars
-}
-
-type Cmd struct {
-	Code modbus.DevCmd `yaml:"code"`
-	Name string        `yaml:"name"`
 }
 
 type PartyParam struct {

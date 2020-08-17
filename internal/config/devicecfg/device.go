@@ -21,6 +21,7 @@ type Device struct {
 	VarsFormat         map[modbus.Var]FloatBitsFormat `yaml:"vars_format"`
 	VarsNames          map[modbus.Var]string          `yaml:"vars_names"`
 	CfsNames           map[Kef]string                 `yaml:"cfs_names"`
+	Commands           map[modbus.DevCmd]string       `yaml:"commands_names"`
 }
 
 type Kef uint16

@@ -17,7 +17,6 @@ import (
 	luar "layeh.com/gopher-luar"
 	"path/filepath"
 	"strconv"
-	"strings"
 )
 
 type runWorkSvc struct{}
@@ -92,8 +91,9 @@ func (h *runWorkSvc) SendDeviceCommand(_ context.Context, req *apitypes.RequestD
 	errInvalidArg := func(err error) error {
 		return fmt.Errorf("invalid argument %s %q: %w", req.Format, req.Argument, err)
 	}
-	strFormat := strings.ToLower(req.Format)
-	if strFormat == "hex" {
+	var fFmt modbus.FloatBitsFormat
+	switch req.Format {
+	case "HEX":
 		dtBytes, err := parseHexBytes(req.Argument)
 		if err != nil {
 			return errInvalidArg(err)
@@ -103,8 +103,15 @@ func (h *runWorkSvc) SendDeviceCommand(_ context.Context, req *apitypes.RequestD
 		}
 		runSingleTask(workparty.NewWorkWrite32Bytes(modbus.ProtoCmd(req.CmdModbus), devCmd, dtBytes).Func)
 		return nil
+	case "BE":
+		fFmt = modbus.FloatBigEndian
+	case "LE":
+		fFmt = modbus.FloatLittleEndian
+	case "BCD":
+		fFmt = modbus.BCD
+	default:
+		return errInvalidArg(fmt.Errorf("не правильный формат %q", req.Format))
 	}
-	fFmt := modbus.FloatBitsFormat(strFormat)
 	if err := fFmt.Validate(); err != nil {
 		return errInvalidArg(err)
 	}
@@ -130,9 +137,9 @@ func parseDevCmdCode(name string) (modbus.DevCmd, bool) {
 		return 0, false
 	}
 
-	for _, c := range device.Commands {
-		if c.Name == name {
-			return c.Code, true
+	for c, cName := range device.Config.Commands {
+		if cName == name {
+			return c, true
 		}
 	}
 	return 0, false

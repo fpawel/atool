@@ -16,11 +16,6 @@ var Device = devdata.Device{
 	InitParty:    initParty,
 	Config:       deviceConfig,
 	PartyParams:  partyParams,
-	Commands: []devdata.Cmd{
-		{Code: 1, Name: "Корректировка нуля"},
-		{Code: 2, Name: "Корректировка чувствительности"},
-		{Code: 8, Name: "Нормировка"},
-	},
 }
 
 const (
@@ -70,6 +65,11 @@ var (
 		},
 		VarsNames: paramsNames,
 		CfsNames:  KfsNames,
+		Commands: map[modbus.DevCmd]string{
+			1: "Корректировка нуля",
+			2: "Корректировка чувствительности",
+			8: "Нормировка",
+		},
 	}
 
 	partyParams = []devdata.PartyParam{

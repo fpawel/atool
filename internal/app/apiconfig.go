@@ -55,8 +55,8 @@ func (*appConfigSvc) CurrentDeviceInfo(context.Context) (*apitypes.DeviceInfo, e
 		r.Coefficients = append(r.Coefficients, kef)
 	}
 
-	for _, c := range device.Commands {
-		r.Commands = append(r.Commands, c.Name)
+	for _, s := range device.Config.Commands {
+		r.Commands = append(r.Commands, s)
 	}
 	return r, nil
 }

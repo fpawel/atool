@@ -95,10 +95,8 @@ func NewWorkWrite32Bytes(cmdProto modbus.ProtoCmd, cmdDevice modbus.DevCmd, data
 	party, _ := data.GetCurrentParty()
 	device, _ := appcfg.GetDeviceByName(party.DeviceType)
 
-	for _, c := range device.Commands {
-		if c.Code == cmdDevice {
-			what += ": " + c.Name
-		}
+	if s, f := device.Config.Commands[cmdDevice]; f {
+		what += ": " + s
 	}
 	return Work{
 		Name: what,
