@@ -125,9 +125,10 @@ struct JournalEntry {
 
 struct BuildInfo {
     1:string commit
-    2:string uuid
-    3:string date
-    4:string time
+    2:string commitGui
+    3:string uuid
+    4:string date
+    5:string time
 }
 
 struct WorkLogRecord {

@@ -6,18 +6,20 @@ import (
 )
 
 var (
-	GitCommit string
-	BuildUUID string
-	BuildDate string
-	BuildTime string
+	GitCommit    string
+	GitCommitGui string
+	BuildUUID    string
+	BuildDate    string
+	BuildTime    string
 )
 
 func main() {
 	pkg.InitLog()
 	app.Main(app.BuildInfo{
-		Commit: GitCommit,
-		UUID:   BuildUUID,
-		Date:   BuildDate,
-		Time:   BuildTime,
+		CommitGui: GitCommitGui,
+		Commit:    GitCommit,
+		UUID:      BuildUUID,
+		Date:      BuildDate,
+		Time:      BuildTime,
 	})
 }

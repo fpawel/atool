@@ -29,10 +29,11 @@ import (
 )
 
 type BuildInfo struct {
-	Commit string
-	UUID   string
-	Date   string
-	Time   string
+	Commit    string
+	CommitGui string
+	UUID      string
+	Date      string
+	Time      string
 }
 
 func Main(buildInfoIn BuildInfo) {
