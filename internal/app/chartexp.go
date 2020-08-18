@@ -86,7 +86,7 @@ func exportChartCsv(filename string, chartPoints []chartPoint) error {
 		return fmt.Errorf("%s: %w", filename, err)
 	}
 
-	if _, err := f.WriteString("Дата,Время,ID,Адресс,Сер.№,Регистр,Параметр,Значение\n"); err != nil {
+	if _, err := f.WriteString("Дата,Время,UnixMs,ID,Адресс,Сер.№,Регистр,Параметр,Значение\n"); err != nil {
 		return err
 	}
 
@@ -102,8 +102,9 @@ func exportChartCsv(filename string, chartPoints []chartPoint) error {
 
 		varName, _ := d.VarsNames[x.ParamAddr]
 
-		_, err := fmt.Fprintf(f, "%s,%d,%d,%d,%d,%d,%s,%v\n",
-			t.Format("2006-01-02-15:04:05.000"),
+		_, err := fmt.Fprintf(f, "%s,%s,%d,%d,%d,%d,%d,%s,%v\n",
+			t.Format("02.01.06"),
+			t.Format("15:04:05.000"),
 			t.Unix(),
 			x.ProductID,
 			x.Addr,
@@ -135,18 +136,14 @@ func exportChartXls(filename string, chartPoints []chartPoint) error {
 	}
 
 	row := sh.AddRow()
-	for _, s := range []string{"Дата", "Время", "ID", "Адресс", "Сер.№", "Регистр", "Параметр", "Значение"} {
+	for _, s := range []string{"Дата", "Время", "Unix", "ID", "Адресс", "Сер.№", "Регистр", "Параметр", "Значение"} {
 		row.AddCell().SetValue(s)
 	}
 
 	for _, x := range chartPoints {
-		t := time.Unix(0, x.Tm)
-		varName, _ := d.VarsNames[x.ParamAddr]
 
 		r := sh.AddRow()
-		r.AddCell().SetValue(t.Format("2006-01-02-15:04:05.000"))
-
-		appendInt64 := func(v int64) {
+		appendInt := func(v int64) {
 			c := r.AddCell()
 			c.NumFmt = "0"
 			c.SetValue(float64(v))
@@ -156,11 +153,17 @@ func exportChartXls(filename string, chartPoints []chartPoint) error {
 			r.AddCell().SetValue(v)
 		}
 
-		appendInt64(t.Unix())
-		appendInt64(x.ProductID)
-		appendInt64(int64(x.Addr))
-		appendInt64(int64(x.Serial))
-		appendInt64(int64(x.ParamAddr))
+		t := time.Unix(0, x.Tm)
+		varName, _ := d.VarsNames[x.ParamAddr]
+
+
+		appendStr(t.Format("02.01.06"))
+		appendStr(t.Format("15:04:05.000"))
+		appendInt(t.Unix())
+		appendInt(x.ProductID)
+		appendInt(int64(x.Addr))
+		appendInt(int64(x.Serial))
+		appendInt(int64(x.ParamAddr))
 		appendStr(varName)
 
 		c := r.AddCell()

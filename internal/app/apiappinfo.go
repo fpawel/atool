@@ -11,11 +11,17 @@ type appInfoSvc struct{}
 var _ api.AppInfoService = new(appInfoSvc)
 
 func (*appInfoSvc) BuildInfo(context.Context) (*apitypes.BuildInfo, error) {
+	orNone := func(s string) string {
+		if s != ""{
+			return s
+		}
+		return "DEVELOP"
+	}
 	return &apitypes.BuildInfo{
-		Commit:    buildInfo.Commit,
-		CommitGui: buildInfo.CommitGui,
-		UUID:      buildInfo.UUID,
-		Date:      buildInfo.Date,
-		Time:      buildInfo.Time,
+		Commit:    orNone(buildInfo.Commit),
+		CommitGui: orNone(buildInfo.CommitGui),
+		UUID:      orNone(buildInfo.UUID),
+		Date:      orNone(buildInfo.Date),
+		Time:      orNone(buildInfo.Time),
 	}, nil
 }

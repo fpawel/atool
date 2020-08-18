@@ -1,7 +1,11 @@
 .idea
+logs
 build/*
 !build/lua/
 !build/web/
 internal/thriftgen
 internal/data/sql_create_generated.go
+internal/pkg/logjrn/sql_schema_generated.go
 *.qtpl.go
+
+
